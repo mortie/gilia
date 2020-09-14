@@ -2,6 +2,35 @@
 
 #include <stdlib.h>
 
+const char *l2_token_kind_name(enum l2_token_kind kind) {
+	switch (kind) {
+	case L2_TOK_OPEN_PAREN:
+		return "open-paren";
+	case L2_TOK_CLOSE_PAREN:
+		return "close-paren";
+	case L2_TOK_OPEN_BRACE:
+		return "open-brace";
+	case L2_TOK_CLOSE_BRACE:
+		return "close-brace";
+	case L2_TOK_OPEN_BRACKET:
+		return "open-bracket";
+	case L2_TOK_CLOSE_BRACKET:
+		return "close-bracket";
+	case L2_TOK_COMMA:
+		return "comma";
+	case L2_TOK_PERIOD:
+		return "period";
+	case L2_TOK_EOF:
+		return "end-of-file";
+	case L2_TOK_NUMBER:
+		return "number";
+	case L2_TOK_STRING:
+		return "string";
+	case L2_TOK_ERROR:
+		return "error";
+	}
+}
+
 void l2_token_free(struct l2_token *tok) {
 	if (tok->kind == L2_TOK_STRING) {
 		free(tok->v.str);
