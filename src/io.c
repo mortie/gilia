@@ -2,18 +2,25 @@
 
 #include <stdlib.h>
 
-void l2_bufio_shift(struct l2_bufio_reader *b, struct l2_io_reader *r) {
+void l2_bufio_reader_init(struct l2_bufio_reader *b, struct l2_io_reader *r) {
+	b->r = r;
+	b->len = 0;
+	b->idx = 0;
+}
+
+void l2_bufio_shift(struct l2_bufio_reader *b) {
 	if (b->idx > 0) {
 		b->len -= b->idx;
 		memmove(b->buf, b->buf + b->idx, b->len);
-		b->len += r->read(r, b->buf + b->len, b->bufsiz - b->len);
-		b->idx = 0;
 	}
+
+	b->len += b->r->read(b->r, b->buf + b->len, sizeof(b->buf) - b->len);
+	b->idx = 0;
 }
 
-int l2_bufio_shift_peek(struct l2_bufio_reader *b, struct l2_io_reader *r, size_t count) {
+int l2_bufio_shift_peek(struct l2_bufio_reader *b, size_t count) {
 	size_t offset = count - 1;
-	l2_bufio_shift(b, r);
+	l2_bufio_shift(b);
 	if (b->len <= offset) {
 		return EOF;
 	}
@@ -21,8 +28,8 @@ int l2_bufio_shift_peek(struct l2_bufio_reader *b, struct l2_io_reader *r, size_
 	return b->buf[offset];
 }
 
-int l2_bufio_shift_get(struct l2_bufio_reader *b, struct l2_io_reader *r) {
-	l2_bufio_shift(b, r);
+int l2_bufio_shift_get(struct l2_bufio_reader *b) {
+	l2_bufio_shift(b);
 	if (b->len == 0) {
 		return EOF;
 	}
@@ -30,8 +37,13 @@ int l2_bufio_shift_get(struct l2_bufio_reader *b, struct l2_io_reader *r) {
 	return b->buf[b->idx++];
 }
 
-void l2_bufio_flush(struct l2_bufio_writer *b, struct l2_io_writer *w) {
-	w->write(w, b->buf, b->idx);
+void l2_bufio_writer_init(struct l2_bufio_writer *b, struct l2_io_writer *w) {
+	b->w = w;
+	b->idx = 0;
+}
+
+void l2_bufio_flush(struct l2_bufio_writer *b) {
+	b->w->write(b->w, b->buf, b->idx);
 	b->idx = 0;
 }
 
