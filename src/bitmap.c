@@ -12,12 +12,23 @@ static l2_bitmap_entry first_unset_bit(l2_bitmap_entry n) {
 	return ~n & (n + 1);
 }
 
-#if defined(__GLIBC__) && ( \
+#if 0 && defined(__GLIBC__) && ( \
 		(__GLIBC__>= 2 && __GLIBC_MINOR__ >= 27) || \
 		_GNU_SOURCE)
 #define first_set ffsll
 #else
 static int first_set(l2_bitmap_entry n) {
+	if (n == 0) {
+		return 0;
+	}
+
+	int num = 1;
+	while ((n & 1) == 0) {
+		n >>= 1;
+		num += 1;
+	}
+
+	return num;
 }
 #endif
 
