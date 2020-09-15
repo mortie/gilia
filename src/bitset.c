@@ -12,7 +12,7 @@ static l2_bitset_entry first_unset_bit(l2_bitset_entry n) {
 	return ~n & (n + 1);
 }
 
-#if 0 && defined(__GLIBC__) && ( \
+#if defined(__GLIBC__) && ( \
 		(__GLIBC__>= 2 && __GLIBC_MINOR__ >= 27) || \
 		_GNU_SOURCE)
 #define first_set ffsll
