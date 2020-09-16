@@ -1,31 +1,32 @@
 #include "vm/vm.h"
-#include "bitmap.h"
+#include "bitset.h"
 
 #include <stdio.h>
 #include <assert.h>
 
 int main() {
-	struct l2_bitmap bm;
-	l2_bitmap_init(&bm);
+	struct l2_bitset bs;
+	l2_bitset_init(&bs);
+
 	for (size_t i = 0; i < 8191; ++i) {
-		size_t id = l2_bitmap_set_next(&bm);
+		size_t id = l2_bitset_set_next(&bs);
 		assert(id == i);
-		assert(l2_bitmap_get(&bm, i));
+		assert(l2_bitset_get(&bs, i));
 	}
 
 	for (size_t i = 0; i < 10000; ++i) {
 		if (i < 8191) {
-			assert(l2_bitmap_get(&bm, i));
+			assert(l2_bitset_get(&bs, i));
 		} else {
-			assert(!l2_bitmap_get(&bm, i));
+			assert(!l2_bitset_get(&bs, i));
 		}
 	}
 
-	l2_bitmap_unset(&bm, 100);
-	assert(l2_bitmap_set_next(&bm) == 8191);
-	assert(l2_bitmap_set_next(&bm) == 100);
+	l2_bitset_unset(&bs, 100);
+	assert(l2_bitset_set_next(&bs) == 8191);
+	assert(l2_bitset_set_next(&bs) == 100);
 
-	l2_bitmap_free(&bm);
+	l2_bitset_free(&bs);
 }
 
 /*

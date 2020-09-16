@@ -75,7 +75,7 @@ size_t l2_bitset_set_next(struct l2_bitset *bs) {
 		return ret;
 	}
 
-	// Ok, this entry is full then...
+	// Ok, this table is full then...
 	l2_bitset_entry *dir = &bs->dirs[bs->currdir];
 	*dir |= (l2_bitset_entry)1 << (bs->currtable % ENTSIZ);
 
