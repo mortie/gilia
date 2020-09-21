@@ -3,26 +3,31 @@
 
 #include <stdlib.h>
 
-#include "../bytecode.h"
+#include "bytecode.h"
+#include "bitset.h"
 
-enum {
-	L2_VAL_TYPE_STRING = (1 << 30) + 0,
-	L2_VAL_TYPE_ARRAY  = (1 << 30) + 1,
-	L2_VAL_MARKED = 1 << 29,
-};
 struct l2_vm_value {
-	l2_word flags;
+	enum l2_value_flags {
+		L2_VAL_TYPE_INTEGER,
+		L2_VAL_TYPE_REAL,
+		L2_VAL_TYPE_STRING,
+		L2_VAL_TYPE_ARRAY,
+		L2_VAL_MARKED = 1 << 7,
+	} flags;
+	union {
+		int64_t integer;
+		double real;
+		void *data;
+	};
 };
 
 struct l2_vm_string {
 	struct l2_vm_value val;
-	char *mem;
 	size_t len;
 };
 
 struct l2_vm_array {
 	struct l2_vm_value val;
-	l2_word *data;
 	size_t len;
 	size_t size;
 };
@@ -31,8 +36,9 @@ struct l2_vm {
 	struct l2_op *ops;
 	size_t opcount;
 
-	struct l2_vm_value *allocs[1024];
-	size_t allocslen;
+	struct l2_vm_value *values;
+	size_t valuessize;
+	struct l2_bitset valueset;
 
 	l2_word stack[1024];
 	l2_word iptr;
