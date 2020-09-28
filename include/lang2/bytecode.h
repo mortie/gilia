@@ -6,21 +6,22 @@
 typedef uint32_t l2_word;
 
 enum l2_opcode {
+	L2_OP_NOP,
 	L2_OP_PUSH,
+	L2_OP_POP,
+	L2_OP_DUP,
 	L2_OP_ADD,
 	L2_OP_JUMP,
 	L2_OP_CALL,
 	L2_OP_RET,
-	L2_OP_ALLOC_INTEGER,
-	L2_OP_ALLOC_REAL,
-	L2_OP_ALLOC_STRING,
+	L2_OP_ALLOC_INTEGER_32,
+	L2_OP_ALLOC_INTEGER_64,
+	L2_OP_ALLOC_REAL_32,
+	L2_OP_ALLOC_REAL_64,
 	L2_OP_ALLOC_ARRAY,
+	L2_OP_ALLOC_BUFFER,
+	L2_OP_ALLOC_BUFFER_CONST,
 	L2_OP_HALT,
-};
-
-struct l2_op {
-	enum l2_opcode code;
-	l2_word val;
 };
 
 #endif
