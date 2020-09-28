@@ -21,10 +21,9 @@ void print_var(struct l2_vm_value *val) {
 	case L2_VAL_TYPE_ARRAY:
 		{
 			struct l2_vm_array *arr = (struct l2_vm_array *)val->data;
-			l2_word *data = (l2_word *)((char *)arr + sizeof(struct l2_vm_array));
 			printf("ARRAY, len %zu\n", arr->len);
 			for (size_t i = 0; i < arr->len; ++i) {
-				printf("    %zu: %u\n", i, data[i]);
+				printf("    %zu: %u\n", i, arr->data[i]);
 			}
 		}
 		break;
@@ -32,10 +31,9 @@ void print_var(struct l2_vm_value *val) {
 	case L2_VAL_TYPE_BUFFER:
 		{
 			struct l2_vm_buffer *buf = (struct l2_vm_buffer *)val->data;
-			char *data = (char *)buf + sizeof(struct l2_vm_buffer);
 			printf("BUFFER, len %zu\n", buf->len);
 			for (size_t i = 0; i < buf->len; ++i) {
-				printf("    %zu: %c\n", i, data[i]);
+				printf("    %zu: %c\n", i, buf->data[i]);
 			}
 		}
 		break;
@@ -89,4 +87,6 @@ int main() {
 			print_var(&vm.values[i]);
 		}
 	}
+
+	l2_vm_free(&vm);
 }

@@ -42,9 +42,8 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 	int typ = val->flags & 0x0f;
 	if (typ == L2_VAL_TYPE_ARRAY) {
 		struct l2_vm_array *arr = (struct l2_vm_array *)val->data;
-		l2_word *ids = (l2_word *)((char *)arr + sizeof(struct l2_vm_array));
 		for (size_t i = 0; i < arr->len; ++i) {
-			gc_mark(vm, ids[i]);
+			gc_mark(vm, arr->data[i]);
 		}
 	}
 }
@@ -95,6 +94,20 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	// variable ID 0 should be the only 'none' variable in the system
 	l2_word none_id = alloc_val(vm);
 	vm->values[none_id].flags = L2_VAL_TYPE_NONE | L2_VAL_CONST;
+}
+
+void l2_vm_free(struct l2_vm *vm) {
+	// Skip ID 0, because that should always exist
+	for (size_t i = 1; i < vm->valuessize; ++i) {
+		if (!l2_bitset_get(&vm->valueset, i)) {
+			continue;
+		}
+
+		gc_free(vm, i);
+	}
+
+	free(vm->values);
+	l2_bitset_free(&vm->valueset);
 }
 
 size_t l2_vm_gc(struct l2_vm *vm) {
@@ -202,15 +215,6 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->sptr += 1;
 		break;
 
-	case L2_OP_ALLOC_ARRAY:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_ARRAY;
-		vm->values[word].data = calloc(1, sizeof(struct l2_vm_array));
-		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
-		vm->sptr += 1;
-		break;
-
 	case L2_OP_ALLOC_BUFFER:
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_BUFFER;
@@ -235,6 +239,24 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->stackflags[vm->sptr] = 1;
 			vm->sptr += 1;
 		}
+		break;
+
+	case L2_OP_ALLOC_ARRAY:
+		word = alloc_val(vm);
+		vm->values[word].flags = L2_VAL_TYPE_ARRAY;
+		vm->values[word].data = calloc(1, sizeof(struct l2_vm_array));
+		vm->stack[vm->sptr] = word;
+		vm->stackflags[vm->sptr] = 1;
+		vm->sptr += 1;
+		break;
+
+	case L2_OP_ALLOC_MAP:
+		word = alloc_val(vm);
+		vm->values[word].flags = L2_VAL_TYPE_MAP;
+		vm->values[word].data = calloc(1, sizeof(struct l2_vm_map));
+		vm->stack[vm->sptr] = word;
+		vm->stackflags[vm->sptr] = 1;
+		vm->sptr += 1;
 		break;
 
 	case L2_OP_HALT:

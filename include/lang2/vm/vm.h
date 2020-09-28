@@ -11,8 +11,9 @@ struct l2_vm_value {
 		L2_VAL_TYPE_NONE,
 		L2_VAL_TYPE_INTEGER,
 		L2_VAL_TYPE_REAL,
-		L2_VAL_TYPE_ARRAY,
 		L2_VAL_TYPE_BUFFER,
+		L2_VAL_TYPE_ARRAY,
+		L2_VAL_TYPE_MAP,
 		L2_VAL_MARKED = 1 << 7,
 		L2_VAL_CONST = 1 << 8,
 	} flags;
@@ -24,14 +25,20 @@ struct l2_vm_value {
 };
 
 struct l2_vm_buffer {
-	struct l2_vm_value val;
 	size_t len;
+	char data[];
 };
 
 struct l2_vm_array {
-	struct l2_vm_value val;
 	size_t len;
 	size_t size;
+	l2_word data[];
+};
+
+struct l2_vm_map {
+	size_t len;
+	size_t size;
+	l2_word data[];
 };
 
 struct l2_vm {
@@ -49,6 +56,7 @@ struct l2_vm {
 };
 
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);
+void l2_vm_free(struct l2_vm *vm);
 void l2_vm_step(struct l2_vm *vm);
 void l2_vm_run(struct l2_vm *vm);
 size_t l2_vm_gc(struct l2_vm *vm);
