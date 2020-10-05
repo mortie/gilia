@@ -1,13 +1,10 @@
 #include "vm/vm.h"
 
-#include <stdio.h>
-
 static const l2_word tombstone = ~(l2_word)0;
 
 static struct l2_vm_namespace *set(struct l2_vm_namespace *ns, l2_word key, l2_word val);
 
 static struct l2_vm_namespace *alloc(size_t size, l2_word mask) {
-	printf("alloc, size %zu, mask allows up to [%u]\n", size, mask);
 	struct l2_vm_namespace *ns = calloc(
 			1, sizeof(struct l2_vm_namespace) + sizeof(l2_word) * size * 2);
 	ns->size = size;
@@ -60,10 +57,8 @@ static void del(struct l2_vm_namespace *ns, l2_word key) {
 static struct l2_vm_namespace *set(struct l2_vm_namespace *ns, l2_word key, l2_word val) {
 	if (ns == NULL) {
 		ns = alloc(16, 0x0f);
-		printf("alloc to %zu\n", ns->size);
 	} else if (ns->len >= ns->size / 2) {
 		ns = grow(ns);
-		printf("grew to %zu\n", ns->size);
 	}
 
 	for (l2_word i = 0; ; ++i) {
@@ -98,7 +93,6 @@ static l2_word get(struct l2_vm_namespace *ns, l2_word key) {
 		if (k == 0) {
 			return 0;
 		} else if (k == key) {
-			printf("found, %i collisions\n", i);
 			return ns->data[ns->size + hash];
 		}
 	}
