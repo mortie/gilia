@@ -41,9 +41,27 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 
 	int typ = val->flags & 0x0f;
 	if (typ == L2_VAL_TYPE_ARRAY) {
+		if (val->data == NULL) {
+			return;
+		}
+
 		struct l2_vm_array *arr = (struct l2_vm_array *)val->data;
 		for (size_t i = 0; i < arr->len; ++i) {
 			gc_mark(vm, arr->data[i]);
+		}
+	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
+		if (val->data == NULL) {
+			return;
+		}
+
+		struct l2_vm_namespace *ns = (struct l2_vm_namespace *)val->data;
+		for (size_t i = 0; i < ns->size; ++i) {
+			l2_word key = ns->data[i];
+			if (key == 0 || key == ~(l2_word)0) {
+				continue;
+			}
+
+			gc_mark(vm, ns->data[ns->size + i]);
 		}
 	}
 }
@@ -54,7 +72,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 	l2_bitset_unset(&vm->valueset, id);
 
 	int typ = val->flags & 0x0f;
-	if (typ == L2_VAL_TYPE_ARRAY || typ == L2_VAL_TYPE_BUFFER) {
+	if (typ == L2_VAL_TYPE_ARRAY || typ == L2_VAL_TYPE_BUFFER || typ == L2_VAL_TYPE_NAMESPACE) {
 		free(val->data);
 		// Don't need to do anything more; the next round of GC will free
 		// whichever values were only referenced by the array
@@ -157,12 +175,6 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->sptr -= 1;
 		break;
 
-	case L2_OP_JUMP:
-		vm->iptr = vm->stack[vm->sptr - 1];
-		vm->stackflags[vm->sptr - 1] = 0;
-		vm->sptr -= 1;
-		break;
-
 	case L2_OP_CALL:
 		word = vm->stack[vm->sptr - 1];
 		vm->stack[vm->sptr - 1] = vm->iptr + 1;
@@ -215,16 +227,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->sptr += 1;
 		break;
 
-	case L2_OP_ALLOC_BUFFER:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_BUFFER;
-		vm->values[word].data = calloc(1, sizeof(struct l2_vm_buffer));
-		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
-		vm->sptr += 1;
-		break;
-
-	case L2_OP_ALLOC_BUFFER_CONST:
+	case L2_OP_ALLOC_BUFFER_STATIC:
 		{
 			word = alloc_val(vm);
 			l2_word length = vm->stack[--vm->sptr];
@@ -241,19 +244,31 @@ void l2_vm_step(struct l2_vm *vm) {
 		}
 		break;
 
+	case L2_OP_ALLOC_BUFFER_ZERO:
+		{
+			word = alloc_val(vm);
+			l2_word length = vm->stack[--vm->sptr];
+			vm->values[word].flags = L2_VAL_TYPE_BUFFER;
+			vm->values[word].data = calloc(1, sizeof(struct l2_vm_buffer) + length);
+			((struct l2_vm_buffer *)vm->values[word].data)->len = length;
+			vm->stack[vm->sptr] = word;
+			vm->stackflags[vm->sptr] = 1;
+			vm->sptr += 1;
+		}
+
 	case L2_OP_ALLOC_ARRAY:
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_ARRAY;
-		vm->values[word].data = calloc(1, sizeof(struct l2_vm_array));
+		vm->values[word].data = NULL; // Will be allocated on first insert
 		vm->stack[vm->sptr] = word;
 		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
 		break;
 
-	case L2_OP_ALLOC_MAP:
+	case L2_OP_ALLOC_NAMESPACE:
 		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_MAP;
-		vm->values[word].data = calloc(1, sizeof(struct l2_vm_map));
+		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
+		vm->values[word].data = NULL; // Will be allocated on first insert
 		vm->stack[vm->sptr] = word;
 		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;

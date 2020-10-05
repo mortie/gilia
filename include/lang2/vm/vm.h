@@ -13,7 +13,7 @@ struct l2_vm_value {
 		L2_VAL_TYPE_REAL,
 		L2_VAL_TYPE_BUFFER,
 		L2_VAL_TYPE_ARRAY,
-		L2_VAL_TYPE_MAP,
+		L2_VAL_TYPE_NAMESPACE,
 		L2_VAL_MARKED = 1 << 7,
 		L2_VAL_CONST = 1 << 8,
 	} flags;
@@ -35,11 +35,19 @@ struct l2_vm_array {
 	l2_word data[];
 };
 
-struct l2_vm_map {
+void l2_vm_array_mark(struct l2_vm_value *arr);
+
+struct l2_vm_namespace {
+	struct l2_vm_value *parent;
 	size_t len;
 	size_t size;
+	l2_word mask;
 	l2_word data[];
 };
+
+void l2_vm_namespace_mark(struct l2_vm_value *ns);
+void l2_vm_namespace_set(struct l2_vm_value *ns, l2_word key, l2_word val);
+l2_word l2_vm_namespace_get(struct l2_vm_value *ns, l2_word key);
 
 struct l2_vm {
 	l2_word *ops;
