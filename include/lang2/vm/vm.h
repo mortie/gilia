@@ -3,8 +3,8 @@
 
 #include <stdlib.h>
 
-#include "bytecode.h"
-#include "bitset.h"
+#include "../bytecode.h"
+#include "../bitset.h"
 
 struct l2_vm_value {
 	enum l2_value_flags {

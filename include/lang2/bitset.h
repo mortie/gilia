@@ -2,7 +2,6 @@
 #define L2_BITSET_H
 
 #include <stdlib.h>
-#include <stdint.h>
 
 typedef long long int l2_bitset_entry;
 

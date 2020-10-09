@@ -1,7 +1,7 @@
 #ifndef L2_PARSE_LEX_H
 #define L2_PARSE_LEX_H
 
-#include "io.h"
+#include "../io.h"
 
 enum l2_token_kind {
 	L2_TOK_OPEN_PAREN,

@@ -37,7 +37,7 @@ struct l2_bufio_writer {
 void l2_bufio_writer_init(struct l2_bufio_writer *b, struct l2_io_writer *w);
 void l2_bufio_flush(struct l2_bufio_writer *b);
 static inline void l2_bufio_put(struct l2_bufio_writer *b, char ch);
-static inline void l2_bufio_put_n(struct l2_bufio_writer *b, const char *ptr, size_t len);
+static inline void l2_bufio_put_n(struct l2_bufio_writer *b, const void *ptr, size_t len);
 
 /*
  * Useful readers and writers
@@ -98,7 +98,7 @@ static inline void l2_bufio_put(struct l2_bufio_writer *b, char ch) {
 	b->buf[b->idx++] = ch;
 }
 
-static inline void l2_bufio_put_n(struct l2_bufio_writer *b, const char *ptr, size_t len) {
+static inline void l2_bufio_put_n(struct l2_bufio_writer *b, const void *ptr, size_t len) {
 	size_t freespace = sizeof(b->buf) - b->idx;
 	if (len < freespace) {
 		memcpy(b->buf + b->idx, ptr, len);
