@@ -1,1 +1,2 @@
 includes := include/lang2
+files := src
