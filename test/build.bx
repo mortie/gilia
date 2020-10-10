@@ -1,0 +1,5 @@
+files := src ../lib
+includes := snow ../include/lang2
+defines := SNOW_ENABLED
+sanitizers := address
+cflags := -g -O3
