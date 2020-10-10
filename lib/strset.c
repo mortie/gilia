@@ -35,7 +35,7 @@ void grow(struct l2_strset *set) {
 		for (size_t j = 0; ; ++j) {
 			size_t index = (h + j) & set->mask;
 			char *k = set->keys[index];
-			if (k == NULL || strcmp(oldkey, k) != 0) {
+			if (k != NULL) {
 				continue;
 			}
 
@@ -79,6 +79,7 @@ size_t l2_strset_put_move(struct l2_strset *set, char **str) {
 		if (k == NULL) {
 			set->keys[index] = *str;
 			set->vals[index] = set->next++;
+			set->len += 1;
 			*str = NULL;
 			return set->vals[index];
 		} else if (strcmp(*str, k) == 0) {
@@ -101,6 +102,7 @@ size_t l2_strset_put_copy(struct l2_strset *set, const char *str) {
 		if (k == NULL) {
 			set->keys[index] = strdup(str);
 			set->vals[index] = set->next++;
+			set->len += 1;
 			return set->vals[index];
 		} else if (strcmp(str, k) == 0) {
 			return set->vals[index];

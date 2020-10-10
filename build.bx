@@ -1,2 +1,2 @@
 includes := include/lang2
-files := src
+files := lib cmd
