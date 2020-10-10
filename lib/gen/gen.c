@@ -26,3 +26,12 @@ void l2_gen_assignment(struct l2_generator *gen, char **ident) {
 	put(gen, atom_id);
 	put(gen, L2_OP_NAMESPACE_SET);
 }
+
+void l2_gen_number(struct l2_generator *gen, double num) {
+	uint64_t n;
+	memcpy(&n, &num, sizeof(num));
+	put(gen, L2_OP_PUSH_2);
+	put(gen, n >> 32);
+	put(gen, n);
+	put(gen, L2_OP_ALLOC_REAL_64);
+}

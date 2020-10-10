@@ -4,6 +4,6 @@
 #include "lex.h"
 #include "gen/gen.h"
 
-void l2_parse_program(struct l2_lexer *lexer, struct l2_generator *gen);
+int l2_parse_program(struct l2_lexer *lexer, struct l2_generator *gen);
 
 #endif

@@ -159,6 +159,15 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->iptr += 1;
 		break;
 
+	case L2_OP_PUSH_2:
+		vm->stack[vm->sptr] = vm->ops[vm->iptr];
+		vm->stack[vm->sptr + 1] = vm->ops[vm->iptr + 1];
+		vm->stackflags[vm->sptr] = 0;
+		vm->stackflags[vm->sptr + 1] = 0;
+		vm->sptr += 2;
+		vm->iptr += 2;
+		break;
+
 	case L2_OP_POP:
 		vm->sptr -= 1;
 		break;
@@ -255,6 +264,7 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->stackflags[vm->sptr] = 1;
 			vm->sptr += 1;
 		}
+		break;
 
 	case L2_OP_ALLOC_ARRAY:
 		word = alloc_val(vm);
@@ -272,6 +282,16 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->stack[vm->sptr] = word;
 		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
+		break;
+
+	case L2_OP_NAMESPACE_SET:
+		{
+			l2_word key = vm->stack[vm->sptr - 1];
+			l2_word val = vm->stack[vm->sptr - 2];
+			l2_word ns = vm->stack[vm->sptr - 3];
+			l2_vm_namespace_set(&vm->values[ns], key, val);
+			vm->sptr -= 1;
+		}
 		break;
 
 	case L2_OP_HALT:

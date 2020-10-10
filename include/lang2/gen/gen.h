@@ -14,5 +14,6 @@ void l2_gen_init(struct l2_generator *gen);
 void l2_gen_free(struct l2_generator *gen);
 void l2_gen_stack_frame(struct l2_generator *gen);
 void l2_gen_assignment(struct l2_generator *gen, char **ident);
+void l2_gen_number(struct l2_generator *gen, double num);
 
 #endif

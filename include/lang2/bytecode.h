@@ -18,6 +18,13 @@ enum l2_opcode {
 	L2_OP_PUSH,
 
 	/*
+	 * Push a value to the stack.
+	 * Push <word1>
+	 * Push <word2>
+	 */
+	L2_OP_PUSH_2,
+
+	/*
 	 * Discard the top element from the stack.
 	 * Pop <word>
 	 */
