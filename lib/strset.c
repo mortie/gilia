@@ -67,7 +67,7 @@ void l2_strset_free(struct l2_strset *set) {
 	free(set->vals);
 }
 
-size_t l2_strset_put_move(struct l2_strset *set, char **str) {
+size_t l2_strset_put(struct l2_strset *set, char **str) {
 	if (set->len >= set->size / 2) {
 		grow(set);
 	}

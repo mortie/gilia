@@ -118,6 +118,16 @@ enum l2_opcode {
 	L2_OP_ALLOC_NAMESPACE,
 
 	/*
+	 * Set a namespace's name to a value.
+	 * Pop <key>
+	 * Pop <val>
+	 * Read <ns>
+	 * Assign <val> to <ns[<key>]>
+	 * Push <val>
+	 */
+	L2_OP_NAMESPACE_SET,
+
+	/*
 	 * Halt execution.
 	 */
 	L2_OP_HALT,

@@ -2,20 +2,25 @@
 
 #include "gen/gen.h"
 
-void l2_parse_init(
-		struct l2_parse_state *state,
-		struct l2_lexer *lexer, struct l2_io_writer *w) {
-	state->lexer = lexer;
-	l2_bufio_writer_init(&state->writer, w);
-	l2_strset_init(&state->atoms);
-	l2_strset_init(&state->strings);
+static void parse_expression(struct l2_lexer *lexer, struct l2_generator *gen) {
+	struct l2_token *tok = l2_lexer_peek(lexer, 1);
+	struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
+
+	if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_COLON_EQ) {
+		parse_expression(lexer, gen);
+		l2_gen_assignment(gen, &tok->v.str);
+	}
 }
 
-void l2_parse_free(struct l2_parse_state *state) {
-	l2_strset_free(&state->atoms);
-	l2_strset_free(&state->strings);
-}
+void l2_parse_program(struct l2_lexer *lexer, struct l2_generator *gen) {
+	l2_gen_stack_frame(gen);
 
-void l2_parse_program(struct l2_parse_state *state) {
-	l2_gen_stack_frame(&state->writer);
+	while (1) {
+		struct l2_token *tok = l2_lexer_peek(lexer, 1);
+		if (tok->kind == L2_TOK_EOF) {
+			break;
+		}
+
+		parse_expression(lexer, gen);
+	}
 }

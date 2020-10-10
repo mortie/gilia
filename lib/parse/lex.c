@@ -20,12 +20,16 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 		return "comma";
 	case L2_TOK_PERIOD:
 		return "period";
+	case L2_TOK_COLON_EQ:
+		return "period";
 	case L2_TOK_EOF:
 		return "end-of-file";
 	case L2_TOK_NUMBER:
 		return "number";
 	case L2_TOK_STRING:
 		return "string";
+	case L2_TOK_IDENT:
+		return "ident";
 	case L2_TOK_ERROR:
 		return "error";
 	}
@@ -52,6 +56,11 @@ void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
 	lexer->line = 1;
 	lexer->ch = 1;
 	l2_bufio_reader_init(&lexer->reader, r);
+}
+
+static int peek_ch(struct l2_lexer *lexer) {
+	int ch = l2_bufio_peek(&lexer->reader, 1);
+	return ch;
 }
 
 static int read_ch(struct l2_lexer *lexer) {
@@ -137,6 +146,55 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 	}
 }
 
+static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
+	tok->kind = L2_TOK_IDENT;
+	tok->v.str = malloc(16);
+	if (tok->v.str == NULL) {
+		tok->kind = L2_TOK_ERROR;
+		tok->v.str = "Allocaton failure";
+		return;
+	}
+
+	size_t size = 16;
+	size_t idx = 0;
+
+	while (1) {
+		int ch = peek_ch(lexer);
+
+		if (is_whitespace(ch)) {
+			return;
+		}
+
+		switch (ch) {
+		case '(':
+		case ')':
+		case '{':
+		case '}':
+		case '[':
+		case ']':
+		case ',':
+		case '.':
+		case ':':
+		case EOF:
+			return;
+		}
+
+		tok->v.str[idx++] = (char)read_ch(lexer);
+		if (idx >= size) {
+			size *= 2;
+			char *newbuf = realloc(tok->v.str, size);
+			if (newbuf == NULL) {
+				free(tok->v.str);
+				tok->kind = L2_TOK_ERROR;
+				tok->v.str = "Allocation failure";
+				return;
+			}
+
+			tok->v.str = newbuf;
+		}
+	}
+}
+
 static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 	skip_whitespace(lexer);
 
@@ -177,12 +235,32 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		tok->kind = L2_TOK_PERIOD;
 		break;
 
+	case ':':
+		{
+			ch = read_ch(lexer);
+			switch (ch) {
+			case '=':
+				tok->kind = L2_TOK_COLON_EQ;
+				break;
+
+			default:
+				tok->kind = L2_TOK_ERROR;
+				tok->v.str = "Unexpected character";
+				break;
+			}
+		}
+		break;
+
 	case EOF:
 		tok->kind = L2_TOK_EOF;
 		break;
 
 	case '"':
 		read_string(lexer, tok);
+		break;
+
+	default:
+		read_ident(lexer, tok);
 		break;
 	}
 }
