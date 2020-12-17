@@ -18,7 +18,7 @@ static struct l2_vm_value *var_lookup(const char *name) {
 	return &vm.values[id];
 }
 
-static void init(const char *str) {
+static int exec(const char *str) {
 	r.r.read = l2_io_mem_read;
 	r.idx = 0;
 	r.len = strlen(str);
@@ -29,21 +29,24 @@ static void init(const char *str) {
 	w.len = 0;
 	w.mem = NULL;
 	l2_gen_init(&gen, (struct l2_io_writer *)&w);
-}
 
-static void done() {
-	l2_gen_free(&gen);
+	if (l2_parse_program(&lex, &gen, &err) < 0) {
+		return -1;
+	}
+
+	l2_vm_init(&vm, (l2_word *)w.mem, w.len / sizeof(l2_word));
+	l2_vm_run(&vm);
+
 	free(w.mem);
+	return 0;
 }
 
-describe(parse) {
-	test("parse program") {
-		init("foo := 10");
-		defer(done());
-		assert(l2_parse_program(&lex, &gen, &err) >= 0);
+describe(exec) {
+	test("exec assignment") {
+		exec("foo := 10");
+		defer(l2_vm_free(&vm));
+		defer(l2_gen_free(&gen));
 
-		l2_vm_init(&vm, (l2_word *)w.mem, w.len / sizeof(l2_word));
-		l2_vm_run(&vm);
 		assert(l2_vm_value_type(var_lookup("foo")) == L2_VAL_TYPE_REAL);
 		assert(var_lookup("foo")->real == 10);
 	}

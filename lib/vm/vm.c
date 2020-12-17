@@ -78,7 +78,6 @@ static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
 }
 
 static void gc_free(struct l2_vm *vm, l2_word id) {
-	printf("GC FREE %i\n", id);
 	struct l2_vm_value *val = &vm->values[id];
 	l2_bitset_unset(&vm->valueset, id);
 

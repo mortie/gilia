@@ -176,6 +176,7 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 		int ch = peek_ch(lexer);
 
 		if (is_whitespace(ch)) {
+			tok->v.str[idx] = '\0';
 			return;
 		}
 
@@ -190,11 +191,12 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 		case '.':
 		case ':':
 		case EOF:
+			tok->v.str[idx] = '\0';
 			return;
 		}
 
 		tok->v.str[idx++] = (char)read_ch(lexer);
-		if (idx >= size) {
+		if (idx + 1 >= size) {
 			size *= 2;
 			char *newbuf = realloc(tok->v.str, size);
 			if (newbuf == NULL) {
