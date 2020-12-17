@@ -24,6 +24,8 @@ struct l2_vm_value {
 	};
 };
 
+#define l2_vm_value_type(val) ((val).flags & 0x0f)
+
 struct l2_vm_buffer {
 	size_t len;
 	char data[];
@@ -49,15 +51,17 @@ l2_word l2_vm_namespace_get(struct l2_vm_value *ns, l2_word key);
 struct l2_vm {
 	l2_word *ops;
 	size_t opcount;
+	l2_word iptr;
 
 	struct l2_vm_value *values;
 	size_t valuessize;
 	struct l2_bitset valueset;
 
 	l2_word stack[1024];
-	unsigned char stackflags[1024];
-	l2_word iptr;
 	l2_word sptr;
+
+	l2_word nstack[1024];
+	l2_word nsptr;
 };
 
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);

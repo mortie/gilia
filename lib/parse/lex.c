@@ -2,6 +2,23 @@
 
 #include <stdlib.h>
 
+static int parse_number(const char *str, double *num) {
+	size_t len = strlen(str);
+	*num = 0;
+	int power = 1;
+	for (int i = (int)len - 1; i >= 0; --i) {
+		char ch = str[i];
+		if (ch >= '0' && ch <= '9') {
+			*num += (ch - '0') * power;
+			power *= 10;
+		} else {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 const char *l2_token_kind_name(enum l2_token_kind kind) {
 	switch (kind) {
 	case L2_TOK_OPEN_PAREN:
@@ -41,13 +58,10 @@ void l2_token_free(struct l2_token *tok) {
 	}
 }
 
-struct l2_token l2_token_move(struct l2_token *tok) {
-	struct l2_token dup = *tok;
-	if (tok->kind == L2_TOK_STRING) {
-		tok->v.str = NULL;
-	}
-
-	return dup;
+char *l2_token_extract_str(struct l2_token *tok) {
+	char *str = tok->v.str;
+	tok->v.str = NULL;
+	return str;
 }
 
 void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
@@ -201,41 +215,50 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 	tok->line = lexer->line;
 	tok->ch = lexer->ch;
 
-	int ch = read_ch(lexer);
+	int ch = peek_ch(lexer);
 	switch (ch) {
 	case '(':
+		read_ch(lexer);
 		tok->kind = L2_TOK_OPEN_PAREN;
 		break;
 
 	case ')':
+		read_ch(lexer);
 		tok->kind = L2_TOK_CLOSE_PAREN;
 		break;
 
 	case '{':
+		read_ch(lexer);
 		tok->kind = L2_TOK_OPEN_BRACE;
 		break;
 
 	case '}':
+		read_ch(lexer);
 		tok->kind = L2_TOK_CLOSE_BRACE;
 		break;
 
 	case '[':
+		read_ch(lexer);
 		tok->kind = L2_TOK_OPEN_BRACKET;
 		break;
 
 	case ']':
+		read_ch(lexer);
 		tok->kind = L2_TOK_CLOSE_BRACKET;
 		break;
 
 	case ',':
+		read_ch(lexer);
 		tok->kind = L2_TOK_COMMA;
 		break;
 
 	case '.':
+		read_ch(lexer);
 		tok->kind = L2_TOK_PERIOD;
 		break;
 
 	case ':':
+		read_ch(lexer);
 		{
 			ch = read_ch(lexer);
 			switch (ch) {
@@ -256,11 +279,22 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		break;
 
 	case '"':
+		read_ch(lexer);
 		read_string(lexer, tok);
 		break;
 
 	default:
 		read_ident(lexer, tok);
+		if (tok->kind != L2_TOK_IDENT) {
+			break;
+		}
+
+		double num;
+		if (parse_number(tok->v.str, &num) >= 0) {
+			free(tok->v.str);
+			tok->kind = L2_TOK_NUMBER;
+			tok->v.num = num;
+		}
 		break;
 	}
 }

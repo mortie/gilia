@@ -34,35 +34,46 @@ static double u32s_to_double(uint32_t high, uint32_t low) {
 	return d;
 }
 
+static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val);
+static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val);
+
 static void gc_mark(struct l2_vm *vm, l2_word id) {
 	printf("GC MARK %i\n", id);
 	struct l2_vm_value *val = &vm->values[id];
 	val->flags |= L2_VAL_MARKED;
 
-	int typ = val->flags & 0x0f;
+	int typ = l2_vm_value_type(*val);
 	if (typ == L2_VAL_TYPE_ARRAY) {
-		if (val->data == NULL) {
-			return;
-		}
-
-		struct l2_vm_array *arr = (struct l2_vm_array *)val->data;
-		for (size_t i = 0; i < arr->len; ++i) {
-			gc_mark(vm, arr->data[i]);
-		}
+		gc_mark_array(vm, val);
 	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
-		if (val->data == NULL) {
-			return;
+		gc_mark_namespace(vm, val);
+	}
+}
+
+static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val) {
+	if (val->data == NULL) {
+		return;
+	}
+
+	struct l2_vm_array *arr = (struct l2_vm_array *)val->data;
+	for (size_t i = 0; i < arr->len; ++i) {
+		gc_mark(vm, arr->data[i]);
+	}
+}
+
+static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
+	if (val->data == NULL) {
+		return;
+	}
+
+	struct l2_vm_namespace *ns = (struct l2_vm_namespace *)val->data;
+	for (size_t i = 0; i < ns->size; ++i) {
+		l2_word key = ns->data[i];
+		if (key == 0 || key == ~(l2_word)0) {
+			continue;
 		}
 
-		struct l2_vm_namespace *ns = (struct l2_vm_namespace *)val->data;
-		for (size_t i = 0; i < ns->size; ++i) {
-			l2_word key = ns->data[i];
-			if (key == 0 || key == ~(l2_word)0) {
-				continue;
-			}
-
-			gc_mark(vm, ns->data[ns->size + i]);
-		}
+		gc_mark(vm, ns->data[ns->size + i]);
 	}
 }
 
@@ -71,7 +82,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 	struct l2_vm_value *val = &vm->values[id];
 	l2_bitset_unset(&vm->valueset, id);
 
-	int typ = val->flags & 0x0f;
+	int typ = l2_vm_value_type(*val);
 	if (typ == L2_VAL_TYPE_ARRAY || typ == L2_VAL_TYPE_BUFFER || typ == L2_VAL_TYPE_NAMESPACE) {
 		free(val->data);
 		// Don't need to do anything more; the next round of GC will free
@@ -103,6 +114,7 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	vm->opcount = opcount;
 	vm->iptr = 0;
 	vm->sptr = 0;
+	vm->nsptr = 0;
 
 	vm->values = NULL;
 	vm->valuessize = 0;
@@ -129,10 +141,10 @@ void l2_vm_free(struct l2_vm *vm) {
 }
 
 size_t l2_vm_gc(struct l2_vm *vm) {
-	for (l2_word sptr = 0; sptr < vm->sptr; ++sptr) {
-		if (vm->stackflags[sptr]) {
-			gc_mark(vm, vm->stack[sptr]);
-		}
+	for (l2_word nsptr = 0; nsptr < vm->nsptr; ++nsptr) {
+		struct l2_vm_value *val = &vm->values[vm->nstack[nsptr]];
+		val->flags |= L2_VAL_MARKED;
+		gc_mark_namespace(vm, val);
 	}
 
 	return gc_sweep(vm);
@@ -154,7 +166,6 @@ void l2_vm_step(struct l2_vm *vm) {
 
 	case L2_OP_PUSH:
 		vm->stack[vm->sptr] = vm->ops[vm->iptr];
-		vm->stackflags[vm->sptr] = 0;
 		vm->sptr += 1;
 		vm->iptr += 1;
 		break;
@@ -162,8 +173,6 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_PUSH_2:
 		vm->stack[vm->sptr] = vm->ops[vm->iptr];
 		vm->stack[vm->sptr + 1] = vm->ops[vm->iptr + 1];
-		vm->stackflags[vm->sptr] = 0;
-		vm->stackflags[vm->sptr + 1] = 0;
 		vm->sptr += 2;
 		vm->iptr += 2;
 		break;
@@ -174,26 +183,51 @@ void l2_vm_step(struct l2_vm *vm) {
 
 	case L2_OP_DUP:
 		vm->stack[vm->sptr] = vm->ops[vm->sptr - 1];
-		vm->stackflags[vm->sptr] = 0;
 		vm->sptr += 1;
 		break;
 
 	case L2_OP_ADD:
 		vm->stack[vm->sptr - 2] += vm->stack[vm->sptr - 1];
-		vm->stackflags[vm->sptr - 2] = 0;
 		vm->sptr -= 1;
 		break;
 
 	case L2_OP_CALL:
 		word = vm->stack[vm->sptr - 1];
 		vm->stack[vm->sptr - 1] = vm->iptr + 1;
-		vm->stackflags[vm->sptr - 1] = 0;
 		vm->iptr = word;
 		break;
 
+	case L2_OP_GEN_STACK_FRAME:
+		word = alloc_val(vm);
+		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
+		vm->values[word].data = NULL; // Will be allocated on first insert
+		vm->nstack[vm->nsptr] = word;
+		vm->nsptr += 1;
+		break;
+
+	case L2_OP_STACK_FRAME_LOOKUP:
+		{
+			l2_word key = vm->stack[vm->sptr - 1];
+			struct l2_vm_value *ns = &vm->values[vm->nstack[vm->nsptr - 1]];
+			vm->stack[vm->sptr - 1] = l2_vm_namespace_get(ns, key);
+		}
+		break;
+
+	case L2_OP_STACK_FRAME_SET:
+		{
+			l2_word key = vm->stack[vm->sptr - 1];
+			l2_word val = vm->stack[vm->sptr - 2];
+			struct l2_vm_value *ns = &vm->values[vm->nstack[vm->nsptr - 1]];
+			l2_vm_namespace_set(ns, key, val);
+			vm->sptr -= 1;
+		}
+		break;
+
 	case L2_OP_RET:
+		vm->nsptr -= 1;
 		vm->iptr = vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;
+		vm->nsptr -= 1;
 		break;
 
 	case L2_OP_ALLOC_INTEGER_32:
@@ -201,7 +235,6 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->values[word].flags = L2_VAL_TYPE_INTEGER;
 		vm->values[word].integer = vm->stack[--vm->sptr];
 		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
 		break;
 
@@ -213,7 +246,6 @@ void l2_vm_step(struct l2_vm *vm) {
 			(uint64_t)vm->stack[vm->sptr - 2]);
 		vm->sptr -= 2;
 		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
 		break;
 
@@ -222,7 +254,6 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->values[word].flags = L2_VAL_TYPE_REAL;
 		vm->values[word].real = u32_to_float(vm->stack[--vm->sptr]);
 		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
 		break;
 
@@ -232,7 +263,6 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->values[word].real = u32s_to_double(vm->stack[vm->sptr - 1], vm->stack[vm->sptr - 2]);
 		vm->sptr -= 2;
 		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
 		break;
 
@@ -248,7 +278,6 @@ void l2_vm_step(struct l2_vm *vm) {
 				(unsigned char *)vm->values[word].data + sizeof(struct l2_vm_buffer),
 				vm->ops + offset, length);
 			vm->stack[vm->sptr] = word;
-			vm->stackflags[vm->sptr] = 1;
 			vm->sptr += 1;
 		}
 		break;
@@ -261,7 +290,6 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->values[word].data = calloc(1, sizeof(struct l2_vm_buffer) + length);
 			((struct l2_vm_buffer *)vm->values[word].data)->len = length;
 			vm->stack[vm->sptr] = word;
-			vm->stackflags[vm->sptr] = 1;
 			vm->sptr += 1;
 		}
 		break;
@@ -271,7 +299,6 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->values[word].flags = L2_VAL_TYPE_ARRAY;
 		vm->values[word].data = NULL; // Will be allocated on first insert
 		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
 		break;
 
@@ -280,7 +307,6 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
 		vm->values[word].data = NULL; // Will be allocated on first insert
 		vm->stack[vm->sptr] = word;
-		vm->stackflags[vm->sptr] = 1;
 		vm->sptr += 1;
 		break;
 

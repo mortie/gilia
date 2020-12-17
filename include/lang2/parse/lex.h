@@ -34,12 +34,12 @@ struct l2_token {
 };
 
 void l2_token_free(struct l2_token *tok);
-struct l2_token l2_token_move(struct l2_token *tok);
+char *l2_token_extract_str(struct l2_token *tok);
 void l2_token_print(struct l2_token *tok, struct l2_io_writer *w);
 
 struct l2_lexer {
 	struct l2_token currtok;
-	struct l2_token toks[2];
+	struct l2_token toks[4];
 	int tokidx;
 	int line;
 	int ch;

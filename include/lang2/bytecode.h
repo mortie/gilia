@@ -53,7 +53,31 @@ enum l2_opcode {
 	L2_OP_CALL,
 
 	/*
+	 * Generate a stack frame.
+	 * Alloc namespace <var>
+	 * NSPush <var>
+	 */
+	L2_OP_GEN_STACK_FRAME,
+
+	/*
+	 * Look up a value from the current stack frame.
+	 * Pop <word>
+	 * Find <val> in stack frame using <word>
+	 * Push <val>
+	 */
+	L2_OP_STACK_FRAME_LOOKUP,
+
+	/*
+	 * Set a value in the current stack frame.
+	 * Pop <key>
+	 * Read <val>
+	 * Assign <val> to stack frame
+	 */
+	L2_OP_STACK_FRAME_SET,
+
+	/*
 	 * Return from a function.
+	 * NSPop
 	 * Pop <word>
 	 * Jump to <word>
 	 */
@@ -86,9 +110,9 @@ enum l2_opcode {
 
 	/*
 	 * Allocate a real from two words.
-	 * Pop <word1>
-	 * Pop <word2>
-	 * Alloc real <var> from <word1> << 32 | <word2>
+	 * Pop <high>
+	 * Pop <low>
+	 * Alloc real <var> from <high> << 32 | <low>
 	 * Push <var>
 	 */
 	L2_OP_ALLOC_REAL_64,
@@ -127,10 +151,9 @@ enum l2_opcode {
 	/*
 	 * Set a namespace's name to a value.
 	 * Pop <key>
-	 * Pop <val>
+	 * Read <val>
 	 * Read <ns>
 	 * Assign <val> to <ns[<key>]>
-	 * Push <val>
 	 */
 	L2_OP_NAMESPACE_SET,
 
