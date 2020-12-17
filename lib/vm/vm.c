@@ -42,7 +42,7 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 	struct l2_vm_value *val = &vm->values[id];
 	val->flags |= L2_VAL_MARKED;
 
-	int typ = l2_vm_value_type(*val);
+	int typ = l2_vm_value_type(val);
 	if (typ == L2_VAL_TYPE_ARRAY) {
 		gc_mark_array(vm, val);
 	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
@@ -82,7 +82,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 	struct l2_vm_value *val = &vm->values[id];
 	l2_bitset_unset(&vm->valueset, id);
 
-	int typ = l2_vm_value_type(*val);
+	int typ = l2_vm_value_type(val);
 	if (typ == L2_VAL_TYPE_ARRAY || typ == L2_VAL_TYPE_BUFFER || typ == L2_VAL_TYPE_NAMESPACE) {
 		free(val->data);
 		// Don't need to do anything more; the next round of GC will free
@@ -127,7 +127,7 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 }
 
 void l2_vm_free(struct l2_vm *vm) {
-	// Skip ID 0, because that should always exist
+	// Skip ID 0, because that's always NONE
 	for (size_t i = 1; i < vm->valuessize; ++i) {
 		if (!l2_bitset_get(&vm->valueset, i)) {
 			continue;

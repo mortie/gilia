@@ -24,7 +24,7 @@ struct l2_vm_value {
 	};
 };
 
-#define l2_vm_value_type(val) ((val).flags & 0x0f)
+#define l2_vm_value_type(val) ((val)->flags & 0x0f)
 
 struct l2_vm_buffer {
 	size_t len;

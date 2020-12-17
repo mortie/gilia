@@ -44,7 +44,7 @@ describe(parse) {
 
 		l2_vm_init(&vm, (l2_word *)w.mem, w.len / sizeof(l2_word));
 		l2_vm_run(&vm);
-		assert(l2_vm_value_type(*var_lookup("foo")) == L2_VAL_TYPE_REAL);
+		assert(l2_vm_value_type(var_lookup("foo")) == L2_VAL_TYPE_REAL);
 		assert(var_lookup("foo")->real == 10);
 	}
 }
