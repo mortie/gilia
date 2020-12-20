@@ -31,6 +31,7 @@ static int exec(const char *str) {
 	l2_gen_init(&gen, (struct l2_io_writer *)&w);
 
 	if (l2_parse_program(&lex, &gen, &err) < 0) {
+		free(w.mem);
 		return -1;
 	}
 
