@@ -70,7 +70,7 @@ void l2_vm_print_state(struct l2_vm *vm) {
 	l2_vm_print_stack(vm);
 	printf("Heap:\n");
 	l2_vm_print_heap(vm);
-	printf("NStack:\n");
+	printf("Namespace Stack:\n");
 	l2_vm_print_nstack(vm);
 }
 
