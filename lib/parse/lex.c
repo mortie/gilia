@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 static int parse_number(const char *str, double *num) {
+	// TODO: Floats
 	size_t len = strlen(str);
 	*num = 0;
 	int power = 1;
@@ -53,7 +54,7 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 }
 
 void l2_token_free(struct l2_token *tok) {
-	if (tok->kind == L2_TOK_STRING) {
+	if (tok->kind == L2_TOK_STRING || tok->kind == L2_TOK_IDENT) {
 		free(tok->v.str);
 	}
 }
@@ -65,7 +66,7 @@ char *l2_token_extract_str(struct l2_token *tok) {
 }
 
 void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
-	lexer->currtok.kind = L2_TOK_EOF,
+	lexer->toks[0].kind = L2_TOK_EOF,
 	lexer->tokidx = 0;
 	lexer->line = 1;
 	lexer->ch = 1;
@@ -311,15 +312,8 @@ struct l2_token *l2_lexer_peek(struct l2_lexer *lexer, int count) {
 	return &lexer->toks[offset];
 }
 
-struct l2_token *l2_lexer_get(struct l2_lexer *lexer) {
-	l2_token_free(&lexer->currtok);
-
-	if (lexer->tokidx == 0) {
-		read_tok(lexer, &lexer->currtok);
-	} else {
-		memmove(lexer->toks, lexer->toks + 1, lexer->tokidx - 1);
-		lexer->tokidx -= 1;
-	}
-
-	return &lexer->currtok;
+void l2_lexer_consume(struct l2_lexer *lexer) {
+	l2_token_free(&lexer->toks[0]);
+	lexer->tokidx -= 1;
+	memmove(lexer->toks, lexer->toks + 1, lexer->tokidx * sizeof(*lexer->toks));
 }

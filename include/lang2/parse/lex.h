@@ -38,7 +38,6 @@ char *l2_token_extract_str(struct l2_token *tok);
 void l2_token_print(struct l2_token *tok, struct l2_io_writer *w);
 
 struct l2_lexer {
-	struct l2_token currtok;
 	struct l2_token toks[4];
 	int tokidx;
 	int line;
@@ -49,6 +48,6 @@ struct l2_lexer {
 
 void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r);
 struct l2_token *l2_lexer_peek(struct l2_lexer *lexer, int count);
-struct l2_token *l2_lexer_get(struct l2_lexer *lexer);
+void l2_lexer_consume(struct l2_lexer *lexer);
 
 #endif

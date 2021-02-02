@@ -18,7 +18,7 @@ static struct l2_vm_value *var_lookup(const char *name) {
 	return &vm.values[id];
 }
 
-static int exec(const char *str) {
+static int eval(const char *str) {
 	r.r.read = l2_io_mem_read;
 	r.idx = 0;
 	r.len = strlen(str);
@@ -42,13 +42,21 @@ static int exec(const char *str) {
 	return 0;
 }
 
-describe(exec) {
-	test("exec assignment") {
-		exec("foo := 10");
+describe(eval) {
+	test("eval assignment") {
+		eval("foo := 10");
 		defer(l2_vm_free(&vm));
 		defer(l2_gen_free(&gen));
 
 		assert(l2_vm_value_type(var_lookup("foo")) == L2_VAL_TYPE_REAL);
 		assert(var_lookup("foo")->real == 10);
+	}
+
+	test("eval var deref assignment") {
+		eval("foo := 10\nbar := foo");
+		defer(l2_vm_free(&vm));
+		defer(l2_gen_free(&gen));
+
+		l2_vm_print_state(&vm);
 	}
 }

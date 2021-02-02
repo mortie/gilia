@@ -9,8 +9,8 @@ static int parse_expression(
 
 	if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_COLON_EQ) {
 		char *ident = l2_token_extract_str(tok);
-		l2_lexer_get(lexer); // ident
-		l2_lexer_get(lexer); // :=
+		l2_lexer_consume(lexer); // ident
+		l2_lexer_consume(lexer); // :=
 
 		if (parse_expression(lexer, gen, err) < 0) {
 			free(ident);
@@ -21,11 +21,11 @@ static int parse_expression(
 		return 0;
 	} else if (tok->kind == L2_TOK_NUMBER) {
 		l2_gen_number(gen, tok->v.num);
-		l2_lexer_get(lexer); // number
+		l2_lexer_consume(lexer); // number
 		return 0;
 	} else if (tok->kind == L2_TOK_IDENT) {
 		char *ident = l2_token_extract_str(tok);
-		l2_lexer_get(lexer); // ident
+		l2_lexer_consume(lexer); // ident
 		l2_gen_namespace_lookup(gen, &ident);
 		return 0;
 	}
