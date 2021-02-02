@@ -12,7 +12,20 @@ static int parse_function_impl(
 	l2_gen_stack_frame(gen);
 	l2_lexer_consume(lexer); // {
 
-	l2_lexer_consume(lexer); // }
+	while (1) {
+		struct l2_token *tok = l2_lexer_peek(lexer, 1);
+		if (tok->kind == L2_TOK_EOF) {
+			break;
+		} else if (tok->kind == L2_TOK_CLOSE_BRACE) {
+			l2_lexer_consume(lexer); // }
+			break;
+		}
+
+		if (parse_expression(lexer, gen, err) < 0) {
+			return -1;
+		}
+	}
+
 	l2_gen_ret(gen);
 	return 0;
 }
