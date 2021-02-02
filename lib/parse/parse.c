@@ -28,6 +28,11 @@ static int parse_expression(
 		l2_lexer_consume(lexer); // ident
 		l2_gen_namespace_lookup(gen, &ident);
 		return 0;
+	} else if (tok->kind == L2_TOK_STRING) {
+		char *str = l2_token_extract_str(tok);
+		l2_lexer_consume(lexer); // string
+		l2_gen_string(gen, &str);
+		return 0;
 	}
 
 	l2_parse_err(err, tok, "In expression: Unexpected tokens %s, %s",

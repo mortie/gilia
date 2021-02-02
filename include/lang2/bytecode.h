@@ -53,6 +53,13 @@ enum l2_opcode {
 	L2_OP_CALL,
 
 	/*
+	 * Jump relative.
+	 * Pop <word>
+	 * Jump <word> words forwards
+	 */
+	L2_OP_RJMP,
+
+	/*
 	 * Generate a stack frame.
 	 * Alloc namespace <var>
 	 * NSPush <var>
