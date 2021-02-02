@@ -1,6 +1,7 @@
 #include "vm/print.h"
 
 #include <stdio.h>
+#include <string.h>
 
 void l2_vm_print_val(struct l2_vm_value *val) {
 	switch (val->flags & 0x0f) {
@@ -203,6 +204,18 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 	case L2_OP_HALT:
 		printf("HALT\n");
 		break;
+
+	default:
+		{
+			l2_word word = (l2_word)opcode;
+			char bytes[sizeof(word)];
+			memcpy(&bytes, &word, sizeof(word));
+			printf("?");
+			for (size_t i = 0; i < sizeof(bytes); ++i) {
+				printf(" %02x", bytes[i]);
+			}
+			printf("\n");
+		}
 	}
 }
 
