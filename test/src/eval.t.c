@@ -57,6 +57,9 @@ describe(eval) {
 		defer(l2_vm_free(&vm));
 		defer(l2_gen_free(&gen));
 
-		l2_vm_print_state(&vm);
+		assert(l2_vm_value_type(var_lookup("foo")) == L2_VAL_TYPE_REAL);
+		assert(var_lookup("foo")->real == 10);
+		assert(l2_vm_value_type(var_lookup("bar")) == L2_VAL_TYPE_REAL);
+		assert(var_lookup("bar")->real == 10);
 	}
 }
