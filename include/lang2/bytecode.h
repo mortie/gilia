@@ -156,6 +156,14 @@ enum l2_opcode {
 	L2_OP_ALLOC_NAMESPACE,
 
 	/*
+	 * Allocate a function.
+	 * Pop <word>
+	 * Alloc function <var> pointing to location <word>
+	 * Push <var>
+	 */
+	L2_OP_ALLOC_FUNCTION,
+
+	/*
 	 * Set a namespace's name to a value.
 	 * Pop <key>
 	 * Read <val>

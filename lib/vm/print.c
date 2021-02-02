@@ -57,6 +57,10 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 			printf("NAMESPACE, len %zu\n", ns->len);
 		}
 		break;
+
+	case L2_VAL_TYPE_FUNCTION:
+		printf("FUNCTION, pos %u, ns %u\n", val->func.pos, val->func.namespace);
+		break;
 	}
 }
 
@@ -136,6 +140,10 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("CALL\n");
 		break;
 
+	case L2_OP_RJMP:
+		printf("RJMP\n");
+		break;
+
 	case L2_OP_GEN_STACK_FRAME:
 		printf("GEN_STACK_FRAME\n");
 		break;
@@ -182,6 +190,10 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 
 	case L2_OP_ALLOC_NAMESPACE:
 		printf("ALLOC_NAMESPACE\n");
+		break;
+
+	case L2_OP_ALLOC_FUNCTION:
+		printf("ALLOC_FUNCTION\n");
 		break;
 
 	case L2_OP_NAMESPACE_SET:

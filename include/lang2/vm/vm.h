@@ -14,12 +14,17 @@ struct l2_vm_value {
 		L2_VAL_TYPE_BUFFER,
 		L2_VAL_TYPE_ARRAY,
 		L2_VAL_TYPE_NAMESPACE,
+		L2_VAL_TYPE_FUNCTION,
 		L2_VAL_MARKED = 1 << 7,
 		L2_VAL_CONST = 1 << 8,
 	} flags;
 	union {
 		int64_t integer;
 		double real;
+		struct {
+			l2_word pos;
+			l2_word namespace;
+		} func;
 		void *data;
 	};
 };

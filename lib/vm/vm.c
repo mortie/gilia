@@ -47,6 +47,8 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 		gc_mark_array(vm, val);
 	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
 		gc_mark_namespace(vm, val);
+	} else if (typ == L2_VAL_TYPE_FUNCTION) {
+		gc_mark_namespace(vm, &vm->values[val->func.namespace]);
 	}
 }
 
@@ -196,6 +198,12 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->iptr = word;
 		break;
 
+	case L2_OP_RJMP:
+		word = vm->stack[vm->sptr - 1];
+		vm->sptr -= 1;
+		vm->iptr += word;
+		break;
+
 	case L2_OP_GEN_STACK_FRAME:
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
@@ -305,6 +313,15 @@ void l2_vm_step(struct l2_vm *vm) {
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
 		vm->values[word].data = NULL; // Will be allocated on first insert
+		vm->stack[vm->sptr] = word;
+		vm->sptr += 1;
+		break;
+
+	case L2_OP_ALLOC_FUNCTION:
+		word = alloc_val(vm);
+		vm->values[word].flags = L2_VAL_TYPE_FUNCTION;
+		vm->values[word].func.pos = vm->stack[--vm->sptr];
+		vm->values[word].func.namespace = vm->nstack[vm->nsptr - 1];
 		vm->stack[vm->sptr] = word;
 		vm->sptr += 1;
 		break;

@@ -24,23 +24,28 @@ void l2_gen_free(struct l2_generator *gen) {
 	l2_strset_free(&gen->stringset);
 }
 
-// Postconditions:
-// * Execution is halted
 void l2_gen_halt(struct l2_generator *gen) {
 	put(gen, L2_OP_HALT);
 }
 
-// Postconditions:
-// * NStack(0) is a namespace value
 void l2_gen_stack_frame(struct l2_generator *gen) {
 	put(gen, L2_OP_GEN_STACK_FRAME);
 }
 
-// Preconditions:
-// * Stack(0) is any value
-// Postconditions:
-// * The namespace contains the new value under key 'ident'
-// * Stack(0) is untouched
+void l2_gen_rjmp(struct l2_generator *gen, l2_word len) {
+	put(gen, L2_OP_PUSH);
+	put(gen, len);
+	put(gen, L2_OP_RJMP);
+}
+
+void l2_gen_pop(struct l2_generator *gen) {
+	put(gen, L2_OP_POP);
+}
+
+void l2_gen_ret(struct l2_generator *gen) {
+	put(gen, L2_OP_RET);
+}
+
 void l2_gen_assignment(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
 	put(gen, L2_OP_PUSH);
@@ -48,8 +53,6 @@ void l2_gen_assignment(struct l2_generator *gen, char **ident) {
 	put(gen, L2_OP_STACK_FRAME_SET);
 }
 
-// Postconditions;
-// * Stack(0) is changed to a number value
 void l2_gen_number(struct l2_generator *gen, double num) {
 	uint64_t n;
 	memcpy(&n, &num, sizeof(num));
@@ -70,6 +73,7 @@ void l2_gen_string(struct l2_generator *gen, char **str) {
 
 		put(gen, L2_OP_PUSH);
 		put(gen, aligned / sizeof(l2_word));
+		put(gen, L2_OP_RJMP);
 		l2_word pos = gen->pos;
 
 		l2_bufio_put_n(&gen->writer, *str, len);
@@ -95,8 +99,12 @@ void l2_gen_string(struct l2_generator *gen, char **str) {
 	}
 }
 
-// Postconditions:
-// * Stack(0) is any value
+void l2_gen_function(struct l2_generator *gen, l2_word pos) {
+	put(gen, L2_OP_PUSH);
+	put(gen, pos);
+	put(gen, L2_OP_ALLOC_FUNCTION);
+}
+
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
 	put(gen, L2_OP_PUSH);
