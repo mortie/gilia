@@ -15,7 +15,8 @@ static int parse_function_impl(
 	while (1) {
 		struct l2_token *tok = l2_lexer_peek(lexer, 1);
 		if (tok->kind == L2_TOK_EOF) {
-			break;
+			l2_parse_err(err, tok, "In function: Unexpected EOF");
+			return -1;
 		} else if (tok->kind == L2_TOK_CLOSE_BRACE) {
 			l2_lexer_consume(lexer); // }
 			break;
