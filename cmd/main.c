@@ -8,6 +8,21 @@
 #include <stdio.h>
 #include <string.h>
 
+void step_through(struct l2_vm *vm) {
+	printf("=====\n\nInitial state:\n");
+	l2_vm_print_state(vm);
+
+	char buf[16];
+	while ((enum l2_opcode)vm->ops[vm->iptr] != L2_OP_HALT) {
+		size_t iptr = vm->iptr;
+		printf("\n======\n\n(%d) Will run instr: ", vm->iptr);
+		l2_vm_print_op(vm->ops, vm->opcount, &iptr);
+		fgets(buf, sizeof(buf), stdin);
+		l2_vm_step(vm);
+		l2_vm_print_state(vm);
+	}
+}
+
 int main(int argc, char **argv) {
 	if (argc != 1 && argc != 2) {
 		fprintf(stderr, "Usage: %s [file]\n", argv[0]);
@@ -52,10 +67,17 @@ int main(int argc, char **argv) {
 
 	struct l2_vm vm;
 	l2_vm_init(&vm, (void *)w.mem, w.len / sizeof(l2_word));
-	l2_vm_run(&vm);
+
+	step_through(&vm);
 	free(w.mem);
 
 	printf("State after executing:\n");
 	l2_vm_print_state(&vm);
+
+	while (l2_vm_gc(&vm));
+
+	printf("State after GC:\n");
+	l2_vm_print_state(&vm);
+
 	l2_vm_free(&vm);
 }

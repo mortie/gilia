@@ -17,6 +17,7 @@ static int parse_function_impl(
 	l2_lexer_consume(lexer); // {
 	l2_lexer_skip_opt(lexer, L2_TOK_EOL);
 
+	int first = 1;
 	while (1) {
 		struct l2_token *tok = l2_lexer_peek(lexer, 1);
 		if (tok->kind == L2_TOK_EOF) {
@@ -27,11 +28,17 @@ static int parse_function_impl(
 			break;
 		}
 
+		// The previous expr left a value on the stack which we have to pop
+		if (!first) {
+			l2_gen_pop(gen);
+		}
+
 		if (parse_expression(lexer, gen, err) < 0) {
 			return -1;
 		}
 
 		l2_lexer_skip_opt(lexer, L2_TOK_EOL);
+		first = 0;
 	}
 
 	l2_gen_ret(gen);
@@ -84,11 +91,26 @@ static int parse_sub_expression(
 
 	if (tok->kind == L2_TOK_OPEN_PAREN) {
 		l2_lexer_consume(lexer); // (
+		tok = l2_lexer_peek(lexer, 1);
+
+		// Special case: (foo) should be interpreted as a function call
+		if (
+				tok->kind == L2_TOK_IDENT &&
+				l2_lexer_peek(lexer, 2)->kind == L2_TOK_CLOSE_PAREN) {
+			char *ident = l2_token_extract_str(tok);
+			l2_lexer_consume(lexer); // ident
+			l2_lexer_consume(lexer); // )
+
+			l2_gen_push(gen, 0); // Arg count
+			l2_gen_namespace_lookup(gen, &ident);
+			l2_gen_func_call(gen);
+			return 0;
+		}
+
 		if (parse_expression(lexer, gen, err) < 0) {
 			return -1;
 		}
 
-		tok = l2_lexer_peek(lexer, 1);
 		if (tok->kind != L2_TOK_CLOSE_PAREN) {
 			l2_parse_err(err, tok, "In paren expression: Expected close paren, got %s",
 					l2_token_kind_name(tok->kind));
@@ -160,8 +182,9 @@ static int parse_expression(
 
 int l2_parse_program(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
-	int first = 1;
+	l2_lexer_skip_opt(lexer, L2_TOK_EOL);
 
+	int first = 1;
 	while (1) {
 		struct l2_token *tok = l2_lexer_peek(lexer, 1);
 		if (tok->kind == L2_TOK_EOF) {
@@ -180,7 +203,6 @@ int l2_parse_program(
 		}
 
 		l2_lexer_skip_opt(lexer, L2_TOK_EOL);
-
 		first = 0;
 	}
 
