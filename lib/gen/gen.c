@@ -63,6 +63,13 @@ void l2_gen_number(struct l2_generator *gen, double num) {
 	put(gen, L2_OP_ALLOC_REAL_64);
 }
 
+void l2_gen_atom(struct l2_generator *gen, char **str) {
+	size_t id = l2_strset_put(&gen->atomset, str);
+	put(gen, L2_OP_PUSH);
+	put(gen, id);
+	put(gen, L2_OP_ALLOC_INTEGER_32);
+}
+
 void l2_gen_string(struct l2_generator *gen, char **str) {
 	size_t id = l2_strset_get(&gen->stringset, *str);
 	if (id == 0) {
@@ -92,6 +99,7 @@ void l2_gen_string(struct l2_generator *gen, char **str) {
 		put(gen, len);
 		put(gen, L2_OP_ALLOC_BUFFER_STATIC);
 	} else {
+		free(*str);
 		struct l2_generator_string *s = &gen->strings[id - 1];
 		put(gen, L2_OP_PUSH_2);
 		put(gen, s->pos);

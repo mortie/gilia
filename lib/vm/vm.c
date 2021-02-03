@@ -52,7 +52,7 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
 		gc_mark_namespace(vm, val);
 	} else if (typ == L2_VAL_TYPE_FUNCTION) {
-		gc_mark_namespace(vm, &vm->values[val->func.namespace]);
+		gc_mark(vm, val->func.namespace);
 	}
 }
 
@@ -82,8 +82,8 @@ static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
 		gc_mark(vm, ns->data[ns->size + i]);
 	}
 
-	if (ns->parent != NULL) {
-		gc_mark_namespace(vm, ns->parent);
+	if (ns->parent != 0) {
+		gc_mark(vm, ns->parent);
 	}
 }
 
@@ -248,7 +248,7 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
 			vm->values[ns_id].data = calloc(1, sizeof(struct l2_vm_namespace));
 			struct l2_vm_namespace *ns = vm->values[ns_id].data;
-			ns->parent = &vm->values[func->func.namespace]; // TODO: This won't work if values is realloc'd
+			ns->parent = func->func.namespace;
 			vm->nstack[vm->nsptr++] = ns_id;
 
 			vm->iptr = func->func.pos;
@@ -265,7 +265,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		{
 			l2_word key = vm->stack[vm->sptr - 1];
 			struct l2_vm_value *ns = &vm->values[vm->nstack[vm->nsptr - 1]];
-			vm->stack[vm->sptr - 1] = l2_vm_namespace_get(ns, key);
+			vm->stack[vm->sptr - 1] = l2_vm_namespace_get(vm, ns, key);
 		}
 		break;
 
@@ -294,8 +294,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_INTEGER;
 		vm->values[word].integer = vm->stack[--vm->sptr];
-		vm->stack[vm->sptr] = word;
-		vm->sptr += 1;
+		vm->stack[vm->sptr++] = word;
 		break;
 
 	case L2_OP_ALLOC_INTEGER_64:

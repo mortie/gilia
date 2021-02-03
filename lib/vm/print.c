@@ -55,7 +55,13 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 			}
 
 			struct l2_vm_namespace *ns = (struct l2_vm_namespace *)val->data;
-			printf("NAMESPACE, len %zu\n", ns->len);
+			printf("NAMESPACE, len %zu, parent %u\n", ns->len, ns->parent);
+			for (size_t i = 0; i < ns->size; ++i) {
+				l2_word key = ns->data[i];
+				l2_word val = ns->data[ns->size + i];
+				if (key == 0 || key == ~(l2_word)0) continue;
+				printf("    %u: %u\n", key, val);
+			}
 		}
 		break;
 

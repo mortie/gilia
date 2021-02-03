@@ -90,26 +90,28 @@ static l2_word get(struct l2_vm_namespace *ns, l2_word key) {
 	for (l2_word i = 0; ; ++i) {
 		l2_word hash = (key + i) & ns->mask;
 		l2_word k = ns->data[hash];
-		if (k == 0) {
-			if (ns->parent == NULL) {
-				return 0;
-			} else {
-				return get(ns->parent->data, key);
-			}
+		if (k == 0 || k == tombstone) {
+			return 0;
 		} else if (k == key) {
 			return ns->data[ns->size + hash];
 		}
 	}
 }
 
-void l2_vm_namespace_set(struct l2_vm_value *ns, l2_word key, l2_word val) {
+void l2_vm_namespace_set(struct l2_vm_value *v, l2_word key, l2_word val) {
 	if (val == 0) {
-		del(ns->data, key);
+		del(v->data, key);
 	} else {
-		ns->data = set(ns->data, key, val);
+		v->data = set(v->data, key, val);
 	}
 }
 
-l2_word l2_vm_namespace_get(struct l2_vm_value *ns, l2_word key) {
-	return get(ns->data, key);
+l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *v, l2_word key) {
+	struct l2_vm_namespace *ns = v->data;
+	l2_word ret = get(ns, key);
+	if (ret == 0 && ns != NULL && ns->parent != 0) {
+		return l2_vm_namespace_get(vm, &vm->values[ns->parent], key);
+	}
+
+	return ret;
 }

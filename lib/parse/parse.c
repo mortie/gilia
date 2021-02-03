@@ -88,15 +88,15 @@ static int parse_function(
 static int parse_sub_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
 	struct l2_token *tok = l2_lexer_peek(lexer, 1);
+	struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
 
 	if (tok->kind == L2_TOK_OPEN_PAREN) {
 		l2_lexer_consume(lexer); // (
 		tok = l2_lexer_peek(lexer, 1);
+		tok2 = l2_lexer_peek(lexer, 2);
 
 		// Special case: (foo) should be interpreted as a function call
-		if (
-				tok->kind == L2_TOK_IDENT &&
-				l2_lexer_peek(lexer, 2)->kind == L2_TOK_CLOSE_PAREN) {
+		if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_CLOSE_PAREN) {
 			char *ident = l2_token_extract_str(tok);
 			l2_lexer_consume(lexer); // ident
 			l2_lexer_consume(lexer); // )
@@ -127,6 +127,12 @@ static int parse_sub_expression(
 		char *ident = l2_token_extract_str(tok);
 		l2_lexer_consume(lexer); // ident
 		l2_gen_namespace_lookup(gen, &ident);
+		return 0;
+	} else if (tok->kind == L2_TOK_QUOT && tok2->kind == L2_TOK_IDENT) {
+		char *str = l2_token_extract_str(tok2);
+		l2_lexer_consume(lexer); // '
+		l2_lexer_consume(lexer); // ident
+		l2_gen_atom(gen, &str);
 		return 0;
 	} else if (tok->kind == L2_TOK_STRING) {
 		char *str = l2_token_extract_str(tok);

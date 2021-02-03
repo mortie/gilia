@@ -49,7 +49,7 @@ struct l2_vm_array {
 };
 
 struct l2_vm_namespace {
-	struct l2_vm_value *parent;
+	l2_word parent;
 	size_t len;
 	size_t size;
 	l2_word mask;
@@ -57,7 +57,7 @@ struct l2_vm_namespace {
 };
 
 void l2_vm_namespace_set(struct l2_vm_value *ns, l2_word key, l2_word val);
-l2_word l2_vm_namespace_get(struct l2_vm_value *ns, l2_word key);
+l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key);
 
 struct l2_vm {
 	l2_word *ops;

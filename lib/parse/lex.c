@@ -34,6 +34,8 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 		return "open-bracket";
 	case L2_TOK_CLOSE_BRACKET:
 		return "close-bracket";
+	case L2_TOK_QUOT:
+		return "single-quote";
 	case L2_TOK_COMMA:
 		return "comma";
 	case L2_TOK_PERIOD:
@@ -199,6 +201,7 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 		case '}':
 		case '[':
 		case ']':
+		case '\'':
 		case ',':
 		case '.':
 		case ':':
@@ -274,6 +277,11 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 			read_ch(lexer);
 			skip_whitespace(lexer);
 		} while (peek_ch(lexer) == ';');
+		break;
+
+	case '\'':
+		read_ch(lexer);
+		tok->kind = L2_TOK_QUOT;
 		break;
 
 	case ',':
