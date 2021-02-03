@@ -40,6 +40,8 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 		return "comma";
 	case L2_TOK_PERIOD:
 		return "period";
+	case L2_TOK_COLON:
+		return "colon";
 	case L2_TOK_COLON_EQ:
 		return "colon-equals";
 	case L2_TOK_EOL:
@@ -296,18 +298,16 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 
 	case ':':
 		read_ch(lexer);
-		{
-			ch = read_ch(lexer);
-			switch (ch) {
-			case '=':
-				tok->kind = L2_TOK_COLON_EQ;
-				break;
+		ch = peek_ch(lexer);
+		switch (ch) {
+		case '=':
+			read_ch(lexer);
+			tok->kind = L2_TOK_COLON_EQ;
+			break;
 
-			default:
-				tok->kind = L2_TOK_ERROR;
-				tok->v.str = "Unexpected character";
-				break;
-			}
+		default:
+			tok->kind = L2_TOK_COLON;
+			break;
 		}
 		break;
 

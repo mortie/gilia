@@ -380,11 +380,18 @@ void l2_vm_step(struct l2_vm *vm) {
 
 	case L2_OP_NAMESPACE_SET:
 		{
-			l2_word key = vm->stack[vm->sptr - 1];
-			l2_word val = vm->stack[vm->sptr - 2];
-			l2_word ns = vm->stack[vm->sptr - 3];
+			l2_word key = vm->stack[--vm->sptr];
+			l2_word val = vm->stack[vm->sptr - 1];
+			l2_word ns = vm->stack[vm->sptr - 2];
 			l2_vm_namespace_set(&vm->values[ns], key, val);
-			vm->sptr -= 1;
+		}
+		break;
+
+	case L2_OP_NAMESPACE_LOOKUP:
+		{
+			l2_word key = vm->stack[--vm->sptr];
+			l2_word ns = vm->stack[--vm->sptr];
+			vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, &vm->values[ns], key);
 		}
 		break;
 

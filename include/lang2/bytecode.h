@@ -170,6 +170,14 @@ enum l2_opcode {
 	L2_OP_NAMESPACE_SET,
 
 	/*
+	 * Set a namespace's name to a value.
+	 * Pop <key>
+	 * Pop <ns>
+	 * Push <ns[<key>]>
+	 */
+	L2_OP_NAMESPACE_LOOKUP,
+
+	/*
 	 * Halt execution.
 	 */
 	L2_OP_HALT,

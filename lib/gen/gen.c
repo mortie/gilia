@@ -114,7 +114,25 @@ void l2_gen_function(struct l2_generator *gen, l2_word pos) {
 	put(gen, L2_OP_ALLOC_FUNCTION);
 }
 
+void l2_gen_namespace(struct l2_generator *gen) {
+	put(gen, L2_OP_ALLOC_NAMESPACE);
+}
+
+void l2_gen_namespace_set(struct l2_generator *gen, char **ident) {
+	size_t atom_id = l2_strset_put(&gen->atomset, ident);
+	put(gen, L2_OP_PUSH);
+	put(gen, atom_id);
+	put(gen, L2_OP_NAMESPACE_SET);
+}
+
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident) {
+	size_t atom_id = l2_strset_put(&gen->atomset, ident);
+	put(gen, L2_OP_PUSH);
+	put(gen, atom_id);
+	put(gen, L2_OP_NAMESPACE_LOOKUP);
+}
+
+void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
 	put(gen, L2_OP_PUSH);
 	put(gen, atom_id);

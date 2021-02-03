@@ -13,6 +13,7 @@ enum l2_token_kind {
 	L2_TOK_QUOT,
 	L2_TOK_COMMA,
 	L2_TOK_PERIOD,
+	L2_TOK_COLON,
 	L2_TOK_COLON_EQ,
 	L2_TOK_EOL,
 	L2_TOK_EOF,

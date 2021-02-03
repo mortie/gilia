@@ -32,7 +32,10 @@ void l2_gen_number(struct l2_generator *gen, double num);
 void l2_gen_string(struct l2_generator *gen, char **str);
 void l2_gen_atom(struct l2_generator *gen, char **ident);
 void l2_gen_function(struct l2_generator *gen, l2_word pos);
+void l2_gen_namespace(struct l2_generator *gen);
+void l2_gen_namespace_set(struct l2_generator *gen, char **ident);
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident);
+void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident);
 void l2_gen_func_call(struct l2_generator *gen);
 
 #endif

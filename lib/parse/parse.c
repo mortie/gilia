@@ -12,10 +12,60 @@ static int is_end_tok(struct l2_token *tok) {
 static int parse_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err);
 
+static int parse_object(
+		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	// { and EOL are already skipped
+
+	l2_gen_namespace(gen);
+	while (1) {
+		struct l2_token *tok = l2_lexer_peek(lexer, 1);
+		if (tok->kind == L2_TOK_EOF) {
+			l2_parse_err(err, tok, "In object literal: Unexpected EOF");
+			return -1;
+		} else if (tok->kind == L2_TOK_CLOSE_BRACE) {
+			l2_lexer_consume(lexer); // }
+			break;
+		}
+
+		if (tok->kind != L2_TOK_IDENT) {
+			l2_parse_err(err, tok, "In object literal: Expected identifier, got %s\n",
+					l2_token_kind_name(tok->kind));
+		}
+
+		char *key = l2_token_extract_str(tok);
+		l2_lexer_consume(lexer); // ident
+
+		tok = l2_lexer_peek(lexer, 1);
+		if (tok->kind != L2_TOK_COLON) {
+			l2_parse_err(err, tok, "In object literal: Expected colon, got %s\n",
+					l2_token_kind_name(tok->kind));
+		}
+
+		l2_lexer_consume(lexer); // :
+
+		if (parse_expression(lexer, gen, err) < 0) {
+			return -1;
+		}
+
+		l2_gen_namespace_set(gen, &key);
+		l2_gen_pop(gen);
+
+		tok = l2_lexer_peek(lexer, 1);
+		if (tok->kind != L2_TOK_EOL) {
+			l2_parse_err(err, tok, "In object literal: Expected EOL, got %s\n",
+					l2_token_kind_name(tok->kind));
+			return -1;
+		}
+
+		l2_lexer_consume(lexer); // EOL
+	}
+
+	return 0;
+}
+
 static int parse_function_impl(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
-	l2_lexer_consume(lexer); // {
-	l2_lexer_skip_opt(lexer, L2_TOK_EOL);
+	// { and EOL are already skipped
 
 	int first = 1;
 	while (1) {
@@ -90,6 +140,25 @@ static int parse_function(
 	return 0;
 }
 
+static int parse_function_or_object(
+		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_lexer_consume(lexer); // {
+	l2_lexer_skip_opt(lexer, L2_TOK_EOL);
+
+	struct l2_token *tok = l2_lexer_peek(lexer, 1);
+	struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
+
+	if (tok->kind == L2_TOK_CLOSE_BRACE) {
+		l2_lexer_consume(lexer); // }
+		l2_gen_namespace(gen);
+		return 0;
+	} else if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_COLON) {
+		return parse_object(lexer, gen, err);
+	} else {
+		return parse_function(lexer, gen, err);
+	}
+}
+
 static int parse_sub_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
 	struct l2_token *tok = l2_lexer_peek(lexer, 1);
@@ -107,7 +176,7 @@ static int parse_sub_expression(
 			l2_lexer_consume(lexer); // )
 
 			l2_gen_push(gen, 0); // Arg count
-			l2_gen_namespace_lookup(gen, &ident);
+			l2_gen_stack_frame_lookup(gen, &ident);
 			l2_gen_func_call(gen);
 			return 0;
 		}
@@ -131,7 +200,7 @@ static int parse_sub_expression(
 	} else if (tok->kind == L2_TOK_IDENT) {
 		char *ident = l2_token_extract_str(tok);
 		l2_lexer_consume(lexer); // ident
-		l2_gen_namespace_lookup(gen, &ident);
+		l2_gen_stack_frame_lookup(gen, &ident);
 		return 0;
 	} else if (tok->kind == L2_TOK_QUOT && tok2->kind == L2_TOK_IDENT) {
 		char *str = l2_token_extract_str(tok2);
@@ -145,7 +214,7 @@ static int parse_sub_expression(
 		l2_gen_string(gen, &str);
 		return 0;
 	} else if (tok->kind == L2_TOK_OPEN_BRACE) {
-		return parse_function(lexer, gen, err);
+		return parse_function_or_object(lexer, gen, err);
 	}
 
 	l2_parse_err(err, tok, "In expression: Unexpected token %s",
@@ -183,7 +252,7 @@ static int parse_expression(
 		}
 
 		l2_gen_push(gen, count);
-		l2_gen_namespace_lookup(gen, &ident);
+		l2_gen_stack_frame_lookup(gen, &ident);
 		l2_gen_func_call(gen);
 		return 0;
 	}
