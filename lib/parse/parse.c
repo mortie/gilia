@@ -41,6 +41,11 @@ static int parse_function_impl(
 		first = 0;
 	}
 
+	// Empty function bodies must still return something; just return 0 (none)
+	if (first) {
+		l2_gen_push(gen, 0);
+	}
+
 	l2_gen_ret(gen);
 	return 0;
 }
