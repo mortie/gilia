@@ -46,11 +46,14 @@ enum l2_opcode {
 
 	/*
 	 * Call a function.
-	 * Pop <word>
+	 * Pop <argc>
+	 * Pop <func>
+	 * Pop argc times
 	 * Push <iptr> + 1
-	 * Jump to <word>
+	 * Push array with args
+	 * Call <func>
 	 */
-	L2_OP_CALL,
+	L2_OP_FUNC_CALL,
 
 	/*
 	 * Jump relative.
@@ -58,13 +61,6 @@ enum l2_opcode {
 	 * Jump <word> words forwards
 	 */
 	L2_OP_RJMP,
-
-	/*
-	 * Generate a stack frame.
-	 * Alloc namespace <var>
-	 * NSPush <var>
-	 */
-	L2_OP_GEN_STACK_FRAME,
 
 	/*
 	 * Look up a value from the current stack frame.
@@ -85,6 +81,7 @@ enum l2_opcode {
 	/*
 	 * Return from a function.
 	 * NSPop
+	 * Pop (discard args array)
 	 * Pop <word>
 	 * Jump to <word>
 	 */

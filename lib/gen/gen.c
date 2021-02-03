@@ -28,10 +28,6 @@ void l2_gen_halt(struct l2_generator *gen) {
 	put(gen, L2_OP_HALT);
 }
 
-void l2_gen_stack_frame(struct l2_generator *gen) {
-	put(gen, L2_OP_GEN_STACK_FRAME);
-}
-
 void l2_gen_rjmp(struct l2_generator *gen, l2_word len) {
 	put(gen, L2_OP_PUSH);
 	put(gen, len);
@@ -40,6 +36,11 @@ void l2_gen_rjmp(struct l2_generator *gen, l2_word len) {
 
 void l2_gen_pop(struct l2_generator *gen) {
 	put(gen, L2_OP_POP);
+}
+
+void l2_gen_push(struct l2_generator *gen, l2_word word) {
+	put(gen, L2_OP_PUSH);
+	put(gen, word);
 }
 
 void l2_gen_ret(struct l2_generator *gen) {
@@ -110,4 +111,8 @@ void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident) {
 	put(gen, L2_OP_PUSH);
 	put(gen, atom_id);
 	put(gen, L2_OP_STACK_FRAME_LOOKUP);
+}
+
+void l2_gen_func_call(struct l2_generator *gen) {
+	put(gen, L2_OP_FUNC_CALL);
 }

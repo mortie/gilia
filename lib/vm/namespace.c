@@ -91,7 +91,11 @@ static l2_word get(struct l2_vm_namespace *ns, l2_word key) {
 		l2_word hash = (key + i) & ns->mask;
 		l2_word k = ns->data[hash];
 		if (k == 0) {
-			return 0;
+			if (ns->parent == NULL) {
+				return 0;
+			} else {
+				return get(ns->parent->data, key);
+			}
 		} else if (k == key) {
 			return ns->data[ns->size + hash];
 		}

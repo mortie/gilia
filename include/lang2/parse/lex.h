@@ -13,6 +13,7 @@ enum l2_token_kind {
 	L2_TOK_COMMA,
 	L2_TOK_PERIOD,
 	L2_TOK_COLON_EQ,
+	L2_TOK_EOL,
 	L2_TOK_EOF,
 	L2_TOK_NUMBER,
 	L2_TOK_STRING,
@@ -42,6 +43,7 @@ struct l2_lexer {
 	int tokidx;
 	int line;
 	int ch;
+	int parens;
 
 	struct l2_bufio_reader reader;
 };
@@ -49,5 +51,6 @@ struct l2_lexer {
 void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r);
 struct l2_token *l2_lexer_peek(struct l2_lexer *lexer, int count);
 void l2_lexer_consume(struct l2_lexer *lexer);
+void l2_lexer_skip_opt(struct l2_lexer *lexer, enum l2_token_kind kind);
 
 #endif

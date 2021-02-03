@@ -6,6 +6,10 @@
 #include "../bytecode.h"
 #include "../bitset.h"
 
+struct l2_vm;
+struct l2_vm_array;
+typedef l2_word (*l2_vm_cfunction)(struct l2_vm *vm, struct l2_vm_array *args);
+
 struct l2_vm_value {
 	enum l2_value_flags {
 		L2_VAL_TYPE_NONE,
@@ -15,6 +19,7 @@ struct l2_vm_value {
 		L2_VAL_TYPE_ARRAY,
 		L2_VAL_TYPE_NAMESPACE,
 		L2_VAL_TYPE_FUNCTION,
+		L2_VAL_TYPE_CFUNCTION,
 		L2_VAL_MARKED = 1 << 7,
 		L2_VAL_CONST = 1 << 8,
 	} flags;
@@ -25,6 +30,7 @@ struct l2_vm_value {
 			l2_word pos;
 			l2_word namespace;
 		} func;
+		l2_vm_cfunction cfunc;
 		void *data;
 	};
 };

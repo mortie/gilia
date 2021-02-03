@@ -40,6 +40,8 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 		return "period";
 	case L2_TOK_COLON_EQ:
 		return "period";
+	case L2_TOK_EOL:
+		return "end-of-line";
 	case L2_TOK_EOF:
 		return "end-of-file";
 	case L2_TOK_NUMBER:
@@ -70,6 +72,7 @@ void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
 	lexer->tokidx = 0;
 	lexer->line = 1;
 	lexer->ch = 1;
+	lexer->parens = 0;
 	l2_bufio_reader_init(&lexer->reader, r);
 }
 
@@ -93,8 +96,16 @@ static int is_whitespace(int ch) {
 	return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
 }
 
-static void skip_whitespace(struct l2_lexer *lexer) {
-	while (is_whitespace(l2_bufio_peek(&lexer->reader, 1))) read_ch(lexer);
+static int skip_whitespace(struct l2_lexer *lexer) {
+	int nl = 0;
+	while (is_whitespace(l2_bufio_peek(&lexer->reader, 1))) {
+		int ch = read_ch(lexer);
+		if (ch == '\n') {
+			nl = 1;
+		}
+	}
+
+	return nl;
 }
 
 static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
@@ -213,21 +224,27 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 }
 
 static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
-	skip_whitespace(lexer);
-
 	tok->line = lexer->line;
 	tok->ch = lexer->ch;
+	int nl = skip_whitespace(lexer);
+
+	if (nl && lexer->parens == 0) {
+		tok->kind = L2_TOK_EOL;
+		return;
+	}
 
 	int ch = peek_ch(lexer);
 	switch (ch) {
 	case '(':
 		read_ch(lexer);
 		tok->kind = L2_TOK_OPEN_PAREN;
+		lexer->parens += 1;
 		break;
 
 	case ')':
 		read_ch(lexer);
 		tok->kind = L2_TOK_CLOSE_PAREN;
+		lexer->parens -= 1;
 		break;
 
 	case '{':
@@ -316,4 +333,10 @@ void l2_lexer_consume(struct l2_lexer *lexer) {
 	l2_token_free(&lexer->toks[0]);
 	lexer->tokidx -= 1;
 	memmove(lexer->toks, lexer->toks + 1, lexer->tokidx * sizeof(*lexer->toks));
+}
+
+void l2_lexer_skip_opt(struct l2_lexer *lexer, enum l2_token_kind kind) {
+	if (l2_lexer_peek(lexer, 1)->kind == kind) {
+		l2_lexer_consume(lexer);
+	}
 }

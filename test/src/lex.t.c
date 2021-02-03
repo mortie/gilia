@@ -46,6 +46,9 @@ describe(lex) {
 		asserteq(l2_lexer_peek(&lexer, 1)->v.num, 10);
 		l2_lexer_consume(&lexer);
 
+		asserteq(l2_lexer_peek(&lexer, 1)->kind, L2_TOK_EOL);
+		l2_lexer_consume(&lexer);
+
 		asserteq(l2_lexer_peek(&lexer, 1)->kind, L2_TOK_IDENT);
 		asserteq(l2_lexer_peek(&lexer, 1)->v.str, "bar");
 		l2_lexer_consume(&lexer);

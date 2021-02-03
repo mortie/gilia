@@ -137,16 +137,12 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("ADD\n");
 		break;
 
-	case L2_OP_CALL:
-		printf("CALL\n");
+	case L2_OP_FUNC_CALL:
+		printf("FUNC_CALL\n");
 		break;
 
 	case L2_OP_RJMP:
 		printf("RJMP\n");
-		break;
-
-	case L2_OP_GEN_STACK_FRAME:
-		printf("GEN_STACK_FRAME\n");
 		break;
 
 	case L2_OP_STACK_FRAME_LOOKUP:

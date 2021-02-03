@@ -38,8 +38,12 @@ static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val);
 static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val);
 
 static void gc_mark(struct l2_vm *vm, l2_word id) {
-	printf("GC MARK %i\n", id);
 	struct l2_vm_value *val = &vm->values[id];
+	if (val->flags & L2_VAL_MARKED) {
+		return;
+	}
+
+	printf("GC MARK %i\n", id);
 	val->flags |= L2_VAL_MARKED;
 
 	int typ = l2_vm_value_type(val);
@@ -77,6 +81,10 @@ static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
 
 		gc_mark(vm, ns->data[ns->size + i]);
 	}
+
+	if (ns->parent != NULL) {
+		gc_mark_namespace(vm, ns->parent);
+	}
 }
 
 static void gc_free(struct l2_vm *vm, l2_word id) {
@@ -101,6 +109,7 @@ static size_t gc_sweep(struct l2_vm *vm) {
 
 		struct l2_vm_value *val = &vm->values[i];
 		if (!(val->flags & L2_VAL_MARKED)) {
+			printf("GC FREE %zi\n", i);
 			gc_free(vm, i);
 			freed += 1;
 		} else {
@@ -125,6 +134,13 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	// variable ID 0 should be the only 'none' variable in the system
 	l2_word none_id = alloc_val(vm);
 	vm->values[none_id].flags = L2_VAL_TYPE_NONE | L2_VAL_CONST;
+
+	// Need to allocate a root namespace
+	l2_word root = alloc_val(vm);
+	vm->values[root].flags = L2_VAL_TYPE_NAMESPACE;
+	vm->values[root].data = NULL; // Will be allocated on first insert
+	vm->nstack[vm->nsptr] = root;
+	vm->nsptr += 1;
 }
 
 void l2_vm_free(struct l2_vm *vm) {
@@ -192,24 +208,57 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->sptr -= 1;
 		break;
 
-	case L2_OP_CALL:
-		word = vm->stack[vm->sptr - 1];
-		vm->stack[vm->sptr - 1] = vm->iptr + 1;
-		vm->iptr = word;
+	case L2_OP_FUNC_CALL:
+		{
+			l2_word func_id = vm->stack[--vm->sptr];
+			l2_word argc = vm->stack[--vm->sptr];
+			struct l2_vm_value *func = &vm->values[func_id];
+
+			l2_word arr_id = alloc_val(vm);
+			vm->values[arr_id].flags = L2_VAL_TYPE_ARRAY;
+			vm->values[arr_id].data = malloc(
+					sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
+			struct l2_vm_array *arr = vm->values[arr_id].data;
+			arr->len = argc;
+			arr->size = argc;
+
+			vm->sptr -= argc;
+			for (l2_word i = 0; i < argc; ++i) {
+				arr->data[i] = vm->stack[vm->sptr + i];
+			}
+
+			enum l2_value_flags typ = l2_vm_value_type(func);
+
+			// C functions are called differently from language functions
+			if (typ == L2_VAL_TYPE_CFUNCTION) {
+				vm->stack[vm->sptr++] = func->cfunc(vm, arr);
+				break;
+			}
+
+			// Don't interpret a non-function as a function
+			if (typ != L2_VAL_TYPE_FUNCTION) {
+				// TODO: Error mechanism
+				break;
+			}
+
+			vm->stack[vm->sptr++] = vm->iptr;
+			vm->stack[vm->sptr++] = arr_id;
+
+			l2_word ns_id = alloc_val(vm);
+			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
+			vm->values[ns_id].data = calloc(1, sizeof(struct l2_vm_namespace));
+			struct l2_vm_namespace *ns = vm->values[ns_id].data;
+			ns->parent = &vm->values[func->func.namespace]; // TODO: This won't work if values is realloc'd
+			vm->nstack[vm->nsptr++] = ns_id;
+
+			vm->iptr = func->func.pos;
+		}
 		break;
 
 	case L2_OP_RJMP:
 		word = vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;
 		vm->iptr += word;
-		break;
-
-	case L2_OP_GEN_STACK_FRAME:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
-		vm->values[word].data = NULL; // Will be allocated on first insert
-		vm->nstack[vm->nsptr] = word;
-		vm->nsptr += 1;
 		break;
 
 	case L2_OP_STACK_FRAME_LOOKUP:
@@ -231,10 +280,14 @@ void l2_vm_step(struct l2_vm *vm) {
 		break;
 
 	case L2_OP_RET:
-		vm->nsptr -= 1;
-		vm->iptr = vm->stack[vm->sptr - 1];
-		vm->sptr -= 1;
-		vm->nsptr -= 1;
+		{
+			l2_word retval = vm->stack[--vm->sptr];
+			vm->sptr -= 1; // Discard arguments array
+			l2_word retaddr = vm->stack[--vm->sptr];
+			vm->stack[vm->sptr++] = retval;
+			vm->nsptr -= 1; // Pop function stack frame
+			vm->iptr = retaddr;
+		}
 		break;
 
 	case L2_OP_ALLOC_INTEGER_32:
