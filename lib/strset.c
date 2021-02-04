@@ -1,6 +1,7 @@
 #include "strset.h"
 
 #include <string.h>
+#include <stdio.h>
 
 // sdbm from http://www.cse.yorku.ca/~oz/hash.html;
 // there are probably better algorithms out there

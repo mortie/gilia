@@ -28,6 +28,7 @@ void l2_gen_flush(struct l2_generator *gen) {
 void l2_gen_free(struct l2_generator *gen) {
 	l2_strset_free(&gen->atomset);
 	l2_strset_free(&gen->stringset);
+	free(gen->strings);
 }
 
 void l2_gen_halt(struct l2_generator *gen) {
@@ -90,6 +91,7 @@ void l2_gen_string(struct l2_generator *gen, char **str) {
 		put(gen, L2_OP_RJMP);
 		l2_word pos = gen->pos;
 
+		gen->pos += aligned / sizeof(l2_word);
 		l2_bufio_put_n(&gen->writer, *str, len);
 		for (size_t i = len; i < aligned; ++i) {
 			l2_bufio_put(&gen->writer, '\0');

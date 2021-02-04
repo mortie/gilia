@@ -94,6 +94,7 @@ struct l2_vm {
 };
 
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);
+l2_word l2_vm_alloc(struct l2_vm *vm, enum l2_value_type typ, enum l2_value_flags flags);
 void l2_vm_free(struct l2_vm *vm);
 void l2_vm_step(struct l2_vm *vm);
 void l2_vm_run(struct l2_vm *vm);

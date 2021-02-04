@@ -226,6 +226,7 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 void l2_vm_print_bytecode(l2_word *ops, size_t opcount) {
 	size_t ptr = 0;
 	while (ptr < opcount) {
+		printf("%04zu ", ptr);
 		l2_vm_print_op(ops, opcount, &ptr);
 	}
 }

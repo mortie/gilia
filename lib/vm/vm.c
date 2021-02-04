@@ -12,7 +12,7 @@ static l2_word alloc_val(struct l2_vm *vm) {
 			vm->valuessize = 16;
 		}
 
-		while (id > vm->valuessize) {
+		while (id >= vm->valuessize) {
 			vm->valuessize *= 2;
 		}
 
@@ -164,6 +164,13 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 #undef X
 }
 
+l2_word l2_vm_alloc(struct l2_vm *vm, enum l2_value_type typ, enum l2_value_flags flags) {
+	l2_word id = alloc_val(vm);
+	memset(&vm->values[id], 0, sizeof(vm->values[id]));
+	vm->values[id].flags = typ | flags;
+	return id;
+}
+
 void l2_vm_free(struct l2_vm *vm) {
 	// Skip ID 0, because that's always NONE
 	for (size_t i = 1; i < vm->valuessize; ++i) {
@@ -266,7 +273,7 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->stack[vm->sptr++] = arr_id;
 
 			l2_word ns_id = alloc_val(vm);
-			vm->values[ns_id].extra.ns_parent = ns_id;
+			vm->values[ns_id].extra.ns_parent = func->func.namespace;
 			vm->values[ns_id].ns = NULL;
 			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
 			vm->nstack[vm->nsptr++] = ns_id;

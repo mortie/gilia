@@ -127,6 +127,7 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 	while (1) {
 		int ch = read_ch(lexer);
 		if (ch == '"') {
+			tok->v.str[idx] = '\0';
 			return;
 		} else if (ch == EOF) {
 			tok->kind = L2_TOK_EOF;
