@@ -317,33 +317,14 @@ void l2_vm_step(struct l2_vm *vm) {
 		}
 		break;
 
-	case L2_OP_ALLOC_INTEGER_32:
+	case L2_OP_ALLOC_ATOM:
 		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_INTEGER;
-		vm->values[word].integer = vm->stack[--vm->sptr];
+		vm->values[word].flags = L2_VAL_TYPE_ATOM;
+		vm->values[word].atom= vm->stack[--vm->sptr];
 		vm->stack[vm->sptr++] = word;
 		break;
 
-	case L2_OP_ALLOC_INTEGER_64:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_INTEGER;
-		vm->values[word].integer = (int64_t)(
-			(uint64_t)vm->stack[vm->sptr - 1] << 32 |
-			(uint64_t)vm->stack[vm->sptr - 2]);
-		vm->sptr -= 2;
-		vm->stack[vm->sptr] = word;
-		vm->sptr += 1;
-		break;
-
-	case L2_OP_ALLOC_REAL_32:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_REAL;
-		vm->values[word].real = u32_to_float(vm->stack[--vm->sptr]);
-		vm->stack[vm->sptr] = word;
-		vm->sptr += 1;
-		break;
-
-	case L2_OP_ALLOC_REAL_64:
+	case L2_OP_ALLOC_REAL:
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_REAL;
 		vm->values[word].real = u32s_to_double(vm->stack[vm->sptr - 1], vm->stack[vm->sptr - 2]);

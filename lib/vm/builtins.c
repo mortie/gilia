@@ -8,8 +8,8 @@ static void print_val(struct l2_vm *vm, struct l2_vm_value *val) {
 			printf("(none)");
 			break;
 
-		case L2_VAL_TYPE_INTEGER:
-			printf("%zi", val->integer);
+		case L2_VAL_TYPE_ATOM:
+			printf("(atom %u)", val->atom);
 			break;
 
 		case L2_VAL_TYPE_REAL:

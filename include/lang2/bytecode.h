@@ -88,29 +88,12 @@ enum l2_opcode {
 	L2_OP_RET,
 
 	/*
-	 * Allocate an integer from one word.
+	 * Allocate an atom from one word.
 	 * Pop <word>
 	 * Alloc integer <var> from <word>
 	 * Push <var>
 	 */
-	L2_OP_ALLOC_INTEGER_32,
-
-	/*
-	 * Allocate an integer from two words.
-	 * Pop <word1>
-	 * Pop <word2>
-	 * Alloc integer <var> from <word1> << 32 | <word2>
-	 * Push <var>
-	 */
-	L2_OP_ALLOC_INTEGER_64,
-
-	/*
-	 * Allocate a real from one word.
-	 * Pop <word>
-	 * Alloc real <var> from <word>
-	 * Push <var>
-	 */
-	L2_OP_ALLOC_REAL_32,
+	L2_OP_ALLOC_ATOM,
 
 	/*
 	 * Allocate a real from two words.
@@ -119,7 +102,7 @@ enum l2_opcode {
 	 * Alloc real <var> from <high> << 32 | <low>
 	 * Push <var>
 	 */
-	L2_OP_ALLOC_REAL_64,
+	L2_OP_ALLOC_REAL,
 
 	/*
 	 * Allocate a buffer from static data.

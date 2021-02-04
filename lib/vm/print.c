@@ -10,8 +10,8 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 		printf("NONE\n");
 		break;
 
-	case L2_VAL_TYPE_INTEGER:
-		printf("INTEGER %zi\n", val->integer);
+	case L2_VAL_TYPE_ATOM:
+		printf("ATOM %u\n", val->atom);
 		break;
 
 	case L2_VAL_TYPE_REAL:
@@ -165,20 +165,12 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("RET\n");
 		break;
 
-	case L2_OP_ALLOC_INTEGER_32:
-		printf("ALLOC_INTEGER_32\n");
+	case L2_OP_ALLOC_ATOM:
+		printf("ALLOC_ATOM\n");
 		break;
 
-	case L2_OP_ALLOC_INTEGER_64:
-		printf("ALLOC_INTEGER_64\n");
-		break;
-
-	case L2_OP_ALLOC_REAL_32:
-		printf("ALLOC_REAL_32\n");
-		break;
-
-	case L2_OP_ALLOC_REAL_64:
-		printf("ALLOC_REAL_64\n");
+	case L2_OP_ALLOC_REAL:
+		printf("ALLOC_REAL\n");
 		break;
 
 	case L2_OP_ALLOC_BUFFER_STATIC:

@@ -12,7 +12,7 @@ typedef l2_word (*l2_vm_cfunction)(struct l2_vm *vm, struct l2_vm_array *args);
 
 enum l2_value_type {
 	L2_VAL_TYPE_NONE,
-	L2_VAL_TYPE_INTEGER,
+	L2_VAL_TYPE_ATOM,
 	L2_VAL_TYPE_REAL,
 	L2_VAL_TYPE_BUFFER,
 	L2_VAL_TYPE_ARRAY,
@@ -41,7 +41,7 @@ struct l2_vm_value {
 
 	// Byte 8: 8 bytes
 	union {
-		int64_t integer;
+		l2_word atom;
 		double real;
 		struct l2_vm_buffer *buffer;
 		struct l2_vm_array *array;
