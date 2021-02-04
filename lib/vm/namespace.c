@@ -100,17 +100,16 @@ static l2_word get(struct l2_vm_namespace *ns, l2_word key) {
 
 void l2_vm_namespace_set(struct l2_vm_value *v, l2_word key, l2_word val) {
 	if (val == 0) {
-		del(v->data, key);
+		del(v->ns, key);
 	} else {
-		v->data = set(v->data, key, val);
+		v->ns = set(v->ns, key, val);
 	}
 }
 
 l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *v, l2_word key) {
-	struct l2_vm_namespace *ns = v->data;
-	l2_word ret = get(ns, key);
-	if (ret == 0 && ns != NULL && ns->parent != 0) {
-		return l2_vm_namespace_get(vm, &vm->values[ns->parent], key);
+	l2_word ret = get(v->ns, key);
+	if (ret == 0 && v->extra.ns_parent != 0) {
+		return l2_vm_namespace_get(vm, &vm->values[v->extra.ns_parent], key);
 	}
 
 	return ret;

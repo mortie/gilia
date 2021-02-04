@@ -4,7 +4,8 @@
 #include <string.h>
 
 void l2_vm_print_val(struct l2_vm_value *val) {
-	switch (val->flags & 0x0f) {
+
+	switch (l2_vm_value_type(val)) {
 	case L2_VAL_TYPE_NONE:
 		printf("NONE\n");
 		break;
@@ -19,54 +20,55 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 
 	case L2_VAL_TYPE_ARRAY:
 		{
-			if (val->data == NULL) {
+			if (val->array == NULL) {
 				printf("ARRAY, empty\n");
 				return;
 			}
 
-			struct l2_vm_array *arr = (struct l2_vm_array *)val->data;
-			printf("ARRAY, len %zu\n", arr->len);
-			for (size_t i = 0; i < arr->len; ++i) {
-				printf("    %zu: %u\n", i, arr->data[i]);
+			printf("ARRAY, len %zu\n", val->array->len);
+			for (size_t i = 0; i < val->array->len; ++i) {
+				printf("    %zu: %u\n", i, val->array->data[i]);
 			}
 		}
 		break;
 
 	case L2_VAL_TYPE_BUFFER:
 		{
-			if (val->data == NULL) {
+			if (val->buffer == NULL) {
 				printf("BUFFER, empty\n");
 				return;
 			}
 
-			struct l2_vm_buffer *buf = (struct l2_vm_buffer *)val->data;
-			printf("BUFFER, len %zu\n", buf->len);
-			for (size_t i = 0; i < buf->len; ++i) {
-				printf("    %zu: %c\n", i, buf->data[i]);
+			printf("BUFFER, len %zu\n", val->buffer->len);
+			for (size_t i = 0; i < val->buffer->len; ++i) {
+				printf("    %zu: %c\n", i, val->buffer->data[i]);
 			}
 		}
 		break;
 
 	case L2_VAL_TYPE_NAMESPACE:
 		{
-			if (val->data == NULL) {
-				printf("NAMESPACE, empty\n");
+			if (val->ns == NULL) {
+				printf("NAMESPACE, empty, parent %u\n", val->extra.ns_parent);
 				return;
 			}
 
-			struct l2_vm_namespace *ns = (struct l2_vm_namespace *)val->data;
-			printf("NAMESPACE, len %zu, parent %u\n", ns->len, ns->parent);
-			for (size_t i = 0; i < ns->size; ++i) {
-				l2_word key = ns->data[i];
-				l2_word val = ns->data[ns->size + i];
+			printf("NAMESPACE, len %zu, parent %u\n", val->ns->len, val->extra.ns_parent);
+			for (size_t i = 0; i < val->ns->size; ++i) {
+				l2_word key = val->ns->data[i];
+				l2_word v = val->ns->data[val->ns->size + i];
 				if (key == 0 || key == ~(l2_word)0) continue;
-				printf("    %u: %u\n", key, val);
+				printf("    %u: %u\n", key, v);
 			}
 		}
 		break;
 
 	case L2_VAL_TYPE_FUNCTION:
 		printf("FUNCTION, pos %u, ns %u\n", val->func.pos, val->func.namespace);
+		break;
+
+	case L2_VAL_TYPE_CFUNCTION:
+		printf("C FUNCTION, %p\n", val->cfunc);
 		break;
 	}
 }

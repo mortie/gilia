@@ -13,6 +13,12 @@ void l2_gen_init(struct l2_generator *gen, struct l2_io_writer *w) {
 	gen->strings = NULL;
 	gen->pos = 0;
 	l2_bufio_writer_init(&gen->writer, w);
+
+	// Register atoms for all builtins
+#define X(name, f) \
+	l2_strset_put_copy(&gen->atomset, name);
+#include "builtins.x.h"
+#undef X
 }
 
 void l2_gen_flush(struct l2_generator *gen) {

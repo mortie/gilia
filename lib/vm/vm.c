@@ -1,8 +1,9 @@
 #include "vm/vm.h"
 
 #include <string.h>
-
 #include <stdio.h>
+
+#include "vm/builtins.h"
 
 static l2_word alloc_val(struct l2_vm *vm) {
 	size_t id = l2_bitset_set_next(&vm->valueset);
@@ -57,33 +58,31 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 }
 
 static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val) {
-	if (val->data == NULL) {
+	if (val->array == NULL) {
 		return;
 	}
 
-	struct l2_vm_array *arr = (struct l2_vm_array *)val->data;
-	for (size_t i = 0; i < arr->len; ++i) {
-		gc_mark(vm, arr->data[i]);
+	for (size_t i = 0; i < val->array->len; ++i) {
+		gc_mark(vm, val->array->data[i]);
 	}
 }
 
 static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
-	if (val->data == NULL) {
+	if (val->ns == NULL) {
 		return;
 	}
 
-	struct l2_vm_namespace *ns = (struct l2_vm_namespace *)val->data;
-	for (size_t i = 0; i < ns->size; ++i) {
-		l2_word key = ns->data[i];
+	for (size_t i = 0; i < val->ns->size; ++i) {
+		l2_word key = val->ns->data[i];
 		if (key == 0 || key == ~(l2_word)0) {
 			continue;
 		}
 
-		gc_mark(vm, ns->data[ns->size + i]);
+		gc_mark(vm, val->ns->data[val->ns->size + i]);
 	}
 
-	if (ns->parent != 0) {
-		gc_mark(vm, ns->parent);
+	if (val->extra.ns_parent != 0) {
+		gc_mark(vm, val->extra.ns_parent);
 	}
 }
 
@@ -91,11 +90,15 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 	struct l2_vm_value *val = &vm->values[id];
 	l2_bitset_unset(&vm->valueset, id);
 
+	// Don't need to do anything more; the next round of GC will free
+	// whichever values were only referenced by the array
 	int typ = l2_vm_value_type(val);
 	if (typ == L2_VAL_TYPE_ARRAY || typ == L2_VAL_TYPE_BUFFER || typ == L2_VAL_TYPE_NAMESPACE) {
-		free(val->data);
-		// Don't need to do anything more; the next round of GC will free
-		// whichever values were only referenced by the array
+		free(val->array);
+	} else if (typ == L2_VAL_TYPE_BUFFER) {
+		free(val->buffer);
+	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
+		free(val->ns);
 	}
 }
 
@@ -135,12 +138,30 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	l2_word none_id = alloc_val(vm);
 	vm->values[none_id].flags = L2_VAL_TYPE_NONE | L2_VAL_CONST;
 
+	// Need to allocate a builtins namespace
+	l2_word builtins = alloc_val(vm);
+	vm->values[builtins].extra.ns_parent = 0;
+	vm->values[builtins].ns = NULL; // Will be allocated on first insert
+	vm->values[builtins].flags = L2_VAL_TYPE_NAMESPACE;
+	vm->nstack[vm->nsptr++] = builtins;
+
 	// Need to allocate a root namespace
 	l2_word root = alloc_val(vm);
+	vm->values[root].extra.ns_parent = builtins;
+	vm->values[root].ns = NULL;
 	vm->values[root].flags = L2_VAL_TYPE_NAMESPACE;
-	vm->values[root].data = NULL; // Will be allocated on first insert
-	vm->nstack[vm->nsptr] = root;
-	vm->nsptr += 1;
+	vm->nstack[vm->nsptr++] = root;
+
+	// Define a C function variable for every builtin
+	l2_word id;
+	l2_word key = 1;
+#define X(name, f) \
+	id = alloc_val(vm); \
+	vm->values[id].flags = L2_VAL_TYPE_CFUNCTION; \
+	vm->values[id].cfunc = f; \
+	l2_vm_namespace_set(&vm->values[builtins], key++, id);
+#include "builtins.x.h"
+#undef X
 }
 
 void l2_vm_free(struct l2_vm *vm) {
@@ -216,9 +237,9 @@ void l2_vm_step(struct l2_vm *vm) {
 
 			l2_word arr_id = alloc_val(vm);
 			vm->values[arr_id].flags = L2_VAL_TYPE_ARRAY;
-			vm->values[arr_id].data = malloc(
+			vm->values[arr_id].array = malloc(
 					sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
-			struct l2_vm_array *arr = vm->values[arr_id].data;
+			struct l2_vm_array *arr = vm->values[arr_id].array;
 			arr->len = argc;
 			arr->size = argc;
 
@@ -227,7 +248,7 @@ void l2_vm_step(struct l2_vm *vm) {
 				arr->data[i] = vm->stack[vm->sptr + i];
 			}
 
-			enum l2_value_flags typ = l2_vm_value_type(func);
+			enum l2_value_type typ = l2_vm_value_type(func);
 
 			// C functions are called differently from language functions
 			if (typ == L2_VAL_TYPE_CFUNCTION) {
@@ -245,10 +266,9 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->stack[vm->sptr++] = arr_id;
 
 			l2_word ns_id = alloc_val(vm);
+			vm->values[ns_id].extra.ns_parent = ns_id;
+			vm->values[ns_id].ns = NULL;
 			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
-			vm->values[ns_id].data = calloc(1, sizeof(struct l2_vm_namespace));
-			struct l2_vm_namespace *ns = vm->values[ns_id].data;
-			ns->parent = func->func.namespace;
 			vm->nstack[vm->nsptr++] = ns_id;
 
 			vm->iptr = func->func.pos;
@@ -331,10 +351,10 @@ void l2_vm_step(struct l2_vm *vm) {
 			l2_word length = vm->stack[--vm->sptr];
 			l2_word offset = vm->stack[--vm->sptr];
 			vm->values[word].flags = L2_VAL_TYPE_BUFFER;
-			vm->values[word].data = malloc(sizeof(struct l2_vm_buffer) + length);
-			((struct l2_vm_buffer *)vm->values[word].data)->len = length;
+			vm->values[word].buffer = malloc(sizeof(struct l2_vm_buffer) + length);
+			vm->values[word].buffer->len = length;
 			memcpy(
-				(unsigned char *)vm->values[word].data + sizeof(struct l2_vm_buffer),
+				(unsigned char *)vm->values[word].buffer + sizeof(struct l2_vm_buffer),
 				vm->ops + offset, length);
 			vm->stack[vm->sptr] = word;
 			vm->sptr += 1;
@@ -346,8 +366,8 @@ void l2_vm_step(struct l2_vm *vm) {
 			word = alloc_val(vm);
 			l2_word length = vm->stack[--vm->sptr];
 			vm->values[word].flags = L2_VAL_TYPE_BUFFER;
-			vm->values[word].data = calloc(1, sizeof(struct l2_vm_buffer) + length);
-			((struct l2_vm_buffer *)vm->values[word].data)->len = length;
+			vm->values[word].buffer = calloc(1, sizeof(struct l2_vm_buffer) + length);
+			vm->values[word].buffer->len = length;
 			vm->stack[vm->sptr] = word;
 			vm->sptr += 1;
 		}
@@ -356,7 +376,7 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_ALLOC_ARRAY:
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_ARRAY;
-		vm->values[word].data = NULL; // Will be allocated on first insert
+		vm->values[word].array = NULL; // Will be allocated on first insert
 		vm->stack[vm->sptr] = word;
 		vm->sptr += 1;
 		break;
@@ -364,7 +384,8 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_ALLOC_NAMESPACE:
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
-		vm->values[word].data = NULL; // Will be allocated on first insert
+		vm->values[word].extra.ns_parent = 0;
+		vm->values[word].ns = NULL; // Will be allocated on first insert
 		vm->stack[vm->sptr] = word;
 		vm->sptr += 1;
 		break;
