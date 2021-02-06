@@ -13,6 +13,9 @@ static int tok_is_end(struct l2_token *tok) {
 static int parse_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err);
 
+static int parse_arg_level_expression(
+		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err);
+
 static int parse_object_literal(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
 	l2_trace_scope("object literal");
@@ -156,6 +159,8 @@ static int parse_object_or_function_literal(
 	if (tok->kind == L2_TOK_CLOSE_BRACE) {
 		l2_trace_scope("empty object literal");
 		l2_lexer_consume(lexer); // '}'
+
+		l2_gen_namespace(gen);
 	} else if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_COLON) {
 		if (parse_object_literal(lexer, gen, err) < 0) {
 			return -1;
@@ -166,6 +171,31 @@ static int parse_object_or_function_literal(
 		}
 	}
 
+	return 0;
+}
+
+static int parse_array_literal(
+		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_scope("array literal");
+	l2_lexer_consume(lexer); // '['
+	l2_lexer_skip_opt(lexer, L2_TOK_EOL);
+
+	int count = 0;
+	while (1) {
+		if (l2_lexer_peek(lexer, 1)->kind == L2_TOK_CLOSE_BRACKET) {
+			l2_lexer_consume(lexer); // ']'
+			break;
+		}
+
+		count += 1;
+		if (parse_arg_level_expression(lexer, gen, err) < 0) {
+			return -1;
+		}
+
+		l2_lexer_skip_opt(lexer, L2_TOK_EOL);
+	}
+
+	l2_gen_array(gen, count);
 	return 0;
 }
 
@@ -222,6 +252,10 @@ static int parse_arg_level_expression_base(
 		l2_gen_atom(gen, &ident);
 	} else if (tok->kind == L2_TOK_OPEN_BRACE) {
 		if (parse_object_or_function_literal(lexer, gen, err) < 0) {
+			return -1;
+		}
+	} else if (tok->kind == L2_TOK_OPEN_BRACKET) {
+		if (parse_array_literal(lexer, gen, err) < 0) {
 			return -1;
 		}
 	} else {

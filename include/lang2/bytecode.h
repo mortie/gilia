@@ -123,6 +123,8 @@ enum l2_opcode {
 
 	/*
 	 * Allocate an array.
+	 * Pop <count>
+	 * Pop count times
 	 * Alloc array <var>
 	 * Push <var>
 	 */

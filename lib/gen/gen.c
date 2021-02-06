@@ -122,6 +122,12 @@ void l2_gen_function(struct l2_generator *gen, l2_word pos) {
 	put(gen, L2_OP_ALLOC_FUNCTION);
 }
 
+void l2_gen_array(struct l2_generator *gen, l2_word count) {
+	put(gen, L2_OP_PUSH);
+	put(gen, count);
+	put(gen, L2_OP_ALLOC_ARRAY);
+}
+
 void l2_gen_namespace(struct l2_generator *gen) {
 	put(gen, L2_OP_ALLOC_NAMESPACE);
 }

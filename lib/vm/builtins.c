@@ -17,14 +17,21 @@ static void print_val(struct l2_vm *vm, struct l2_vm_value *val) {
 			break;
 
 		case L2_VAL_TYPE_BUFFER:
-			fwrite(val->buffer->data, 1, val->buffer->len, stdout);
+			if (val->buffer != NULL) {
+				fwrite(val->buffer->data, 1, val->buffer->len, stdout);
+			}
 			break;
 
 		case L2_VAL_TYPE_ARRAY:
+			if (val->array == NULL) {
+				printf("[]");
+				break;
+			}
+
 			putchar('[');
 			for (size_t i = 0; i < val->array->len; ++i) {
 				if (i != 0) {
-					printf(", ");
+					putchar(' ');
 				}
 
 				print_val(vm, &vm->values[val->array->data[i]]);

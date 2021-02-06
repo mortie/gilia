@@ -363,11 +363,26 @@ void l2_vm_step(struct l2_vm *vm) {
 		break;
 
 	case L2_OP_ALLOC_ARRAY:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_ARRAY;
-		vm->values[word].array = NULL; // Will be allocated on first insert
-		vm->stack[vm->sptr] = word;
-		vm->sptr += 1;
+		{
+			l2_word count = vm->stack[--vm->sptr];
+			l2_word arr_id = alloc_val(vm);
+			struct l2_vm_value *arr = &vm->values[arr_id];
+			arr->flags = L2_VAL_TYPE_ARRAY;
+			if (count == 0) {
+				arr->array = NULL;
+				vm->stack[vm->sptr++] = arr_id;
+				break;
+			}
+
+			arr->array = malloc(sizeof(struct l2_vm_array) + count * sizeof(l2_word));
+			arr->array->len = count;
+			arr->array->size = count;
+			for (l2_word i = 0; i < count; ++i) {
+				arr->array->data[count - 1 - i] = vm->stack[--vm->sptr];
+			}
+
+			vm->stack[vm->sptr++] = arr_id;
+		}
 		break;
 
 	case L2_OP_ALLOC_NAMESPACE:
@@ -411,8 +426,8 @@ void l2_vm_step(struct l2_vm *vm) {
 			l2_word arr = vm->stack[--vm->sptr];
 			// TODO: Error if out of bounds or incorrect type
 			vm->stack[vm->sptr++] = vm->values[arr].array->data[key];
-			break;
 		}
+		break;
 
 	case L2_OP_HALT:
 		break;
