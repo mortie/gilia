@@ -35,6 +35,7 @@ void l2_gen_function(struct l2_generator *gen, l2_word pos);
 void l2_gen_namespace(struct l2_generator *gen);
 void l2_gen_namespace_set(struct l2_generator *gen, char **ident);
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident);
+void l2_gen_direct_array_lookup(struct l2_generator *gen, int number);
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident);
 void l2_gen_func_call(struct l2_generator *gen);
 

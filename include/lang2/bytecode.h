@@ -153,12 +153,20 @@ enum l2_opcode {
 	L2_OP_NAMESPACE_SET,
 
 	/*
-	 * Set a namespace's name to a value.
+	 * Lookup a value from a namespace.
 	 * Pop <key>
 	 * Pop <ns>
 	 * Push <ns[<key>]>
 	 */
 	L2_OP_NAMESPACE_LOOKUP,
+
+	/*
+	 * Look up a value from an array.
+	 * Pop <key>
+	 * Pop <arr>
+	 * Push <arr[<key>]>
+	 */
+	L2_OP_DIRECT_ARRAY_LOOKUP,
 
 	/*
 	 * Halt execution.

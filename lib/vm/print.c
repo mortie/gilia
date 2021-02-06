@@ -197,6 +197,14 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("NAMESPACE_SET\n");
 		break;
 
+	case L2_OP_NAMESPACE_LOOKUP:
+		printf("NAMESPACE_LOOKUP\n");
+		break;
+
+	case L2_OP_DIRECT_ARRAY_LOOKUP:
+		printf("DIRECT_ARRAY_LOOKUP\n");
+		break;
+
 	case L2_OP_HALT:
 		printf("HALT\n");
 		break;

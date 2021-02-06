@@ -61,6 +61,8 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 		return "comma";
 	case L2_TOK_PERIOD:
 		return "period";
+	case L2_TOK_DOT_NUMBER:
+		return "dot-number";
 	case L2_TOK_COLON:
 		return "colon";
 	case L2_TOK_COLON_EQ:
@@ -122,9 +124,13 @@ static int is_whitespace(int ch) {
 	return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
 }
 
+static int is_numeric(int ch) {
+	return ch >= '0' && ch <= '9';
+}
+
 static int skip_whitespace(struct l2_lexer *lexer) {
 	int nl = 0;
-	while (is_whitespace(l2_bufio_peek(&lexer->reader, 1))) {
+	while (is_whitespace(peek_ch(lexer))) {
 		int ch = read_ch(lexer);
 		if (ch == '\n') {
 			nl = 1;
@@ -132,6 +138,24 @@ static int skip_whitespace(struct l2_lexer *lexer) {
 	}
 
 	return nl;
+}
+
+static int read_integer(struct l2_lexer *lexer) {
+	char buffer[16]; // Should be enough
+	int len = 0;
+
+	while (len < sizeof(buffer) - 1 && is_numeric(peek_ch(lexer))) {
+		buffer[len++] = read_ch(lexer);
+	}
+
+	int num = 0;
+	int power = 1;
+	for (int i = len - 1; i >= 0; --i) {
+		num += (buffer[i] - '0') * power;
+		power *= 10;
+	}
+
+	return num;
 }
 
 static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
@@ -316,7 +340,12 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 
 	case '.':
 		read_ch(lexer);
-		tok->kind = L2_TOK_PERIOD;
+		if (is_numeric(peek_ch(lexer))) {
+			tok->kind = L2_TOK_DOT_NUMBER;
+			tok->v.integer = read_integer(lexer);
+		} else {
+			tok->kind = L2_TOK_PERIOD;
+		}
 		break;
 
 	case ':':

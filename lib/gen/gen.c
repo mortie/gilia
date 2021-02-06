@@ -140,6 +140,12 @@ void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident) {
 	put(gen, L2_OP_NAMESPACE_LOOKUP);
 }
 
+void l2_gen_direct_array_lookup(struct l2_generator *gen, int number) {
+	put(gen, L2_OP_PUSH);
+	put(gen, number);
+	put(gen, L2_OP_DIRECT_ARRAY_LOOKUP);
+}
+
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
 	put(gen, L2_OP_PUSH);

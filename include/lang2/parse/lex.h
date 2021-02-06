@@ -13,6 +13,7 @@ enum l2_token_kind {
 	L2_TOK_QUOT,
 	L2_TOK_COMMA,
 	L2_TOK_PERIOD,
+	L2_TOK_DOT_NUMBER,
 	L2_TOK_COLON,
 	L2_TOK_COLON_EQ,
 	L2_TOK_EOL,
@@ -33,6 +34,7 @@ struct l2_token {
 	union {
 		char *str;
 		double num;
+		int integer;
 	} v;
 };
 

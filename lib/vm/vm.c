@@ -405,6 +405,15 @@ void l2_vm_step(struct l2_vm *vm) {
 		}
 		break;
 
+	case L2_OP_DIRECT_ARRAY_LOOKUP:
+		{
+			l2_word key = vm->stack[--vm->sptr];
+			l2_word arr = vm->stack[--vm->sptr];
+			// TODO: Error if out of bounds or incorrect type
+			vm->stack[vm->sptr++] = vm->values[arr].array->data[key];
+			break;
+		}
+
 	case L2_OP_HALT:
 		break;
 	}

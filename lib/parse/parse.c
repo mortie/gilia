@@ -71,6 +71,11 @@ static int parse_function_literal_impl(
 	l2_trace_scope("function literal");
 	// '{' and EOL already skipped by parse_object_or_function_literal
 
+	// The arguments array will be at the top of the stack
+	char *ident = malloc(2);
+	ident[0] = '$'; ident[1] = '\0';
+	l2_gen_assignment(gen, &ident);
+
 	int first = 1;
 	while (1) {
 		if (l2_lexer_peek(lexer, 1)->kind == L2_TOK_CLOSE_BRACE) {
@@ -184,6 +189,8 @@ static int parse_arg_level_expression_base(
 					l2_token_kind_name(tok->kind));
 			return -1;
 		}
+
+		l2_lexer_consume(lexer); // ')'
 	} else if (tok->kind == L2_TOK_IDENT) {
 		l2_trace_scope("ident");
 		l2_trace("ident '%s'", tok->v.str);
@@ -245,13 +252,19 @@ static int parse_arg_level_expression(
 			l2_gen_push(gen, 0);
 			l2_gen_func_call(gen);
 		} else if (tok->kind == L2_TOK_PERIOD && tok2->kind == L2_TOK_IDENT) {
-			l2_trace_scope("lookup");
+			l2_trace_scope("namespace lookup");
 			l2_trace("ident '%s'", tok2->v.str);
 			char *ident = l2_token_extract_str(tok2);
 			l2_lexer_consume(lexer); // '.'
 			l2_lexer_consume(lexer); // ident
 
 			l2_gen_namespace_lookup(gen, &ident);
+		} else if (tok->kind == L2_TOK_DOT_NUMBER) {
+			l2_trace_scope("direct array lookup");
+			int number = tok->v.integer;
+			l2_lexer_consume(lexer); // dot-number
+
+			l2_gen_direct_array_lookup(gen, number);
 		} else {
 			break;
 		}
