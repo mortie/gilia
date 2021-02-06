@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "trace.h"
+
 void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *fmt, ...) {
 	err->line = tok->line;
 	err->ch = tok->ch;
@@ -17,11 +19,13 @@ void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *
 		err->message = malloc(strlen(message) + 1);
 		strcpy(err->message, message);
 		va_end(va);
+		l2_trace("Parse error: %s", err->message);
 		return;
 	} else if (n + 1 < sizeof(buf)) {
 		err->message = malloc(n + 1);
 		strcpy(err->message, buf);
 		va_end(va);
+		l2_trace("Parse error: %s", err->message);
 		return;
 	}
 
@@ -29,6 +33,7 @@ void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *
 	err->message = malloc(n + 1);
 	vsnprintf(err->message, n + 1, fmt, va);
 	va_end(va);
+	l2_trace("Parse error: %s", err->message);
 }
 
 void l2_parse_error_free(struct l2_parse_error *err) {

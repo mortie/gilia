@@ -1,13 +1,13 @@
 #ifndef L2_TRACE_H
 #define L2_TRACE_H
 
-#ifndef L2_ENABLE_TRACE
+#if !L2_ENABLE_TRACE
 
 #define l2_trace_scope(name) do {} while (0)
 #define l2_trace_func() do {} while (0)
 #define l2_trace_push(name) do {} while (0)
 #define l2_trace_pop() do {} while (0)
-#define l2_trace(name) do {} while (0)
+#define l2_trace(...) do {} while (0)
 
 #else
 
@@ -25,7 +25,7 @@ extern int l2_trace_depth;
 
 void l2_trace_push(const char *name);
 void l2_trace_pop();
-void l2_trace(const char *name);
+void l2_trace(const char *fmt, ...);
 void l2_trace_cleanup(void *unused);
 
 #endif
