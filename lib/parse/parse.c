@@ -1,5 +1,6 @@
 #include "parse/parse.h"
 
+#include "trace.h"
 #include "gen/gen.h"
 
 static int is_end_tok(struct l2_token *tok) {
@@ -9,11 +10,19 @@ static int is_end_tok(struct l2_token *tok) {
 		tok->kind == L2_TOK_EOF;
 }
 
+static int is_sub_expr_tok(struct l2_token *tok) {
+	return
+		tok->kind == L2_TOK_IDENT || tok->kind == L2_TOK_OPEN_PAREN ||
+		tok->kind == L2_TOK_OPEN_BRACE || tok->kind == L2_TOK_OPEN_BRACKET ||
+		tok->kind == L2_TOK_STRING || tok->kind == L2_TOK_NUMBER;
+}
+
 static int parse_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err);
 
 static int parse_object(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_func();
 	// { and EOL are already skipped
 
 	l2_gen_namespace(gen);
@@ -26,6 +35,8 @@ static int parse_object(
 			l2_lexer_consume(lexer); // }
 			break;
 		}
+
+		l2_trace_scope("object key/val");
 
 		if (tok->kind != L2_TOK_IDENT) {
 			l2_parse_err(err, tok, "In object literal: Expected identifier, got %s\n",
@@ -65,10 +76,12 @@ static int parse_object(
 
 static int parse_function_impl(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_func();
 	// { and EOL are already skipped
 
 	int first = 1;
 	while (1) {
+		l2_trace_scope("function expr");
 		struct l2_token *tok = l2_lexer_peek(lexer, 1);
 		if (tok->kind == L2_TOK_EOF) {
 			l2_parse_err(err, tok, "In function: Unexpected EOF");
@@ -142,6 +155,7 @@ static int parse_function(
 
 static int parse_function_or_object(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_func();
 	l2_lexer_consume(lexer); // {
 	l2_lexer_skip_opt(lexer, L2_TOK_EOL);
 
@@ -160,7 +174,50 @@ static int parse_function_or_object(
 }
 
 static int parse_sub_expression(
+		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err);
+
+static int parse_opt_post_sub_expr(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_func();
+	struct l2_token *tok = l2_lexer_peek(lexer, 1);
+	struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
+
+	if (tok->kind == L2_TOK_OPEN_PAREN && tok2->kind == L2_TOK_CLOSE_PAREN) {
+		l2_trace_scope("noadic func call");
+		l2_lexer_consume(lexer); // (
+		l2_lexer_consume(lexer); // )
+		l2_gen_push(gen, 0);
+		l2_gen_func_call(gen);
+	} else if (is_sub_expr_tok(tok)) {
+		l2_trace_scope("func call");
+		l2_word count = 0;
+		while (!is_end_tok(l2_lexer_peek(lexer, 1))) {
+			count += 1;
+			if (parse_sub_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+		}
+
+		l2_gen_push(gen, count);
+		l2_gen_func_call(gen);
+	} else if (tok->kind == L2_TOK_PERIOD && tok2->kind == L2_TOK_IDENT) {
+		l2_trace_scope("lookup");
+		char *ident = l2_token_extract_str(tok2);
+		l2_lexer_consume(lexer); // .
+		l2_lexer_consume(lexer); // ident
+		l2_gen_namespace_lookup(gen, &ident);
+	} else {
+		l2_parse_err(err, tok, "In post expression: Unexpected token %s",
+				l2_token_kind_name(tok->kind));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int parse_sub_expression(
+		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_func();
 	struct l2_token *tok = l2_lexer_peek(lexer, 1);
 	struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
 
@@ -169,18 +226,7 @@ static int parse_sub_expression(
 		tok = l2_lexer_peek(lexer, 1);
 		tok2 = l2_lexer_peek(lexer, 2);
 
-		// Special case: (foo) should be interpreted as a function call
-		if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_CLOSE_PAREN) {
-			char *ident = l2_token_extract_str(tok);
-			l2_lexer_consume(lexer); // ident
-			l2_lexer_consume(lexer); // )
-
-			l2_gen_push(gen, 0); // Arg count
-			l2_gen_stack_frame_lookup(gen, &ident);
-			l2_gen_func_call(gen);
-			return 0;
-		}
-
+		l2_trace_scope("parenthesized expression");
 		if (parse_expression(lexer, gen, err) < 0) {
 			return -1;
 		}
@@ -192,42 +238,53 @@ static int parse_sub_expression(
 		}
 
 		l2_lexer_consume(lexer); // )
-		return 0;
 	} else if (tok->kind == L2_TOK_NUMBER) {
+		l2_trace_scope("number");
 		l2_gen_number(gen, tok->v.num);
 		l2_lexer_consume(lexer); // number
-		return 0;
 	} else if (tok->kind == L2_TOK_IDENT) {
+		l2_trace_scope("ident");
 		char *ident = l2_token_extract_str(tok);
 		l2_lexer_consume(lexer); // ident
 		l2_gen_stack_frame_lookup(gen, &ident);
-		return 0;
 	} else if (tok->kind == L2_TOK_QUOT && tok2->kind == L2_TOK_IDENT) {
+		l2_trace_scope("atom");
 		char *str = l2_token_extract_str(tok2);
 		l2_lexer_consume(lexer); // '
 		l2_lexer_consume(lexer); // ident
 		l2_gen_atom(gen, &str);
-		return 0;
 	} else if (tok->kind == L2_TOK_STRING) {
+		l2_trace_scope("string");
 		char *str = l2_token_extract_str(tok);
 		l2_lexer_consume(lexer); // string
 		l2_gen_string(gen, &str);
-		return 0;
 	} else if (tok->kind == L2_TOK_OPEN_BRACE) {
-		return parse_function_or_object(lexer, gen, err);
+		if (parse_function_or_object(lexer, gen, err) < 0) {
+			return -1;
+		}
+	} else {
+		l2_parse_err(err, tok, "In expression: Unexpected token %s",
+				l2_token_kind_name(tok->kind));
+		return -1;
 	}
 
-	l2_parse_err(err, tok, "In expression: Unexpected token %s",
-			l2_token_kind_name(tok->kind));
-	return -1;
+	while (!is_end_tok(l2_lexer_peek(lexer, 1))) {
+		if (parse_opt_post_sub_expr(lexer, gen, err) < 0) {
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
 static int parse_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_func();
 	struct l2_token *tok = l2_lexer_peek(lexer, 1);
 	struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
 
 	if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_COLON_EQ) {
+		l2_trace_scope("assignment");
 		char *ident = l2_token_extract_str(tok);
 		l2_lexer_consume(lexer); // ident
 		l2_lexer_consume(lexer); // :=
@@ -238,30 +295,18 @@ static int parse_expression(
 		}
 
 		l2_gen_assignment(gen, &ident);
-		return 0;
-	} else if (tok->kind == L2_TOK_IDENT && !is_end_tok(tok2)) {
-		char *ident = l2_token_extract_str(tok);
-		l2_lexer_consume(lexer);
-
-		l2_word count = 0;
-		while (!is_end_tok(l2_lexer_peek(lexer, 1))) {
-			count += 1;
-			if (parse_sub_expression(lexer, gen, err) < 0) {
-				return -1;
-			}
+	} else {
+		if (parse_sub_expression(lexer, gen, err) < 0) {
+			return -1;
 		}
-
-		l2_gen_push(gen, count);
-		l2_gen_stack_frame_lookup(gen, &ident);
-		l2_gen_func_call(gen);
-		return 0;
 	}
 
-	return parse_sub_expression(lexer, gen, err);
+	return 0;
 }
 
 int l2_parse_program(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
+	l2_trace_func();
 	l2_lexer_skip_opt(lexer, L2_TOK_EOL);
 
 	int first = 1;

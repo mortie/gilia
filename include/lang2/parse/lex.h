@@ -46,6 +46,7 @@ struct l2_lexer {
 	int line;
 	int ch;
 	int parens;
+	int do_log_tokens;
 
 	struct l2_bufio_reader reader;
 };

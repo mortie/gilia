@@ -238,9 +238,7 @@ void l2_vm_step(struct l2_vm *vm) {
 
 	case L2_OP_FUNC_CALL:
 		{
-			l2_word func_id = vm->stack[--vm->sptr];
 			l2_word argc = vm->stack[--vm->sptr];
-			struct l2_vm_value *func = &vm->values[func_id];
 
 			l2_word arr_id = alloc_val(vm);
 			vm->values[arr_id].flags = L2_VAL_TYPE_ARRAY;
@@ -254,6 +252,9 @@ void l2_vm_step(struct l2_vm *vm) {
 			for (l2_word i = 0; i < argc; ++i) {
 				arr->data[i] = vm->stack[vm->sptr + i];
 			}
+
+			l2_word func_id = vm->stack[--vm->sptr];
+			struct l2_vm_value *func = &vm->values[func_id];
 
 			enum l2_value_type typ = l2_vm_value_type(func);
 

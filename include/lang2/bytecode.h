@@ -47,8 +47,8 @@ enum l2_opcode {
 	/*
 	 * Call a function.
 	 * Pop <argc>
-	 * Pop <func>
 	 * Pop argc times
+	 * Pop <func>
 	 * Push <iptr> + 1
 	 * Push array with args
 	 * Call <func>

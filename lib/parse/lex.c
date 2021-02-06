@@ -2,6 +2,27 @@
 
 #include <stdlib.h>
 
+static void log_token(struct l2_token *tok) {
+	switch (tok->kind) {
+	case L2_TOK_STRING:
+	case L2_TOK_IDENT:
+	case L2_TOK_ERROR:
+		printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
+				l2_token_kind_name(tok->kind), tok->v.str);
+		break;
+
+	case L2_TOK_NUMBER:
+		printf("%i:%i\t%s '%g'\n", tok->line, tok->ch,
+				l2_token_kind_name(tok->kind), tok->v.num);
+		break;
+
+	default:
+		printf("%i:%i\t%s\n", tok->line, tok->ch,
+				l2_token_kind_name(tok->kind));
+		break;
+	}
+}
+
 static int parse_number(const char *str, double *num) {
 	// TODO: Floats
 	size_t len = strlen(str);
@@ -77,6 +98,7 @@ void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
 	lexer->line = 1;
 	lexer->ch = 1;
 	lexer->parens = 0;
+	lexer->do_log_tokens = 0;
 	l2_bufio_reader_init(&lexer->reader, r);
 }
 
@@ -342,6 +364,9 @@ struct l2_token *l2_lexer_peek(struct l2_lexer *lexer, int count) {
 
 	while (offset >= lexer->tokidx) {
 		read_tok(lexer, &lexer->toks[lexer->tokidx++]);
+		if (lexer->do_log_tokens) {
+			log_token(&lexer->toks[lexer->tokidx - 1]);
+		}
 	}
 
 	return &lexer->toks[offset];
