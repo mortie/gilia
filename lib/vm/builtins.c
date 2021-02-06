@@ -84,3 +84,39 @@ l2_word l2_builtin_print(struct l2_vm *vm, struct l2_vm_array *args) {
 	putchar('\n');
 	return 0;
 }
+
+l2_word l2_builtin_len(struct l2_vm *vm, struct l2_vm_array *args) {
+	// TODO: error if wrong argc
+	l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+	struct l2_vm_value *ret = &vm->values[ret_id];
+	ret->real = 0;
+
+	struct l2_vm_value *val = &vm->values[args->data[0]];
+	switch (l2_vm_value_type(val)) {
+	case L2_VAL_TYPE_NONE:
+	case L2_VAL_TYPE_ATOM:
+	case L2_VAL_TYPE_REAL:
+	case L2_VAL_TYPE_FUNCTION:
+	case L2_VAL_TYPE_CFUNCTION:
+		break;
+
+	case L2_VAL_TYPE_BUFFER:
+		if (val->buffer) {
+			ret->real = val->buffer->len;
+		}
+		break;
+
+	case L2_VAL_TYPE_ARRAY:
+		if (val->array) {
+			ret->real = val->array->len;
+		}
+		break;
+
+	case L2_VAL_TYPE_NAMESPACE:
+		if (val->ns) {
+			ret->real = val->ns->len;
+		}
+	}
+
+	return ret_id;
+}
