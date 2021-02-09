@@ -24,3 +24,5 @@ func := {
 	{retval}
 }
 print func()()
+
+print {0}

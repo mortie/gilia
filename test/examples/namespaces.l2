@@ -8,3 +8,5 @@ print obj.foo
 
 obj.bar = {baz: "how's your day going?"}
 print obj.bar.baz
+
+print {}

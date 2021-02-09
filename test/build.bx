@@ -2,4 +2,6 @@ files := src ../lib
 includes := snow ../include/lang2
 defines := SNOW_ENABLED
 sanitizers := address undefined
-cflags := -g
+cflags := -g -fprofile-arcs -ftest-coverage
+ldflags := --coverage
+ldlibs := gcov

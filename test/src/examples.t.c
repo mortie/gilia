@@ -111,6 +111,7 @@ static void check_impl(const char *name) {
 	vm.std_output = &output.w;
 
 	l2_vm_run(&vm);
+	l2_vm_gc(&vm);
 
 	l2_vm_free(&vm);
 	free(bytecode.mem);
