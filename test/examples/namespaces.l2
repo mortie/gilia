@@ -1,0 +1,10 @@
+obj := {
+	foo: "hello world"
+}
+print obj.foo
+
+obj.foo = 100
+print obj.foo
+
+obj.bar = {baz: "how's your day going?"}
+print obj.bar.baz

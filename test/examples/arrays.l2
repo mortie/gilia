@@ -1,0 +1,6 @@
+arr := [10 20 30]
+print arr
+print arr.2
+
+arr.1 = "nope"
+print arr
