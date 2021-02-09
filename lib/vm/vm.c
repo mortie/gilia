@@ -226,6 +226,11 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->sptr -= 1;
 		break;
 
+	case L2_OP_SWAP_POP:
+		vm->stack[vm->sptr - 2] = vm->stack[vm->sptr - 1];
+		vm->sptr -= 1;
+		break;
+
 	case L2_OP_DUP:
 		vm->stack[vm->sptr] = vm->ops[vm->sptr - 1];
 		vm->sptr += 1;
@@ -434,6 +439,16 @@ void l2_vm_step(struct l2_vm *vm) {
 			l2_word arr = vm->stack[--vm->sptr];
 			// TODO: Error if out of bounds or incorrect type
 			vm->stack[vm->sptr++] = vm->values[arr].array->data[key];
+		}
+		break;
+
+	case L2_OP_DIRECT_ARRAY_SET:
+		{
+			l2_word key = vm->stack[--vm->sptr];
+			l2_word val = vm->stack[vm->sptr - 1];
+			l2_word arr = vm->stack[vm->sptr - 2];
+			// TODO: Error if out of bounds or incorrect type
+			vm->values[arr].array->data[key] = val;
 		}
 		break;
 

@@ -117,13 +117,13 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 	switch (opcode) {
 	case L2_OP_NOP:
 		printf("NOP\n");
-		break;
+		return;
 
 	case L2_OP_PUSH:
 		printf("PUSH ");
 		print_op_num(ops, opcount, (*ptr)++);
 		printf("\n");
-		break;
+		return;
 
 	case L2_OP_PUSH_2:
 		printf("PUSH2 ");
@@ -131,96 +131,105 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf(" ");
 		print_op_num(ops, opcount, (*ptr)++);
 		printf("\n");
-		break;
+		return;
 
 	case L2_OP_POP:
 		printf("POP\n");
-		break;
+		return;
+
+	case L2_OP_SWAP_POP:
+		printf("SWAP_POP\n");
+		return;
 
 	case L2_OP_DUP:
 		printf("DUP\n");
-		break;
+		return;
 
 	case L2_OP_ADD:
 		printf("ADD\n");
-		break;
+		return;
 
 	case L2_OP_FUNC_CALL:
 		printf("FUNC_CALL\n");
-		break;
+		return;
 
 	case L2_OP_RJMP:
 		printf("RJMP\n");
-		break;
+		return;
 
 	case L2_OP_STACK_FRAME_LOOKUP:
 		printf("STACK_FRAME_LOOKUP\n");
-		break;
+		return;
 
 	case L2_OP_STACK_FRAME_SET:
 		printf("STACK_FRAME_SET\n");
-		break;
+		return;
+
+	case L2_OP_STACK_FRAME_REPLACE:
+		printf("STACK_FRAME_REPLACE\n");
+		return;
 
 	case L2_OP_RET:
 		printf("RET\n");
-		break;
+		return;
 
 	case L2_OP_ALLOC_ATOM:
 		printf("ALLOC_ATOM\n");
-		break;
+		return;
 
 	case L2_OP_ALLOC_REAL:
 		printf("ALLOC_REAL\n");
-		break;
+		return;
 
 	case L2_OP_ALLOC_BUFFER_STATIC:
 		printf("ALLOC_BUFFER_STATIC\n");
-		break;
+		return;
 
 	case L2_OP_ALLOC_BUFFER_ZERO:
 		printf("ALLOC_BUFFER_ZERO\n");
-		break;
+		return;
 
 	case L2_OP_ALLOC_ARRAY:
 		printf("ALLOC_ARRAY\n");
-		break;
+		return;
 
 	case L2_OP_ALLOC_NAMESPACE:
 		printf("ALLOC_NAMESPACE\n");
-		break;
+		return;
 
 	case L2_OP_ALLOC_FUNCTION:
 		printf("ALLOC_FUNCTION\n");
-		break;
+		return;
 
 	case L2_OP_NAMESPACE_SET:
 		printf("NAMESPACE_SET\n");
-		break;
+		return;
 
 	case L2_OP_NAMESPACE_LOOKUP:
 		printf("NAMESPACE_LOOKUP\n");
-		break;
+		return;
 
 	case L2_OP_DIRECT_ARRAY_LOOKUP:
 		printf("DIRECT_ARRAY_LOOKUP\n");
-		break;
+		return;
+
+	case L2_OP_DIRECT_ARRAY_SET:
+		printf("DIRECT_ARRAY_SET\n");
+		return;
 
 	case L2_OP_HALT:
 		printf("HALT\n");
-		break;
-
-	default:
-		{
-			l2_word word = (l2_word)opcode;
-			char bytes[sizeof(word)];
-			memcpy(&bytes, &word, sizeof(word));
-			printf("?");
-			for (size_t i = 0; i < sizeof(bytes); ++i) {
-				printf(" %02x", bytes[i]);
-			}
-			printf("\n");
-		}
+		return;
 	}
+
+	l2_word word = (l2_word)opcode;
+	char bytes[sizeof(word)];
+	memcpy(&bytes, &word, sizeof(word));
+	printf("?");
+	for (size_t i = 0; i < sizeof(bytes); ++i) {
+		printf(" %02x", bytes[i]);
+	}
+	printf("\n");
 }
 
 void l2_vm_print_bytecode(l2_word *ops, size_t opcount) {

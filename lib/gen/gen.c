@@ -45,6 +45,10 @@ void l2_gen_pop(struct l2_generator *gen) {
 	put(gen, L2_OP_POP);
 }
 
+void l2_gen_swap_pop(struct l2_generator *gen) {
+	put(gen, L2_OP_SWAP_POP);
+}
+
 void l2_gen_push(struct l2_generator *gen, l2_word word) {
 	put(gen, L2_OP_PUSH);
 	put(gen, word);
@@ -143,6 +147,12 @@ void l2_gen_direct_array_lookup(struct l2_generator *gen, int number) {
 	put(gen, L2_OP_PUSH);
 	put(gen, number);
 	put(gen, L2_OP_DIRECT_ARRAY_LOOKUP);
+}
+
+void l2_gen_direct_array_set(struct l2_generator *gen, int number) {
+	put(gen, L2_OP_PUSH);
+	put(gen, number);
+	put(gen, L2_OP_DIRECT_ARRAY_SET);
 }
 
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {

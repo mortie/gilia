@@ -31,6 +31,14 @@ enum l2_opcode {
 	L2_OP_POP,
 
 	/*
+	 * Swap the top and second-top elements, then pop the new top element.
+	 * Pop <word1>
+	 * Pop <word2>
+	 * Push <word1>
+	 */
+	L2_OP_SWAP_POP,
+
+	/*
 	 * Duplicate the top element on the stack.
 	 * Push <word at <sptr> - 1>
 	 */
@@ -173,10 +181,19 @@ enum l2_opcode {
 	/*
 	 * Look up a value from an array.
 	 * Pop <key>
-	 * Pop <arr>
-	 * Push <arr[<key>]>
+	 * Read <val>
+	 * Read <arr>
+	 * Assign <val> to <arr[<key>]>
 	 */
 	L2_OP_DIRECT_ARRAY_LOOKUP,
+
+	/*
+	 * Set a value in an array.
+	 * Pop <key>
+	 * Read <arr>
+	 * Push <arr[<key>]>
+	 */
+	L2_OP_DIRECT_ARRAY_SET,
 
 	/*
 	 * Halt execution.

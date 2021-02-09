@@ -294,13 +294,14 @@ static int parse_arg_level_expression(
 			char *ident = l2_token_extract_str(tok2);
 			l2_lexer_consume(lexer); // '.'
 			l2_lexer_consume(lexer); // ident
-			l2_lexer_consume(lexer); // equals
+			l2_lexer_consume(lexer); // '='
 
 			if (parse_expression(lexer, gen, err) < 0) {
 				return -1;
 			}
 
 			l2_gen_namespace_set(gen, &ident);
+			l2_gen_swap_pop(gen);
 		} else if (tok->kind == L2_TOK_PERIOD && tok2->kind == L2_TOK_IDENT) {
 			l2_trace_scope("namespace lookup");
 			l2_trace("ident '%s'", tok2->v.str);
@@ -309,6 +310,18 @@ static int parse_arg_level_expression(
 			l2_lexer_consume(lexer); // ident
 
 			l2_gen_namespace_lookup(gen, &ident);
+		} else if (tok->kind == L2_TOK_DOT_NUMBER && tok2->kind == L2_TOK_EQUALS) {
+			l2_trace_scope("direct array assign");
+			int number = tok->v.integer;
+			l2_lexer_consume(lexer); // dot-number
+			l2_lexer_consume(lexer); // '='
+
+			if (parse_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+
+			l2_gen_direct_array_set(gen, number);
+			l2_gen_swap_pop(gen);
 		} else if (tok->kind == L2_TOK_DOT_NUMBER) {
 			l2_trace_scope("direct array lookup");
 			int number = tok->v.integer;
