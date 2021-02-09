@@ -132,10 +132,19 @@ static int is_numeric(int ch) {
 
 static int skip_whitespace(struct l2_lexer *lexer) {
 	int nl = 0;
-	while (is_whitespace(peek_ch(lexer))) {
-		int ch = read_ch(lexer);
-		if (ch == '\n') {
+	while (1) {
+		while (is_whitespace(peek_ch(lexer))) {
+			int ch = read_ch(lexer);
+			if (ch == '\n') {
+				nl = 1;
+			}
+		}
+
+		if (peek_ch(lexer) == '#') {
 			nl = 1;
+			while (read_ch(lexer) != '\n');
+		} else {
+			break;
 		}
 	}
 
