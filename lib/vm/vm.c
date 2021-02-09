@@ -96,7 +96,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 	// Don't need to do anything more; the next round of GC will free
 	// whichever values were only referenced by the array
 	int typ = l2_vm_value_type(val);
-	if (typ == L2_VAL_TYPE_ARRAY || typ == L2_VAL_TYPE_BUFFER || typ == L2_VAL_TYPE_NAMESPACE) {
+	if (typ == L2_VAL_TYPE_ARRAY) {
 		free(val->array);
 	} else if (typ == L2_VAL_TYPE_BUFFER) {
 		free(val->buffer);
