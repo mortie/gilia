@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-typedef long long int l2_bitset_entry;
+typedef unsigned long long int l2_bitset_entry;
 
 struct l2_bitset {
 	l2_bitset_entry *tables;

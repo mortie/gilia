@@ -93,6 +93,7 @@ static void check_impl(const char *name) {
 		snow_fail("%s: %s", example_path, err.message);
 	}
 
+	l2_gen_free(&gen);
 	fclose(inf);
 
 	FILE *outf = fopen(example_actual_path, "w");

@@ -294,6 +294,7 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->stack[vm->sptr++] = arr_id;
 
 			l2_word ns_id = alloc_val(vm);
+			func = &vm->values[func_id]; // func might be stale after alloc
 			vm->values[ns_id].extra.ns_parent = func->func.namespace;
 			vm->values[ns_id].ns = NULL;
 			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;

@@ -1,5 +1,5 @@
 files := src ../lib
 includes := snow ../include/lang2
 defines := SNOW_ENABLED
-#sanitizers := address undefined
+sanitizers := address undefined
 cflags := -g
