@@ -67,6 +67,8 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 		return "colon";
 	case L2_TOK_COLON_EQ:
 		return "colon-equals";
+	case L2_TOK_EQUALS:
+		return "equals";
 	case L2_TOK_EOL:
 		return "end-of-line";
 	case L2_TOK_EOF:
@@ -254,6 +256,7 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 		case ',':
 		case '.':
 		case ':':
+		case '=':
 		case ';':
 		case EOF:
 			tok->v.str[idx] = '\0';
@@ -361,6 +364,11 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 			tok->kind = L2_TOK_COLON;
 			break;
 		}
+		break;
+
+	case '=':
+		read_ch(lexer);
+		tok->kind = L2_TOK_EQUALS;
 		break;
 
 	case EOF:

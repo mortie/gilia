@@ -54,13 +54,6 @@ void l2_gen_ret(struct l2_generator *gen) {
 	put(gen, L2_OP_RET);
 }
 
-void l2_gen_assignment(struct l2_generator *gen, char **ident) {
-	size_t atom_id = l2_strset_put(&gen->atomset, ident);
-	put(gen, L2_OP_PUSH);
-	put(gen, atom_id);
-	put(gen, L2_OP_STACK_FRAME_SET);
-}
-
 void l2_gen_number(struct l2_generator *gen, double num) {
 	uint64_t n;
 	memcpy(&n, &num, sizeof(num));
@@ -157,6 +150,20 @@ void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {
 	put(gen, L2_OP_PUSH);
 	put(gen, atom_id);
 	put(gen, L2_OP_STACK_FRAME_LOOKUP);
+}
+
+void l2_gen_stack_frame_set(struct l2_generator *gen, char **ident) {
+	size_t atom_id = l2_strset_put(&gen->atomset, ident);
+	put(gen, L2_OP_PUSH);
+	put(gen, atom_id);
+	put(gen, L2_OP_STACK_FRAME_SET);
+}
+
+void l2_gen_stack_frame_replace(struct l2_generator *gen, char **ident) {
+	size_t atom_id = l2_strset_put(&gen->atomset, ident);
+	put(gen, L2_OP_PUSH);
+	put(gen, atom_id);
+	put(gen, L2_OP_STACK_FRAME_REPLACE);
 }
 
 void l2_gen_func_call(struct l2_generator *gen) {

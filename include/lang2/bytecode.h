@@ -79,6 +79,14 @@ enum l2_opcode {
 	L2_OP_STACK_FRAME_SET,
 
 	/*
+	 * Replace a value on the stack.
+	 * Pop <key>
+	 * Read <val>
+	 * Assign <val> to stack frame
+	 */
+	L2_OP_STACK_FRAME_REPLACE,
+
+	/*
 	 * Return from a function.
 	 * NSPop
 	 * Pop (discard args array)

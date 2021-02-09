@@ -77,7 +77,7 @@ static int parse_function_literal_impl(
 	// The arguments array will be at the top of the stack
 	char *ident = malloc(2);
 	ident[0] = '$'; ident[1] = '\0';
-	l2_gen_assignment(gen, &ident);
+	l2_gen_stack_frame_set(gen, &ident);
 
 	int first = 1;
 	while (1) {
@@ -277,6 +277,7 @@ static int parse_arg_level_expression(
 	while (1) {
 		struct l2_token *tok = l2_lexer_peek(lexer, 1);
 		struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
+		struct l2_token *tok3 = l2_lexer_peek(lexer, 3);
 
 		if (tok->kind == L2_TOK_OPEN_PAREN && tok2->kind == L2_TOK_CLOSE_PAREN) {
 			l2_trace_scope("niladic func call");
@@ -285,6 +286,21 @@ static int parse_arg_level_expression(
 
 			l2_gen_push(gen, 0);
 			l2_gen_func_call(gen);
+		} else if (
+				tok->kind == L2_TOK_PERIOD && tok2->kind == L2_TOK_IDENT &&
+				tok3->kind == L2_TOK_EQUALS) {
+			l2_trace_scope("namespace assign");
+			l2_trace("ident '%s'", tok2->v.str);
+			char *ident = l2_token_extract_str(tok2);
+			l2_lexer_consume(lexer); // '.'
+			l2_lexer_consume(lexer); // ident
+			l2_lexer_consume(lexer); // equals
+
+			if (parse_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+
+			l2_gen_namespace_set(gen, &ident);
 		} else if (tok->kind == L2_TOK_PERIOD && tok2->kind == L2_TOK_IDENT) {
 			l2_trace_scope("namespace lookup");
 			l2_trace("ident '%s'", tok2->v.str);
@@ -345,7 +361,19 @@ static int parse_expression(
 			return -1;
 		}
 
-		l2_gen_assignment(gen, &ident);
+		l2_gen_stack_frame_set(gen, &ident);
+	} else if (tok->kind == L2_TOK_IDENT && tok2->kind == L2_TOK_EQUALS) {
+		l2_trace_scope("replacement assign expression");
+		l2_trace("ident '%s'", tok->v.str);
+		char *ident = l2_token_extract_str(tok);
+		l2_lexer_consume(lexer); // ident
+		l2_lexer_consume(lexer); // =
+
+		if (parse_expression(lexer, gen, err) < 0) {
+			return -1;
+		}
+
+		l2_gen_stack_frame_replace(gen, &ident);
 	} else {
 		if (parse_arg_level_expression(lexer, gen, err) < 0) {
 			return -1;

@@ -98,6 +98,15 @@ static l2_word get(struct l2_vm_namespace *ns, l2_word key) {
 	}
 }
 
+l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *v, l2_word key) {
+	l2_word ret = get(v->ns, key);
+	if (ret == 0 && v->extra.ns_parent != 0) {
+		return l2_vm_namespace_get(vm, &vm->values[v->extra.ns_parent], key);
+	}
+
+	return ret;
+}
+
 void l2_vm_namespace_set(struct l2_vm_value *v, l2_word key, l2_word val) {
 	if (val == 0) {
 		del(v->ns, key);
@@ -106,11 +115,21 @@ void l2_vm_namespace_set(struct l2_vm_value *v, l2_word key, l2_word val) {
 	}
 }
 
-l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *v, l2_word key) {
-	l2_word ret = get(v->ns, key);
-	if (ret == 0 && v->extra.ns_parent != 0) {
-		return l2_vm_namespace_get(vm, &vm->values[v->extra.ns_parent], key);
-	}
+int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *v, l2_word key, l2_word val) {
+	if (val == 0) {
+		del(v->ns, key);
+		return 0;
+	} else {
+		l2_word ret = get(v->ns, key);
+		if (ret != 0) {
+			v->ns = set(v->ns, key, val);
+			return 0;
+		}
 
-	return ret;
+		if (v->extra.ns_parent == 0) {
+			return -1;
+		}
+
+		return l2_vm_namespace_replace(vm, &vm->values[v->extra.ns_parent], key, val);
+	}
 }

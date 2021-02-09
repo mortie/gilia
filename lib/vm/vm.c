@@ -299,11 +299,19 @@ void l2_vm_step(struct l2_vm *vm) {
 
 	case L2_OP_STACK_FRAME_SET:
 		{
-			l2_word key = vm->stack[vm->sptr - 1];
-			l2_word val = vm->stack[vm->sptr - 2];
+			l2_word key = vm->stack[--vm->sptr];
+			l2_word val = vm->stack[vm->sptr - 1];
 			struct l2_vm_value *ns = &vm->values[vm->nstack[vm->nsptr - 1]];
 			l2_vm_namespace_set(ns, key, val);
-			vm->sptr -= 1;
+		}
+		break;
+
+	case L2_OP_STACK_FRAME_REPLACE:
+		{
+			l2_word key = vm->stack[--vm->sptr];
+			l2_word val = vm->stack[vm->sptr - 1];
+			struct l2_vm_value *ns = &vm->values[vm->nstack[vm->nsptr - 1]];
+			l2_vm_namespace_replace(vm, ns, key, val); // TODO: error if returns -1
 		}
 		break;
 
