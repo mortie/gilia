@@ -127,6 +127,7 @@ describe(exaples) {
 	test("examples") {
 		check("namespaces.l2");
 		check("arrays.l2");
+		check("functions.l2");
 	}
 
 	if (error_message != NULL) {

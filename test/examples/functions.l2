@@ -1,0 +1,26 @@
+func := {
+	"hello"
+}
+print func()
+
+str := "Hello World"
+func := {
+	{
+		str
+	}
+}
+print func()()
+
+func := {
+	{
+		str = $.0
+	}
+}
+func() 10
+print str
+
+func := {
+	retval := "what's up"
+	{retval}
+}
+print func()()
