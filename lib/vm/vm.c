@@ -48,7 +48,6 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 		return;
 	}
 
-	printf("GC MARK %i\n", id);
 	val->flags |= L2_VAL_MARKED;
 
 	int typ = l2_vm_value_type(val);
@@ -116,7 +115,6 @@ static size_t gc_sweep(struct l2_vm *vm) {
 
 		struct l2_vm_value *val = &vm->values[i];
 		if (!(val->flags & L2_VAL_MARKED)) {
-			printf("GC FREE %zi\n", i);
 			gc_free(vm, i);
 			freed += 1;
 		} else {
