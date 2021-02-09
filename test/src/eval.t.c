@@ -13,7 +13,7 @@ static struct l2_vm vm;
 
 static struct l2_vm_value *var_lookup(const char *name) {
 	l2_word atom_id = l2_strset_get(&gen.atomset, name);
-	l2_word id = l2_vm_namespace_get(&vm, &vm.values[vm.nstack[0]], atom_id);
+	l2_word id = l2_vm_namespace_get(&vm, &vm.values[vm.nstack[1]], atom_id);
 	return &vm.values[id];
 }
 
@@ -76,7 +76,7 @@ describe(eval) {
 		defer(l2_gen_free(&gen));
 
 		asserteq(l2_vm_value_type(var_lookup("foo")), L2_VAL_TYPE_BUFFER);
-		struct l2_vm_buffer *buf = var_lookup("foo")->data;
+		struct l2_vm_buffer *buf = var_lookup("foo")->buffer;
 		asserteq(buf->len, 11);
 		assert(strncmp(buf->data, "hello world", 11) == 0);
 	}

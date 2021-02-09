@@ -8,8 +8,8 @@ describe(l2_vm_namespace) {
 	struct l2_vm_value val = {0};
 
 	after_each() {
-		free(val.data);
-		val.data = NULL;
+		free(val.ns);
+		val.ns = NULL;
 	}
 
 	test("basic functionality") {
