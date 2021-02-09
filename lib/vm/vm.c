@@ -5,6 +5,10 @@
 
 #include "vm/builtins.h"
 
+static int stdio_inited = 0;
+static struct l2_io_file_writer std_output;
+static struct l2_io_file_writer std_error;
+
 static l2_word alloc_val(struct l2_vm *vm) {
 	size_t id = l2_bitset_set_next(&vm->valueset);
 	if (id >= vm->valuessize) {
@@ -123,6 +127,17 @@ static size_t gc_sweep(struct l2_vm *vm) {
 }
 
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
+	if (!stdio_inited) {
+		std_output.w.write = l2_io_file_write;
+		std_output.f = stdout;
+		std_error.w.write = l2_io_file_write;
+		std_error.f = stderr;
+		stdio_inited = 1;
+	}
+
+	vm->std_output = &std_output.w;
+	vm->std_error = &std_error.w;
+
 	vm->ops = ops;
 	vm->opcount = opcount;
 	vm->iptr = 0;

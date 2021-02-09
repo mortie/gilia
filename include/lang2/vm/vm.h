@@ -5,6 +5,7 @@
 
 #include "../bytecode.h"
 #include "../bitset.h"
+#include "../io.h"
 
 struct l2_vm;
 struct l2_vm_array;
@@ -82,6 +83,9 @@ struct l2_vm {
 	l2_word *ops;
 	size_t opcount;
 	l2_word iptr;
+
+	struct l2_io_writer *std_output;
+	struct l2_io_writer *std_error;
 
 	struct l2_vm_value *values;
 	size_t valuessize;

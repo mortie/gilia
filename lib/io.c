@@ -1,6 +1,43 @@
 #include "io.h"
 
 #include <stdlib.h>
+#include <stdarg.h>
+
+int l2_io_printf(struct l2_io_writer *w, const char *fmt, ...) {
+	char buf[256];
+
+	va_list va;
+	va_start(va, fmt);
+	int n = vsnprintf(buf, sizeof(buf), fmt, va);
+	if (n < 0) {
+		va_end(va);
+		return n;
+	} else if (n + 1 < sizeof(buf)) {
+		w->write(w, buf, n);
+		va_end(va);
+		return n;
+	}
+
+	// Yeah, this is slower, but it's just a fallback for when
+	// the output of printf is stupidly long. That shouldn't happen much.
+	char *buf2 = malloc(n + 1);
+	if (buf2 == NULL) {
+		va_end(va);
+		return -1;
+	}
+
+	n = vsnprintf(buf2, n + 1, fmt, va);
+	if (n < 0) {
+		va_end(va);
+		free(buf2);
+		return -1;
+	}
+
+	w->write(w, buf2, n);
+	va_end(va);
+	free(buf2);
+	return n;
+}
 
 void l2_bufio_reader_init(struct l2_bufio_reader *b, struct l2_io_reader *r) {
 	b->r = r;

@@ -21,6 +21,8 @@ struct l2_bufio_reader {
 	char buf[L2_IO_BUFSIZ];
 };
 
+int l2_io_printf(struct l2_io_writer *w, const char *fmt, ...);
+
 void l2_bufio_reader_init(struct l2_bufio_reader *b, struct l2_io_reader *r);
 void l2_bufio_shift(struct l2_bufio_reader *b);
 int l2_bufio_shift_peek(struct l2_bufio_reader *b, size_t count);

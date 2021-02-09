@@ -2,50 +2,50 @@
 
 #include <stdio.h>
 
-static void print_val(struct l2_vm *vm, struct l2_vm_value *val) {
+static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_value *val) {
 	switch (l2_vm_value_type(val)) {
 		case L2_VAL_TYPE_NONE:
-			printf("(none)");
+			l2_io_printf(out, "(none)");
 			break;
 
 		case L2_VAL_TYPE_ATOM:
-			printf("(atom %u)", val->atom);
+			l2_io_printf(out, "(atom %u)", val->atom);
 			break;
 
 		case L2_VAL_TYPE_REAL:
-			printf("%g", val->real);
+			l2_io_printf(out, "%g", val->real);
 			break;
 
 		case L2_VAL_TYPE_BUFFER:
 			if (val->buffer != NULL) {
-				fwrite(val->buffer->data, 1, val->buffer->len, stdout);
+				out->write(out, val->buffer->data, val->buffer->len);
 			}
 			break;
 
 		case L2_VAL_TYPE_ARRAY:
 			if (val->array == NULL) {
-				printf("[]");
+				out->write(out, "[]", 2);
 				break;
 			}
 
-			putchar('[');
+			out->write(out, "[", 1);
 			for (size_t i = 0; i < val->array->len; ++i) {
 				if (i != 0) {
-					putchar(' ');
+					out->write(out, " ", 1);
 				}
 
-				print_val(vm, &vm->values[val->array->data[i]]);
+				print_val(vm, out, &vm->values[val->array->data[i]]);
 			}
-			putchar(']');
+			out->write(out, "]", 1);
 			break;
 
 		case L2_VAL_TYPE_NAMESPACE:
-			printf("(namespace)");
+			l2_io_printf(out, "(namespace)");
 			break;
 
 		case L2_VAL_TYPE_FUNCTION:
 		case L2_VAL_TYPE_CFUNCTION:
-			printf("(function)");
+			l2_io_printf(out, "(function)");
 			break;
 	}
 }
@@ -81,14 +81,14 @@ l2_word l2_builtin_div(struct l2_vm *vm, struct l2_vm_array *args) {
 l2_word l2_builtin_print(struct l2_vm *vm, struct l2_vm_array *args) {
 	for (size_t i = 0; i < args->len; ++i) {
 		if (i != 0) {
-			putchar(' ');
+			vm->std_output->write(vm->std_output, " ", 1);
 		}
 
 		struct l2_vm_value *val = &vm->values[args->data[i]];
-		print_val(vm, val);
+		print_val(vm, vm->std_output, val);
 	}
 
-	putchar('\n');
+	vm->std_output->write(vm->std_output, "\n", 1);
 	return 0;
 }
 
