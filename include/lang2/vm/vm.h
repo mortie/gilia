@@ -75,6 +75,11 @@ struct l2_vm_namespace {
 	l2_word data[];
 };
 
+struct l2_vm_stack_frame {
+	l2_word namespace;
+	l2_word retptr;
+};
+
 l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key);
 void l2_vm_namespace_set(struct l2_vm_value *ns, l2_word key, l2_word val);
 int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key, l2_word val);
@@ -94,8 +99,8 @@ struct l2_vm {
 	l2_word stack[1024];
 	l2_word sptr;
 
-	l2_word nstack[1024];
-	l2_word nsptr;
+	struct l2_vm_stack_frame fstack[1024];
+	l2_word fsptr;
 };
 
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);

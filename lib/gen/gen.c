@@ -36,9 +36,8 @@ void l2_gen_halt(struct l2_generator *gen) {
 }
 
 void l2_gen_rjmp(struct l2_generator *gen, l2_word len) {
-	put(gen, L2_OP_PUSH);
-	put(gen, len);
 	put(gen, L2_OP_RJMP);
+	put(gen, len);
 }
 
 void l2_gen_pop(struct l2_generator *gen) {
@@ -49,29 +48,26 @@ void l2_gen_swap_pop(struct l2_generator *gen) {
 	put(gen, L2_OP_SWAP_POP);
 }
 
-void l2_gen_push(struct l2_generator *gen, l2_word word) {
-	put(gen, L2_OP_PUSH);
-	put(gen, word);
-}
-
 void l2_gen_ret(struct l2_generator *gen) {
 	put(gen, L2_OP_RET);
+}
+
+void l2_gen_none(struct l2_generator *gen) {
+	put(gen, L2_OP_ALLOC_NONE);
 }
 
 void l2_gen_number(struct l2_generator *gen, double num) {
 	uint64_t n;
 	memcpy(&n, &num, sizeof(num));
-	put(gen, L2_OP_PUSH_2);
-	put(gen, n);
-	put(gen, n >> 32);
 	put(gen, L2_OP_ALLOC_REAL);
+	put(gen, n >> 32);
+	put(gen, n);
 }
 
 void l2_gen_atom(struct l2_generator *gen, char **str) {
 	size_t id = l2_strset_put(&gen->atomset, str);
-	put(gen, L2_OP_PUSH);
-	put(gen, id);
 	put(gen, L2_OP_ALLOC_ATOM);
+	put(gen, id);
 }
 
 void l2_gen_string(struct l2_generator *gen, char **str) {
@@ -83,9 +79,8 @@ void l2_gen_string(struct l2_generator *gen, char **str) {
 			aligned += sizeof(l2_word) - (aligned % sizeof(l2_word));
 		}
 
-		put(gen, L2_OP_PUSH);
-		put(gen, aligned / sizeof(l2_word));
 		put(gen, L2_OP_RJMP);
+		put(gen, aligned / sizeof(l2_word));
 		l2_word pos = gen->pos;
 
 		gen->pos += aligned / sizeof(l2_word);
@@ -99,30 +94,26 @@ void l2_gen_string(struct l2_generator *gen, char **str) {
 		gen->strings[id - 1].length = len;
 		gen->strings[id - 1].pos = pos;
 
-		put(gen, L2_OP_PUSH_2);
-		put(gen, pos);
-		put(gen, len);
 		put(gen, L2_OP_ALLOC_BUFFER_STATIC);
+		put(gen, len);
+		put(gen, pos);
 	} else {
 		free(*str);
 		struct l2_generator_string *s = &gen->strings[id - 1];
-		put(gen, L2_OP_PUSH_2);
-		put(gen, s->pos);
-		put(gen, s->length);
 		put(gen, L2_OP_ALLOC_BUFFER_STATIC);
+		put(gen, s->length);
+		put(gen, s->pos);
 	}
 }
 
 void l2_gen_function(struct l2_generator *gen, l2_word pos) {
-	put(gen, L2_OP_PUSH);
-	put(gen, pos);
 	put(gen, L2_OP_ALLOC_FUNCTION);
+	put(gen, pos);
 }
 
 void l2_gen_array(struct l2_generator *gen, l2_word count) {
-	put(gen, L2_OP_PUSH);
-	put(gen, count);
 	put(gen, L2_OP_ALLOC_ARRAY);
+	put(gen, count);
 }
 
 void l2_gen_namespace(struct l2_generator *gen) {
@@ -131,51 +122,45 @@ void l2_gen_namespace(struct l2_generator *gen) {
 
 void l2_gen_namespace_set(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
-	put(gen, L2_OP_PUSH);
-	put(gen, atom_id);
 	put(gen, L2_OP_NAMESPACE_SET);
+	put(gen, atom_id);
 }
 
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
-	put(gen, L2_OP_PUSH);
-	put(gen, atom_id);
 	put(gen, L2_OP_NAMESPACE_LOOKUP);
+	put(gen, atom_id);
 }
 
-void l2_gen_direct_array_lookup(struct l2_generator *gen, int number) {
-	put(gen, L2_OP_PUSH);
+void l2_gen_array_lookup(struct l2_generator *gen, int number) {
+	put(gen, L2_OP_ARRAY_LOOKUP);
 	put(gen, number);
-	put(gen, L2_OP_DIRECT_ARRAY_LOOKUP);
 }
 
-void l2_gen_direct_array_set(struct l2_generator *gen, int number) {
-	put(gen, L2_OP_PUSH);
+void l2_gen_array_set(struct l2_generator *gen, int number) {
+	put(gen, L2_OP_ARRAY_SET);
 	put(gen, number);
-	put(gen, L2_OP_DIRECT_ARRAY_SET);
 }
 
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
-	put(gen, L2_OP_PUSH);
-	put(gen, atom_id);
 	put(gen, L2_OP_STACK_FRAME_LOOKUP);
+	put(gen, atom_id);
 }
 
 void l2_gen_stack_frame_set(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
-	put(gen, L2_OP_PUSH);
-	put(gen, atom_id);
 	put(gen, L2_OP_STACK_FRAME_SET);
+	put(gen, atom_id);
 }
 
 void l2_gen_stack_frame_replace(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
-	put(gen, L2_OP_PUSH);
-	put(gen, atom_id);
 	put(gen, L2_OP_STACK_FRAME_REPLACE);
+	put(gen, atom_id);
 }
 
-void l2_gen_func_call(struct l2_generator *gen) {
+void l2_gen_func_call(struct l2_generator *gen, l2_word argc) {
 	put(gen, L2_OP_FUNC_CALL);
+	put(gen, argc);
 }

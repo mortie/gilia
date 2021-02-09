@@ -78,8 +78,8 @@ void l2_vm_print_state(struct l2_vm *vm) {
 	l2_vm_print_stack(vm);
 	printf("Heap:\n");
 	l2_vm_print_heap(vm);
-	printf("Namespace Stack:\n");
-	l2_vm_print_nstack(vm);
+	printf("Frame Stack:\n");
+	l2_vm_print_fstack(vm);
 }
 
 void l2_vm_print_heap(struct l2_vm *vm) {
@@ -97,9 +97,9 @@ void l2_vm_print_stack(struct l2_vm *vm) {
 	}
 }
 
-void l2_vm_print_nstack(struct l2_vm *vm) {
-	for (l2_word i = 0; i < vm->nsptr; ++i) {
-		printf("  %i: %i\n", i, vm->nstack[i]);
+void l2_vm_print_fstack(struct l2_vm *vm) {
+	for (l2_word i = 0; i < vm->fsptr; ++i) {
+		printf("  %i: %i, ret %i\n", i, vm->fstack[i].namespace, vm->fstack[i].retptr);
 	}
 }
 
@@ -119,20 +119,6 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("NOP\n");
 		return;
 
-	case L2_OP_PUSH:
-		printf("PUSH ");
-		print_op_num(ops, opcount, (*ptr)++);
-		printf("\n");
-		return;
-
-	case L2_OP_PUSH_2:
-		printf("PUSH2 ");
-		print_op_num(ops, opcount, (*ptr)++);
-		printf(" ");
-		print_op_num(ops, opcount, (*ptr)++);
-		printf("\n");
-		return;
-
 	case L2_OP_POP:
 		printf("POP\n");
 		return;
@@ -150,47 +136,55 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		return;
 
 	case L2_OP_FUNC_CALL:
-		printf("FUNC_CALL\n");
+		printf("FUNC_CALL %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_RJMP:
-		printf("RJMP\n");
+		printf("RJMP %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_STACK_FRAME_LOOKUP:
-		printf("STACK_FRAME_LOOKUP\n");
+		printf("STACK_FRAME_LOOKUP %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_STACK_FRAME_SET:
-		printf("STACK_FRAME_SET\n");
+		printf("STACK_FRAME_SET %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_STACK_FRAME_REPLACE:
-		printf("STACK_FRAME_REPLACE\n");
+		printf("STACK_FRAME_REPLACE %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_RET:
 		printf("RET\n");
 		return;
 
+	case L2_OP_ALLOC_NONE:
+		printf("ALLOC_NONE\n");
+		return;
+
 	case L2_OP_ALLOC_ATOM:
-		printf("ALLOC_ATOM\n");
+		printf("ALLOC_ATOM %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_ALLOC_REAL:
-		printf("ALLOC_REAL\n");
+		{
+			l2_word w1 = ops[(*ptr)++];
+			l2_word w2 = ops[(*ptr)++];
+			printf("ALLOC_REAL %08x %08x\n", w1, w2);
+		}
 		return;
 
 	case L2_OP_ALLOC_BUFFER_STATIC:
-		printf("ALLOC_BUFFER_STATIC\n");
-		return;
-
-	case L2_OP_ALLOC_BUFFER_ZERO:
-		printf("ALLOC_BUFFER_ZERO\n");
+		{
+			l2_word w1 = ops[(*ptr)++];
+			l2_word w2 = ops[(*ptr)++];
+			printf("ALLOC_BUFFER_STATIC %08x %08x\n", w1, w2);
+		}
 		return;
 
 	case L2_OP_ALLOC_ARRAY:
-		printf("ALLOC_ARRAY\n");
+		printf("ALLOC_ARRAY %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_ALLOC_NAMESPACE:
@@ -198,23 +192,23 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		return;
 
 	case L2_OP_ALLOC_FUNCTION:
-		printf("ALLOC_FUNCTION\n");
+		printf("ALLOC_FUNCTION %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_NAMESPACE_SET:
-		printf("NAMESPACE_SET\n");
+		printf("NAMESPACE_SET %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_NAMESPACE_LOOKUP:
-		printf("NAMESPACE_LOOKUP\n");
+		printf("NAMESPACE_LOOKUP %08x\n", ops[(*ptr)++]);
 		return;
 
-	case L2_OP_DIRECT_ARRAY_LOOKUP:
-		printf("DIRECT_ARRAY_LOOKUP\n");
+	case L2_OP_ARRAY_LOOKUP:
+		printf("ARRAY_LOOKUP %08x\n", ops[(*ptr)++]);
 		return;
 
-	case L2_OP_DIRECT_ARRAY_SET:
-		printf("DIRECT_ARRAY_SET\n");
+	case L2_OP_ARRAY_SET:
+		printf("ARRAY_SET %08x\n", ops[(*ptr)++]);
 		return;
 
 	case L2_OP_HALT:

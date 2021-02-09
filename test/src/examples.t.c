@@ -110,8 +110,11 @@ static void check_impl(const char *name) {
 	l2_vm_init(&vm, (l2_word *)bytecode.mem, bytecode.len / sizeof(l2_word));
 	vm.std_output = &output.w;
 
-	l2_vm_run(&vm);
-	l2_vm_gc(&vm);
+	// Run a GC after every instruction to uncover potential GC issues
+	while (vm.ops[vm.iptr] != L2_OP_HALT) {
+		l2_vm_step(&vm);
+		l2_vm_gc(&vm);
+	}
 
 	l2_vm_free(&vm);
 	free(bytecode.mem);
@@ -122,15 +125,13 @@ static void check_impl(const char *name) {
 
 #define check(name) do { \
 	snow_fail_update(); \
-	check_impl(name); \
+	test(name) { check_impl(name); } \
 } while (0)
 
 describe(exaples) {
-	test("examples") {
-		check("namespaces.l2");
-		check("arrays.l2");
-		check("functions.l2");
-	}
+	check("namespaces.l2");
+	check("arrays.l2");
+	check("functions.l2");
 
 	if (error_message != NULL) {
 		free(error_message);

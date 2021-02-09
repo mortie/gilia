@@ -12,19 +12,6 @@ enum l2_opcode {
 	L2_OP_NOP,
 
 	/*
-	 * Push a value to the stack.
-	 * Push <word>
-	 */
-	L2_OP_PUSH,
-
-	/*
-	 * Push a value to the stack.
-	 * Push <word1>
-	 * Push <word2>
-	 */
-	L2_OP_PUSH_2,
-
-	/*
 	 * Discard the top element from the stack.
 	 * Pop <word>
 	 */
@@ -53,94 +40,80 @@ enum l2_opcode {
 	L2_OP_ADD,
 
 	/*
-	 * Call a function.
-	 * Pop <argc>
-	 * Pop argc times
+	 * Call a function; func_call <argc>
+	 * Pop <argc> times
 	 * Pop <func>
-	 * Push <iptr> + 1
 	 * Push array with args
 	 * Call <func>
+	 * (Before returning, the function will push a return value onto the stack)
 	 */
 	L2_OP_FUNC_CALL,
 
 	/*
-	 * Jump relative.
-	 * Pop <word>
-	 * Jump <word> words forwards
+	 * Jump relative; rjmp <count>
+	 * Jump <count> words forwards
 	 */
 	L2_OP_RJMP,
 
 	/*
-	 * Look up a value from the current stack frame.
-	 * Pop <word>
-	 * Find <val> in stack frame using <word>
+	 * Look up a value from the current stack frame; stack_frame_lookup <key>
+	 * Find <val> in stack frame using <key>
 	 * Push <val>
 	 */
 	L2_OP_STACK_FRAME_LOOKUP,
 
 	/*
-	 * Set a value in the current stack frame.
-	 * Pop <key>
+	 * Set a value in the current stack frame; stack_frame_set <key>
 	 * Read <val>
-	 * Assign <val> to stack frame
+	 * Assign <val> to stack frame at <key>
 	 */
 	L2_OP_STACK_FRAME_SET,
 
 	/*
-	 * Replace a value on the stack.
-	 * Pop <key>
+	 * Replace a value on the stack; stack_frame_replace <key>
 	 * Read <val>
-	 * Assign <val> to stack frame
+	 * Assign <val> to stack frame at <key>
 	 */
 	L2_OP_STACK_FRAME_REPLACE,
 
 	/*
 	 * Return from a function.
-	 * NSPop
+	 * FSPop
 	 * Pop (discard args array)
-	 * Pop <word>
-	 * Jump to <word>
+	 * Jump to <return address>
 	 */
 	L2_OP_RET,
 
 	/*
-	 * Allocate an atom from one word.
-	 * Pop <word>
-	 * Alloc integer <var> from <word>
+	 * Put a reference to none at the top of the stack.
+	 * Push 0
+	 */
+	L2_OP_ALLOC_NONE,
+
+	/*
+	 * Allocate an atom from one word; alloc_atom <word>
+	 * Alloc atom <var> from <word>
 	 * Push <var>
 	 */
 	L2_OP_ALLOC_ATOM,
 
 	/*
-	 * Allocate a real from two words.
-	 * Pop <high>
-	 * Pop <low>
+	 * Allocate a real from two words; alloc_real <high> <low>
 	 * Alloc real <var> from <high> << 32 | <low>
 	 * Push <var>
 	 */
 	L2_OP_ALLOC_REAL,
 
 	/*
-	 * Allocate a buffer from static data.
-	 * Pop <word1>
-	 * Pop <word2>
-	 * Alloc buffer <var> with length=<word1>, offset=<word2>
+	 * Allocate a buffer from static data; alloc_buffer_static <length> <offset>
+	 * Alloc buffer <var> with <length> and <offset>
 	 * Push <var>
 	 */
 	L2_OP_ALLOC_BUFFER_STATIC,
 
 	/*
-	 * Allocate a zeroed buffer.
-	 * Pop <word>
-	 * Alloc buffer <var> with length=<word>
-	 * Push <var>
-	 */
-	L2_OP_ALLOC_BUFFER_ZERO,
-
-	/*
-	 * Allocate an array.
-	 * Pop <count>
-	 * Pop count times
+	 * Allocate an array; <count>
+	 * Pop <count> times
 	 * Alloc array <var>
 	 * Push <var>
 	 */
@@ -154,16 +127,14 @@ enum l2_opcode {
 	L2_OP_ALLOC_NAMESPACE,
 
 	/*
-	 * Allocate a function.
-	 * Pop <word>
+	 * Allocate a function; alloc_function <pos>
 	 * Alloc function <var> pointing to location <word>
 	 * Push <var>
 	 */
 	L2_OP_ALLOC_FUNCTION,
 
 	/*
-	 * Set a namespace's name to a value.
-	 * Pop <key>
+	 * Set a namespace's name to a value; namespace_set <key>
 	 * Read <val>
 	 * Read <ns>
 	 * Assign <val> to <ns[<key>]>
@@ -171,29 +142,26 @@ enum l2_opcode {
 	L2_OP_NAMESPACE_SET,
 
 	/*
-	 * Lookup a value from a namespace.
-	 * Pop <key>
+	 * Lookup a value from a namespace; namespace_lookup <key>
 	 * Pop <ns>
 	 * Push <ns[<key>]>
 	 */
 	L2_OP_NAMESPACE_LOOKUP,
 
 	/*
-	 * Look up a value from an array.
-	 * Pop <key>
-	 * Read <val>
-	 * Read <arr>
+	 * Look up a value from an array; direct_array_lookup <key>
+	 * Pop <val>
+	 * Pop <arr>
 	 * Assign <val> to <arr[<key>]>
 	 */
-	L2_OP_DIRECT_ARRAY_LOOKUP,
+	L2_OP_ARRAY_LOOKUP,
 
 	/*
-	 * Set a value in an array.
-	 * Pop <key>
+	 * Set a value in an array; direct_array_set <key>
 	 * Read <arr>
 	 * Push <arr[<key>]>
 	 */
-	L2_OP_DIRECT_ARRAY_SET,
+	L2_OP_ARRAY_SET,
 
 	/*
 	 * Halt execution.
