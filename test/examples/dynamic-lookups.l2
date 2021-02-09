@@ -1,0 +1,16 @@
+idx := 0
+arr := [100 20 30]
+print arr.(idx)
+
+arr.(+ idx 1) = 50
+print arr
+
+print [10 20 30].(+ 1 1)
+
+obj := {}
+obj.('hello) = "what's up"
+print obj.hello
+
+get-ident := {'foo}
+obj.(get-ident()) = 100
+print obj.foo

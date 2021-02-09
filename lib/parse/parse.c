@@ -327,6 +327,32 @@ static int parse_arg_level_expression(
 			l2_lexer_consume(lexer); // dot-number
 
 			l2_gen_array_lookup(gen, number);
+		} else if (tok->kind == L2_TOK_PERIOD && tok2->kind == L2_TOK_OPEN_PAREN) {
+			l2_trace_scope("dynamic lookup");
+			l2_lexer_consume(lexer); // '.'
+			l2_lexer_consume(lexer); // '('
+
+			if (parse_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+
+			if (l2_lexer_peek(lexer, 1)->kind != L2_TOK_CLOSE_PAREN) {
+				l2_parse_err(err, tok, "Expected '(', got %s",
+						l2_token_kind_name(tok->kind));
+				return -1;
+			}
+			l2_lexer_consume(lexer); // ')'
+
+			if (l2_lexer_peek(lexer, 1)->kind == L2_TOK_EQUALS) {
+				l2_lexer_consume(lexer); // '='
+				if (parse_expression(lexer, gen, err) < 0) {
+					return -1;
+				}
+
+				l2_gen_dynamic_set(gen);
+			} else {
+				l2_gen_dynamic_lookup(gen);
+			}
 		} else {
 			break;
 		}

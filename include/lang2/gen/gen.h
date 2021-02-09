@@ -38,6 +38,8 @@ void l2_gen_namespace_set(struct l2_generator *gen, char **ident);
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident);
 void l2_gen_array_lookup(struct l2_generator *gen, int number);
 void l2_gen_array_set(struct l2_generator *gen, int number);
+void l2_gen_dynamic_lookup(struct l2_generator *gen);
+void l2_gen_dynamic_set(struct l2_generator *gen);
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident);
 void l2_gen_stack_frame_set(struct l2_generator *gen, char **ident);
 void l2_gen_stack_frame_replace(struct l2_generator *gen, char **ident);

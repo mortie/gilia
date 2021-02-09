@@ -142,6 +142,14 @@ void l2_gen_array_set(struct l2_generator *gen, int number) {
 	put(gen, number);
 }
 
+void l2_gen_dynamic_lookup(struct l2_generator *gen) {
+	put(gen, L2_OP_DYNAMIC_LOOKUP);
+}
+
+void l2_gen_dynamic_set(struct l2_generator *gen) {
+	put(gen, L2_OP_DYNAMIC_SET);
+}
+
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
 	put(gen, L2_OP_STACK_FRAME_LOOKUP);

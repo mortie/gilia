@@ -451,6 +451,55 @@ void l2_vm_step(struct l2_vm *vm) {
 		}
 		break;
 
+	case L2_OP_DYNAMIC_LOOKUP:
+		{
+			l2_word key_id = vm->stack[--vm->sptr];
+			l2_word container_id = vm->stack[--vm->sptr];
+
+			struct l2_vm_value *key = &vm->values[key_id];
+			struct l2_vm_value *container = &vm->values[container_id];
+			if (
+					l2_vm_value_type(key) == L2_VAL_TYPE_REAL &&
+					l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
+				// TODO: Error if out of bounds
+				vm->stack[vm->sptr++] = container->array->data[(size_t)key->real];
+			} else if (
+					l2_vm_value_type(key) == L2_VAL_TYPE_ATOM &&
+					l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
+				// TODO: Error if out of bounds
+				vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, container, key->atom);
+			} else {
+				// TODO: error
+			}
+		}
+		break;
+
+	case L2_OP_DYNAMIC_SET:
+		{
+			l2_word val = vm->stack[--vm->sptr];
+			l2_word key_id = vm->stack[--vm->sptr];
+			l2_word container_id = vm->stack[--vm->sptr];
+			vm->stack[vm->sptr++] = val;
+
+			struct l2_vm_value *key = &vm->values[key_id];
+			struct l2_vm_value *container = &vm->values[container_id];
+
+			if (
+					l2_vm_value_type(key) == L2_VAL_TYPE_REAL &&
+					l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
+				// TODO: Error if out of bounds
+				container->array->data[(size_t)key->real] = val;
+			} else if (
+					l2_vm_value_type(key) == L2_VAL_TYPE_ATOM &&
+					l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
+				// TODO: Error if out of bounds
+				l2_vm_namespace_set(container, key->atom, val);
+			} else {
+				// TODO: error
+			}
+		}
+		break;
+
 	case L2_OP_HALT:
 		break;
 	}

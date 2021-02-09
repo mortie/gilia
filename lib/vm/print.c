@@ -211,6 +211,14 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("ARRAY_SET %08x\n", ops[(*ptr)++]);
 		return;
 
+	case L2_OP_DYNAMIC_LOOKUP:
+		printf("DYNAMIC_LOOKUP\n");
+		return;
+
+	case L2_OP_DYNAMIC_SET:
+		printf("DYNAMIC_SET\n");
+		return;
+
 	case L2_OP_HALT:
 		printf("HALT\n");
 		return;

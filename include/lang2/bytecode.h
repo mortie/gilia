@@ -149,19 +149,36 @@ enum l2_opcode {
 	L2_OP_NAMESPACE_LOOKUP,
 
 	/*
-	 * Look up a value from an array; direct_array_lookup <key>
-	 * Pop <val>
+	 * Look up a value from an array; array_lookup <key>
 	 * Pop <arr>
-	 * Assign <val> to <arr[<key>]>
+	 * Push <arr[<key>]>
 	 */
 	L2_OP_ARRAY_LOOKUP,
 
 	/*
-	 * Set a value in an array; direct_array_set <key>
+	 * Set a value in an array; array_set <key>
+	 * Read <val>
 	 * Read <arr>
-	 * Push <arr[<key>]>
+	 * Assign <val> to <arr[<key>]>
 	 */
 	L2_OP_ARRAY_SET,
+
+	/*
+	 * Look up a runtime value in an array or object.
+	 * Pop <key>
+	 * Pop <container>
+	 * Push <container[<key>]>
+	 */
+	L2_OP_DYNAMIC_LOOKUP,
+
+	/*
+	 * Set a value in an array or object.
+	 * Pop <val>
+	 * Pop <key>
+	 * Pop <arr>
+	 * Assign <val> to <arr[<key>]>
+	 */
+	L2_OP_DYNAMIC_SET,
 
 	/*
 	 * Halt execution.

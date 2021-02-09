@@ -132,6 +132,7 @@ describe(exaples) {
 	check("namespaces.l2");
 	check("arrays.l2");
 	check("functions.l2");
+	check("dynamic-lookups.l2");
 
 	if (error_message != NULL) {
 		free(error_message);
