@@ -84,7 +84,7 @@ void l2_bufio_flush(struct l2_bufio_writer *b) {
 	b->idx = 0;
 }
 
-size_t l2_io_mem_read(struct l2_io_reader *self, char *buf, size_t len) {
+size_t l2_io_mem_read(struct l2_io_reader *self, void *buf, size_t len) {
 	struct l2_io_mem_reader *r = (struct l2_io_mem_reader *)self;
 	if (len >= r->len - r->idx) {
 		len = r->len - r->idx;
@@ -95,20 +95,20 @@ size_t l2_io_mem_read(struct l2_io_reader *self, char *buf, size_t len) {
 	return len;
 }
 
-size_t l2_io_file_read(struct l2_io_reader *self, char *buf, size_t len) {
+size_t l2_io_file_read(struct l2_io_reader *self, void *buf, size_t len) {
 	struct l2_io_file_reader *r = (struct l2_io_file_reader *)self;
 	return fread(buf, 1, len, r->f);
 }
 
-void l2_io_mem_write(struct l2_io_writer *self, const char *buf, size_t len) {
+void l2_io_mem_write(struct l2_io_writer *self, const void *buf, size_t len) {
 	struct l2_io_mem_writer *w = (struct l2_io_mem_writer *)self;
 	size_t idx = w->len;
 	w->len += len;
 	w->mem = realloc(w->mem, w->len);
-	memcpy(w->mem + idx, buf, len);
+	memcpy((char *)w->mem + idx, buf, len);
 }
 
-void l2_io_file_write(struct l2_io_writer *self, const char *buf, size_t len) {
+void l2_io_file_write(struct l2_io_writer *self, const void *buf, size_t len) {
 	struct l2_io_file_writer *w = (struct l2_io_file_writer *)self;
 	fwrite(buf, 1, len, w->f);
 }

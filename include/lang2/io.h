@@ -7,11 +7,11 @@
 #define L2_IO_BUFSIZ 1024
 
 struct l2_io_reader {
-	size_t (*read)(struct l2_io_reader *self, char *buf, size_t len);
+	size_t (*read)(struct l2_io_reader *self, void *buf, size_t len);
 };
 
 struct l2_io_writer {
-	void (*write)(struct l2_io_writer *self, const char *buf, size_t len);
+	void (*write)(struct l2_io_writer *self, const void *buf, size_t len);
 };
 
 struct l2_bufio_reader {
@@ -49,28 +49,28 @@ struct l2_io_mem_reader {
 	struct l2_io_reader r;
 	size_t idx;
 	size_t len;
-	const char *mem;
+	const void *mem;
 };
-size_t l2_io_mem_read(struct l2_io_reader *self, char *buf, size_t len);
+size_t l2_io_mem_read(struct l2_io_reader *self, void *buf, size_t len);
 
 struct l2_io_file_reader {
 	struct l2_io_reader r;
 	FILE *f;
 };
-size_t l2_io_file_read(struct l2_io_reader *self, char *buf, size_t len);
+size_t l2_io_file_read(struct l2_io_reader *self, void *buf, size_t len);
 
 struct l2_io_mem_writer {
 	struct l2_io_writer w;
 	size_t len;
-	char *mem;
+	void *mem;
 };
-void l2_io_mem_write(struct l2_io_writer *self, const char *buf, size_t len);
+void l2_io_mem_write(struct l2_io_writer *self, const void *buf, size_t len);
 
 struct l2_io_file_writer {
 	struct l2_io_writer w;
 	FILE *f;
 };
-void l2_io_file_write(struct l2_io_writer *self, const char *buf, size_t len);
+void l2_io_file_write(struct l2_io_writer *self, const void *buf, size_t len);
 
 /*
  * Defined in the header to let the compiler inline

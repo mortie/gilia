@@ -133,7 +133,7 @@ static int parse_function_literal(
 		return -1;
 	}
 
-	l2_word *ops = (l2_word *)w.mem;
+	l2_word *ops = w.mem;
 	l2_word opcount = w.len / sizeof(l2_word);
 
 	// Due to the earlier gen_rjmp, the second word will be the argument to RJMP.

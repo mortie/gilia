@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 	fclose(inf);
 
 	if (do_print_bytecode) {
-		l2_vm_print_bytecode((l2_word *)w.mem, w.len / sizeof(l2_word));
+		l2_vm_print_bytecode(w.mem, w.len / sizeof(l2_word));
 	}
 
 	if (do_print_bytecode || do_print_tokens) {
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 	}
 
 	struct l2_vm vm;
-	l2_vm_init(&vm, (void *)w.mem, w.len / sizeof(l2_word));
+	l2_vm_init(&vm, w.mem, w.len / sizeof(l2_word));
 
 	if (do_step) {
 		step_through(&vm);
