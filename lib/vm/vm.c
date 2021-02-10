@@ -50,7 +50,7 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
 		gc_mark_namespace(vm, val);
 	} else if (typ == L2_VAL_TYPE_FUNCTION) {
-		gc_mark(vm, val->func.namespace);
+		gc_mark(vm, val->func.ns);
 	}
 }
 
@@ -150,7 +150,7 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	vm->values[builtins].extra.ns_parent = 0;
 	vm->values[builtins].ns = NULL; // Will be allocated on first insert
 	vm->values[builtins].flags = L2_VAL_TYPE_NAMESPACE;
-	vm->fstack[vm->fsptr].namespace = builtins;
+	vm->fstack[vm->fsptr].ns = builtins;
 	vm->fstack[vm->fsptr].retptr = 0;
 	vm->fsptr += 1;
 
@@ -159,7 +159,7 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	vm->values[root].extra.ns_parent = builtins;
 	vm->values[root].ns = NULL;
 	vm->values[root].flags = L2_VAL_TYPE_NAMESPACE;
-	vm->fstack[vm->fsptr].namespace = root;
+	vm->fstack[vm->fsptr].ns = root;
 	vm->fstack[vm->fsptr].retptr = 0;
 	vm->fsptr += 1;
 
@@ -202,7 +202,7 @@ size_t l2_vm_gc(struct l2_vm *vm) {
 	}
 
 	for (l2_word fsptr = 0; fsptr < vm->fsptr; ++fsptr) {
-		gc_mark(vm, vm->fstack[fsptr].namespace);
+		gc_mark(vm, vm->fstack[fsptr].ns);
 	}
 
 	return gc_sweep(vm);
@@ -279,10 +279,10 @@ void l2_vm_step(struct l2_vm *vm) {
 
 			l2_word ns_id = alloc_val(vm);
 			func = &vm->values[func_id]; // func might be stale after alloc
-			vm->values[ns_id].extra.ns_parent = func->func.namespace;
+			vm->values[ns_id].extra.ns_parent = func->func.ns;
 			vm->values[ns_id].ns = NULL;
 			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
-			vm->fstack[vm->fsptr].namespace = ns_id;
+			vm->fstack[vm->fsptr].ns = ns_id;
 			vm->fstack[vm->fsptr].retptr = vm->iptr;
 			vm->fsptr += 1;
 
@@ -297,7 +297,7 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_STACK_FRAME_LOOKUP:
 		{
 			l2_word key = vm->ops[vm->iptr++];
-			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].namespace];
+			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
 			vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, ns, key);
 		}
 		break;
@@ -306,7 +306,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		{
 			l2_word key = vm->ops[vm->iptr++];
 			l2_word val = vm->stack[vm->sptr - 1];
-			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].namespace];
+			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
 			l2_vm_namespace_set(ns, key, val);
 		}
 		break;
@@ -315,7 +315,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		{
 			l2_word key = vm->ops[vm->iptr++];
 			l2_word val = vm->stack[vm->sptr - 1];
-			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].namespace];
+			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
 			l2_vm_namespace_replace(vm, ns, key, val); // TODO: error if returns -1
 		}
 		break;
@@ -404,7 +404,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		word = alloc_val(vm);
 		vm->values[word].flags = L2_VAL_TYPE_FUNCTION;
 		vm->values[word].func.pos = vm->ops[vm->iptr++];
-		vm->values[word].func.namespace = vm->fstack[vm->fsptr - 1].namespace;
+		vm->values[word].func.ns = vm->fstack[vm->fsptr - 1].ns;
 		vm->stack[vm->sptr] = word;
 		vm->sptr += 1;
 		break;

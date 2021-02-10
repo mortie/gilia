@@ -65,7 +65,7 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 		break;
 
 	case L2_VAL_TYPE_FUNCTION:
-		printf("FUNCTION, pos %u, ns %u\n", val->func.pos, val->func.namespace);
+		printf("FUNCTION, pos %u, ns %u\n", val->func.pos, val->func.ns);
 		break;
 
 	case L2_VAL_TYPE_CFUNCTION:
@@ -101,7 +101,7 @@ void l2_vm_print_stack(struct l2_vm *vm) {
 
 void l2_vm_print_fstack(struct l2_vm *vm) {
 	for (l2_word i = 0; i < vm->fsptr; ++i) {
-		printf("  %i: %i, ret %i\n", i, vm->fstack[i].namespace, vm->fstack[i].retptr);
+		printf("  %i: %i, ret %i\n", i, vm->fstack[i].ns, vm->fstack[i].retptr);
 	}
 }
 

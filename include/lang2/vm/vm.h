@@ -49,7 +49,7 @@ struct l2_vm_value {
 		struct l2_vm_namespace *ns;
 		struct {
 			l2_word pos;
-			l2_word namespace;
+			l2_word ns;
 		} func;
 		l2_vm_cfunction cfunc;
 	};
@@ -76,7 +76,7 @@ struct l2_vm_namespace {
 };
 
 struct l2_vm_stack_frame {
-	l2_word namespace;
+	l2_word ns;
 	l2_word retptr;
 };
 
