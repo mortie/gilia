@@ -101,7 +101,8 @@ void l2_vm_print_stack(struct l2_vm *vm) {
 
 void l2_vm_print_fstack(struct l2_vm *vm) {
 	for (l2_word i = 0; i < vm->fsptr; ++i) {
-		printf("  %i: %i, ret %i\n", i, vm->fstack[i].ns, vm->fstack[i].retptr);
+		printf("  %i: %i, ret %i, stack base %i\n",
+				i, vm->fstack[i].ns, vm->fstack[i].retptr, vm->fstack[i].sptr);
 	}
 }
 

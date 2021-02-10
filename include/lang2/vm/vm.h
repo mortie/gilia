@@ -77,6 +77,7 @@ struct l2_vm_namespace {
 
 struct l2_vm_stack_frame {
 	l2_word ns;
+	l2_word sptr;
 	l2_word retptr;
 };
 

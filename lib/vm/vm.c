@@ -261,6 +261,8 @@ void l2_vm_step(struct l2_vm *vm) {
 			l2_word func_id = vm->stack[--vm->sptr];
 			struct l2_vm_value *func = &vm->values[func_id];
 
+			l2_word stack_base = vm->sptr;
+
 			enum l2_value_type typ = l2_vm_value_type(func);
 
 			// C functions are called differently from language functions
@@ -284,6 +286,7 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
 			vm->fstack[vm->fsptr].ns = ns_id;
 			vm->fstack[vm->fsptr].retptr = vm->iptr;
+			vm->fstack[vm->fsptr].sptr = stack_base;
 			vm->fsptr += 1;
 
 			vm->iptr = func->func.pos;
@@ -323,8 +326,10 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_RET:
 		{
 			l2_word retval = vm->stack[--vm->sptr];
-			vm->sptr -= 1; // Discard arguments array
-			l2_word retptr = vm->fstack[--vm->fsptr].retptr;
+			l2_word retptr = vm->fstack[vm->fsptr - 1].retptr;
+			l2_word sptr = vm->fstack[vm->fsptr - 1].sptr;
+			vm->fsptr -= 1;
+			vm->sptr = sptr;
 			vm->stack[vm->sptr++] = retval;
 			vm->iptr = retptr;
 		}

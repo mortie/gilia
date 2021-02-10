@@ -78,8 +78,10 @@ enum l2_opcode {
 
 	/*
 	 * Return from a function.
+	 * Pop <retval>
 	 * FSPop
-	 * Pop (discard args array)
+	 * Reset stack pointer to <stack base>
+	 * Push <retval>
 	 * Jump to <return address>
 	 */
 	L2_OP_RET,

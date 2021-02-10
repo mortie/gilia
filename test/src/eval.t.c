@@ -13,7 +13,7 @@ static struct l2_vm vm;
 
 static struct l2_vm_value *var_lookup(const char *name) {
 	l2_word atom_id = l2_strset_get(&gen.atomset, name);
-	l2_word id = l2_vm_namespace_get(&vm, &vm.values[vm.fstack[1].namespace], atom_id);
+	l2_word id = l2_vm_namespace_get(&vm, &vm.values[vm.fstack[1].ns], atom_id);
 	return &vm.values[id];
 }
 
