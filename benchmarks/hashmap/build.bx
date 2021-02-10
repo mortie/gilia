@@ -1,0 +1,7 @@
+ldlibs := absl_base absl_hashtablez_sampler absl_hash absl_raw_hash_set
+includes := ../../include ../../include/lang2
+target := bench
+files := ../../lib bench.cc
+cflags := -O3
+cxxflags := -O3
+ldflags := -flto
