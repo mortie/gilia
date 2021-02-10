@@ -34,7 +34,7 @@ static int eval_impl(const char *str, struct l2_parse_error *err) {
 		return -1;
 	}
 
-	l2_vm_init(&vm, (l2_word *)w.mem, w.len / sizeof(l2_word));
+	l2_vm_init(&vm, w.mem, w.len / sizeof(l2_word));
 	l2_vm_run(&vm);
 
 	free(w.mem);

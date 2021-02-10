@@ -26,12 +26,6 @@ static l2_word alloc_val(struct l2_vm *vm) {
 	return (l2_word)id;
 }
 
-static float u32_to_float(uint32_t num) {
-	float f;
-	memcpy(&f, &num, sizeof(num));
-	return f;
-}
-
 static double u32s_to_double(uint32_t high, uint32_t low) {
 	double d;
 	uint64_t num = (uint64_t)high << 32 | (uint64_t)low;
@@ -297,7 +291,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		break;
 
 	case L2_OP_RJMP:
-		vm->iptr += vm->ops[vm->iptr++];
+		vm->iptr += vm->ops[vm->iptr] + 1;
 		break;
 
 	case L2_OP_STACK_FRAME_LOOKUP:

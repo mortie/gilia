@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 void l2_vm_print_val(struct l2_vm_value *val) {
 
@@ -68,7 +69,8 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 		break;
 
 	case L2_VAL_TYPE_CFUNCTION:
-		printf("C FUNCTION, %p\n", val->cfunc);
+		// ISO C doesn't let you cast a function pointer to void*.
+		printf("C FUNCTION, %jx\n", (uintmax_t)val->cfunc);
 		break;
 	}
 }
@@ -100,14 +102,6 @@ void l2_vm_print_stack(struct l2_vm *vm) {
 void l2_vm_print_fstack(struct l2_vm *vm) {
 	for (l2_word i = 0; i < vm->fsptr; ++i) {
 		printf("  %i: %i, ret %i\n", i, vm->fstack[i].namespace, vm->fstack[i].retptr);
-	}
-}
-
-static void print_op_num(l2_word *ops, size_t opcount, size_t ptr) {
-	if (ptr >= opcount) {
-		printf("<EOF>");
-	} else {
-		printf("%i", ops[ptr]);
 	}
 }
 

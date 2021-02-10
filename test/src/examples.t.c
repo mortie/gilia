@@ -107,7 +107,7 @@ static void check_impl(const char *name) {
 	};
 
 	struct l2_vm vm;
-	l2_vm_init(&vm, (l2_word *)bytecode.mem, bytecode.len / sizeof(l2_word));
+	l2_vm_init(&vm, bytecode.mem, bytecode.len / sizeof(l2_word));
 	vm.std_output = &output.w;
 
 	// Run a GC after every instruction to uncover potential GC issues

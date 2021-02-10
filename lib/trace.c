@@ -41,3 +41,11 @@ void l2_trace_cleanup(void *unused) {
 }
 
 #endif
+
+// ISO C forbids an empty translation unit
+// (and GCC warns on usude variables, but __attribute__((unused)) isn't ISO C)
+#ifdef __GNUC__
+__attribute__((unused)) static int make_compiler_happy;
+#else
+static int make_compiler_happy;
+#endif

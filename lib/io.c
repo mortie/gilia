@@ -12,7 +12,7 @@ int l2_io_printf(struct l2_io_writer *w, const char *fmt, ...) {
 	if (n < 0) {
 		va_end(va);
 		return n;
-	} else if (n + 1 < sizeof(buf)) {
+	} else if ((size_t)n + 1 < sizeof(buf)) {
 		w->write(w, buf, n);
 		va_end(va);
 		return n;
@@ -90,7 +90,7 @@ size_t l2_io_mem_read(struct l2_io_reader *self, void *buf, size_t len) {
 		len = r->len - r->idx;
 	}
 
-	memcpy(buf, r->mem + r->idx, len);
+	memcpy(buf, (char *)r->mem + r->idx, len);
 	r->idx += len;
 	return len;
 }

@@ -21,7 +21,7 @@ void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *
 		va_end(va);
 		l2_trace("Parse error: %s", err->message);
 		return;
-	} else if (n + 1 < sizeof(buf)) {
+	} else if ((size_t)n + 1 < sizeof(buf)) {
 		err->message = malloc(n + 1);
 		strcpy(err->message, buf);
 		va_end(va);

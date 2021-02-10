@@ -82,6 +82,8 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 	case L2_TOK_ERROR:
 		return "error";
 	}
+
+	return "(unknown)";
 }
 
 void l2_token_free(struct l2_token *tok) {
@@ -153,7 +155,7 @@ static int skip_whitespace(struct l2_lexer *lexer) {
 
 static int read_integer(struct l2_lexer *lexer) {
 	char buffer[16]; // Should be enough
-	int len = 0;
+	size_t len = 0;
 
 	while (len < sizeof(buffer) - 1 && is_numeric(peek_ch(lexer))) {
 		buffer[len++] = read_ch(lexer);
