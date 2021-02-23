@@ -15,7 +15,7 @@ enum l2_opcode {
 	 * Discard the top element from the stack.
 	 * Pop <word>
 	 */
-	L2_OP_POP,
+	L2_OP_DISCARD,
 
 	/*
 	 * Swap the top and second-top elements, then pop the new top element.
@@ -23,7 +23,7 @@ enum l2_opcode {
 	 * Pop <word2>
 	 * Push <word1>
 	 */
-	L2_OP_SWAP_POP,
+	L2_OP_SWAP_DISCARD,
 
 	/*
 	 * Duplicate the top element on the stack.

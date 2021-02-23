@@ -121,6 +121,22 @@ static size_t gc_sweep(struct l2_vm *vm) {
 	return freed;
 }
 
+const char *l2_value_type_name(enum l2_value_type typ) {
+	switch (typ) {
+	case L2_VAL_TYPE_NONE: return "NONE";
+	case L2_VAL_TYPE_ATOM: return "ATOM";
+	case L2_VAL_TYPE_REAL: return "REAL";
+	case L2_VAL_TYPE_BUFFER: return "BUFFER";
+	case L2_VAL_TYPE_ARRAY: return "ARRAY";
+	case L2_VAL_TYPE_NAMESPACE: return "NAMESPACE";
+	case L2_VAL_TYPE_FUNCTION: return "FUNCTION";
+	case L2_VAL_TYPE_CFUNCTION: return "CFUNCTION";
+	case L2_VAL_TYPE_ERROR: return "ERROR";
+	}
+
+	return "(unknown)";
+}
+
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	if (!stdio_inited) {
 		std_output.w.write = l2_io_file_write;
@@ -133,6 +149,7 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	vm->std_output = &std_output.w;
 	vm->std_error = &std_error.w;
 
+	vm->halted = 0;
 	vm->ops = ops;
 	vm->opcount = opcount;
 	vm->iptr = 0;
@@ -215,6 +232,10 @@ l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...) {
 	return id;
 }
 
+l2_word l2_vm_type_error(struct l2_vm *vm, struct l2_vm_value *val) {
+	return l2_vm_error(vm, "Unexpected type %s", l2_value_type_name(l2_vm_value_type(val)));
+}
+
 void l2_vm_free(struct l2_vm *vm) {
 	// Skip ID 0, because that's always NONE
 	for (size_t i = 1; i < vm->valuessize; ++i) {
@@ -242,7 +263,7 @@ size_t l2_vm_gc(struct l2_vm *vm) {
 }
 
 void l2_vm_run(struct l2_vm *vm) {
-	while ((enum l2_opcode)vm->ops[vm->iptr] != L2_OP_HALT) {
+	while (!vm->halted) {
 		l2_vm_step(vm);
 	}
 }
@@ -255,13 +276,21 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_NOP:
 		break;
 
-	case L2_OP_POP:
+	case L2_OP_DISCARD:
 		vm->sptr -= 1;
+		if (l2_vm_value_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
+			l2_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
+			vm->halted = 1;
+		}
 		break;
 
-	case L2_OP_SWAP_POP:
+	case L2_OP_SWAP_DISCARD:
 		vm->stack[vm->sptr - 2] = vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;
+		if (l2_vm_value_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
+			l2_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
+			vm->halted = 1;
+		}
 		break;
 
 	case L2_OP_DUP:
@@ -533,6 +562,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		break;
 
 	case L2_OP_HALT:
+		vm->halted = 1;
 		break;
 	}
 }

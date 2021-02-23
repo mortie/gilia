@@ -59,7 +59,7 @@ l2_word l2_builtin_add(struct l2_vm *vm, struct l2_vm_array *args) {
 	for (size_t i = 0; i < args->len; ++i) {
 		struct l2_vm_value *val = &vm->values[args->data[i]];
 		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
-			// TODO: Error
+			return l2_vm_type_error(vm, val);
 		}
 
 		sum += val->real;

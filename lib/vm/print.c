@@ -118,12 +118,12 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("NOP\n");
 		return;
 
-	case L2_OP_POP:
-		printf("POP\n");
+	case L2_OP_DISCARD:
+		printf("DISCARD\n");
 		return;
 
-	case L2_OP_SWAP_POP:
-		printf("SWAP_POP\n");
+	case L2_OP_SWAP_DISCARD:
+		printf("SWAP_DISCARD\n");
 		return;
 
 	case L2_OP_DUP:

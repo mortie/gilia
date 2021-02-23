@@ -111,7 +111,7 @@ static void check_impl(const char *name) {
 	vm.std_output = &output.w;
 
 	// Run a GC after every instruction to uncover potential GC issues
-	while (vm.ops[vm.iptr] != L2_OP_HALT) {
+	while (!vm->halted) {
 		l2_vm_step(&vm);
 		l2_vm_gc(&vm);
 	}

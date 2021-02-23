@@ -52,7 +52,7 @@ static int parse_object_literal(
 		}
 
 		l2_gen_namespace_set(gen, &key);
-		l2_gen_pop(gen);
+		l2_gen_discard(gen);
 
 		tok = l2_lexer_peek(lexer, 1);
 		if (tok->kind != L2_TOK_EOL && tok->kind != L2_TOK_CLOSE_BRACE) {
@@ -87,7 +87,7 @@ static int parse_function_literal_impl(
 		}
 
 		if (!first) {
-			l2_gen_pop(gen);
+			l2_gen_discard(gen);
 		}
 
 		l2_trace_scope("function literal expression");
@@ -300,7 +300,7 @@ static int parse_arg_level_expression(
 			}
 
 			l2_gen_namespace_set(gen, &ident);
-			l2_gen_swap_pop(gen);
+			l2_gen_swap_discard(gen);
 		} else if (tok->kind == L2_TOK_PERIOD && tok2->kind == L2_TOK_IDENT) {
 			l2_trace_scope("namespace lookup");
 			l2_trace("ident '%s'", tok2->v.str);
@@ -320,7 +320,7 @@ static int parse_arg_level_expression(
 			}
 
 			l2_gen_array_set(gen, number);
-			l2_gen_swap_pop(gen);
+			l2_gen_swap_discard(gen);
 		} else if (tok->kind == L2_TOK_DOT_NUMBER) {
 			l2_trace_scope("direct array lookup");
 			int number = tok->v.integer;
@@ -441,7 +441,7 @@ int l2_parse_program(
 			return -1;
 		}
 
-		l2_gen_pop(gen);
+		l2_gen_discard(gen);
 	}
 
 	l2_gen_halt(gen);

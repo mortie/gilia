@@ -23,6 +23,8 @@ enum l2_value_type {
 	L2_VAL_TYPE_ERROR,
 };
 
+const char *l2_value_type_name(enum l2_value_type typ);
+
 enum l2_value_flags {
 	L2_VAL_MARKED = 1 << 6,
 	L2_VAL_CONST = 1 << 7,
@@ -88,6 +90,7 @@ void l2_vm_namespace_set(struct l2_vm_value *ns, l2_word key, l2_word val);
 int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key, l2_word val);
 
 struct l2_vm {
+	int halted;
 	l2_word *ops;
 	size_t opcount;
 	l2_word iptr;
@@ -109,6 +112,7 @@ struct l2_vm {
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);
 l2_word l2_vm_alloc(struct l2_vm *vm, enum l2_value_type typ, enum l2_value_flags flags);
 l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...);
+l2_word l2_vm_type_error(struct l2_vm *vm, struct l2_vm_value *val);
 void l2_vm_free(struct l2_vm *vm);
 void l2_vm_step(struct l2_vm *vm);
 void l2_vm_run(struct l2_vm *vm);

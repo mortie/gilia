@@ -13,7 +13,7 @@ void step_through(struct l2_vm *vm) {
 	l2_vm_print_state(vm);
 
 	char buf[16];
-	while ((enum l2_opcode)vm->ops[vm->iptr] != L2_OP_HALT) {
+	while (!vm->halted) {
 		size_t iptr = vm->iptr;
 		printf("\n======\n\n(%d) Will run instr: ", vm->iptr);
 		l2_vm_print_op(vm->ops, vm->opcount, &iptr);

@@ -40,12 +40,12 @@ void l2_gen_rjmp(struct l2_generator *gen, l2_word len) {
 	put(gen, len);
 }
 
-void l2_gen_pop(struct l2_generator *gen) {
-	put(gen, L2_OP_POP);
+void l2_gen_discard(struct l2_generator *gen) {
+	put(gen, L2_OP_DISCARD);
 }
 
-void l2_gen_swap_pop(struct l2_generator *gen) {
-	put(gen, L2_OP_SWAP_POP);
+void l2_gen_swap_discard(struct l2_generator *gen) {
+	put(gen, L2_OP_SWAP_DISCARD);
 }
 
 void l2_gen_ret(struct l2_generator *gen) {
