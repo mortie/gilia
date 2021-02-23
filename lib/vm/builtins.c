@@ -55,9 +55,18 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 }
 
 l2_word l2_builtin_add(struct l2_vm *vm, struct l2_vm_array *args) {
-	double sum = 0;
-	for (size_t i = 0; i < args->len; ++i) {
-		struct l2_vm_value *val = &vm->values[args->data[i]];
+	if (args->len < 1) {
+		return 0;
+	}
+
+	struct l2_vm_value *val = &vm->values[args->data[0]];
+	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		return l2_vm_type_error(vm, val);
+	}
+
+	double sum = val->real;
+	for (size_t i = 1; i < args->len; ++i) {
+		val = &vm->values[args->data[i]];
 		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
 			return l2_vm_type_error(vm, val);
 		}
@@ -71,15 +80,78 @@ l2_word l2_builtin_add(struct l2_vm *vm, struct l2_vm_array *args) {
 }
 
 l2_word l2_builtin_sub(struct l2_vm *vm, struct l2_vm_array *args) {
-	return 0;
+	if (args->len < 1) {
+		return 0;
+	}
+
+	struct l2_vm_value *val = &vm->values[args->data[0]];
+	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		return l2_vm_type_error(vm, val);
+	}
+
+	double sum = val->real;
+	for (size_t i = 1; i < args->len; ++i) {
+		val = &vm->values[args->data[i]];
+		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+			return l2_vm_type_error(vm, val);
+		}
+
+		sum -= val->real;
+	}
+
+	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+	vm->values[id].real = sum;
+	return id;
 }
 
 l2_word l2_builtin_mul(struct l2_vm *vm, struct l2_vm_array *args) {
-	return 0;
+	if (args->len < 1) {
+		return 0;
+	}
+
+	struct l2_vm_value *val = &vm->values[args->data[0]];
+	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		return l2_vm_type_error(vm, val);
+	}
+
+	double sum = val->real;
+	for (size_t i = 1; i < args->len; ++i) {
+		val = &vm->values[args->data[i]];
+		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+			return l2_vm_type_error(vm, val);
+		}
+
+		sum *= val->real;
+	}
+
+	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+	vm->values[id].real = sum;
+	return id;
 }
 
 l2_word l2_builtin_div(struct l2_vm *vm, struct l2_vm_array *args) {
-	return 0;
+	if (args->len < 1) {
+		return 0;
+	}
+
+	struct l2_vm_value *val = &vm->values[args->data[0]];
+	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		return l2_vm_type_error(vm, val);
+	}
+
+	double sum = val->real;
+	for (size_t i = 1; i < args->len; ++i) {
+		val = &vm->values[args->data[i]];
+		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+			return l2_vm_type_error(vm, val);
+		}
+
+		sum /= val->real;
+	}
+
+	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+	vm->values[id].real = sum;
+	return id;
 }
 
 l2_word l2_builtin_print(struct l2_vm *vm, struct l2_vm_array *args) {
