@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "vm/builtins.h"
 
@@ -96,6 +97,8 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 		free(val->buffer);
 	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
 		free(val->ns);
+	} else if (typ == L2_VAL_TYPE_ERROR) {
+		free(val->error);
 	}
 }
 
@@ -179,6 +182,36 @@ l2_word l2_vm_alloc(struct l2_vm *vm, enum l2_value_type typ, enum l2_value_flag
 	l2_word id = alloc_val(vm);
 	memset(&vm->values[id], 0, sizeof(vm->values[id]));
 	vm->values[id].flags = typ | flags;
+	return id;
+}
+
+l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...) {
+	l2_word id = alloc_val(vm);
+	struct l2_vm_value *val = &vm->values[id];
+	val->flags = L2_VAL_CONST | L2_VAL_TYPE_ERROR;
+
+	char buf[256];
+
+	va_list va;
+	va_start(va, fmt);
+	int n = vsnprintf(buf, sizeof(buf), fmt, va);
+
+	if (n < 0) {
+		const char *message = "Failed to generate error message!";
+		val->error = malloc(strlen(message) + 1);
+		strcpy(val->error, message);
+		va_end(va);
+		return id;
+	} else if ((size_t)n + 1 < sizeof(buf)) {
+		val->error = malloc(n + 1);
+		strcpy(val->error, buf);
+		va_end(va);
+		return id;
+	}
+
+	val->error = malloc(n + 1);
+	vsnprintf(val->error, n + 1, fmt, va);
+	va_end(va);
 	return id;
 }
 
@@ -273,7 +306,7 @@ void l2_vm_step(struct l2_vm *vm) {
 
 			// Don't interpret a non-function as a function
 			if (typ != L2_VAL_TYPE_FUNCTION) {
-				// TODO: Error mechanism
+				vm->stack[vm->sptr++] = l2_vm_error(vm, "Attempt to call non-function");
 				break;
 			}
 

@@ -47,6 +47,10 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 		case L2_VAL_TYPE_CFUNCTION:
 			l2_io_printf(out, "(function)");
 			break;
+
+		case L2_VAL_TYPE_ERROR:
+			l2_io_printf(out, "(error: %s)", val->error);
+			break;
 	}
 }
 
@@ -105,6 +109,7 @@ l2_word l2_builtin_len(struct l2_vm *vm, struct l2_vm_array *args) {
 	case L2_VAL_TYPE_REAL:
 	case L2_VAL_TYPE_FUNCTION:
 	case L2_VAL_TYPE_CFUNCTION:
+	case L2_VAL_TYPE_ERROR:
 		break;
 
 	case L2_VAL_TYPE_BUFFER:

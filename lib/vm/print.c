@@ -72,6 +72,10 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 		// ISO C doesn't let you cast a function pointer to void*.
 		printf("C FUNCTION, %jx\n", (uintmax_t)val->cfunc);
 		break;
+
+	case L2_VAL_TYPE_ERROR:
+		printf("ERROR, %s\n", val->error);
+		break;
 	}
 }
 
