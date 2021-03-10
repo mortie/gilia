@@ -23,18 +23,6 @@ static void log_token(struct l2_token *tok) {
 	}
 }
 
-static long long parse_integer(const char *str, size_t len) {
-	long long num = 0;
-	long long power = 1;
-	for (ssize_t i = len - 1; (ssize_t)i >= 0; --i) {
-		char ch = str[i];
-		num += (ch - '0') * power;
-		power *= 10;
-	}
-
-	return num;
-}
-
 const char *l2_token_kind_name(enum l2_token_kind kind) {
 	switch (kind) {
 	case L2_TOK_OPEN_PAREN:
@@ -147,15 +135,99 @@ static int skip_whitespace(struct l2_lexer *lexer) {
 	return nl;
 }
 
-static long long read_integer(struct l2_lexer *lexer) {
-	char buffer[32]; // Should be enough
+static int read_integer(struct l2_lexer *lexer, long long *num, long long *base, char **err) {
+	unsigned char buffer[32]; // Should be enough
 	size_t len = 0;
 
-	while (len < sizeof(buffer) && is_numeric(peek_ch(lexer))) {
-		buffer[len++] = read_ch(lexer);
+	long long b = -1;
+	while (len < sizeof(buffer)) {
+		int ch = peek_ch(lexer);
+		if (is_numeric(ch)) {
+			buffer[len++] = ch;
+		} else if (ch != '\'') {
+			 break;
+		}
+
+		read_ch(lexer);
 	}
 
-	return parse_integer(buffer, len);
+	int ch = peek_ch(lexer);
+	int abbrev_prefix = len == 1 && buffer[0] == '0';
+	if (abbrev_prefix && ch == 'b') {
+		b = 2;
+	} else if (abbrev_prefix && ch == 'o') {
+		b = 8;
+	} else if (abbrev_prefix && ch == 'x') {
+		b = 16;
+	} else {
+		// Need to parse the number as base 10 now
+		long long n = 0;
+		long long pow = 1;
+		for (ssize_t i = len - 1; i >= 0; --i) {
+			n += (buffer[i] - '0') * pow;
+			pow *= 10;
+		}
+
+		if (ch == 'r') {
+			b = n;
+		} else {
+			*num = n;
+			*base = 10;
+			return 0;
+		}
+	}
+
+	if (b < 2) {
+		*err = "Number with base lower than 2";
+		return -1;
+	} else if (b > 36) {
+		*err = "Number with base higher than 36";
+		return -1;
+	}
+
+	// Now that we know the base, we can read in the next part of the number
+	read_ch(lexer); // Skip the base marker ('x', 'r', etc)
+	len = 0;
+	while (len < sizeof(buffer)) {
+		int ch = peek_ch(lexer);
+		if (ch == '\'') {
+			continue;
+		}
+
+		int digit;
+		if (ch >= '0' && ch <= '9') {
+			digit = ch - '0';
+		} else if (ch >= 'a' && ch <= 'z') {
+			digit = ch - 'a' + 10;
+		} else if (ch >= 'A' && ch <= 'Z') {
+			digit = ch - 'A' + 10;
+		} else {
+			break;
+		}
+
+		if (digit >= b) {
+			*err = "Number with digit too big for the base";
+			return -1;
+		}
+
+		buffer[len++] = digit;
+		read_ch(lexer);
+	}
+
+	if (len < 1) {
+		*err = "Number with no digits";
+	}
+
+	long long n = 0;
+	long long pow = 1;
+	for (ssize_t i = len - 1; i >= 0; --i) {
+		n += buffer[i] * pow;
+		pow *= b;
+	}
+
+	*num = n;
+	*base = b;
+	return 0;
 }
 
 static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
@@ -173,7 +245,15 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 		return;
 	}
 
-	long long integral = read_integer(lexer);
+	long long integral;
+	long long base;
+	char *err;
+	if (read_integer(lexer, &integral, &base, &err) < 0) {
+		tok->kind = L2_TOK_ERROR;
+		tok->v.str = err;
+		return;
+	}
+
 	if (peek_ch(lexer) != '.') {
 		tok->v.num = (double)integral * sign;
 		return;
@@ -187,17 +267,46 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 		return;
 	}
 
-	char buffer[32];
+	unsigned char buffer[32];
 	size_t fraction_len = 0;
-	while (fraction_len < sizeof(buffer) && is_numeric(peek_ch(lexer))) {
-		buffer[fraction_len++] = read_ch(lexer);
+	while (fraction_len < sizeof(buffer)) {
+		int ch = peek_ch(lexer);
+		if (ch == '\'') {
+			continue;
+		}
+
+		int digit;
+		if (ch >= '0' && ch <= '9') {
+			digit = ch - '0';
+		} else if (ch >= 'a' && ch <= 'z') {
+			digit = ch - 'a' + 10;
+		} else if (ch >= 'A' && ch <= 'Z') {
+			digit = ch - 'A' + 10;
+		} else {
+			break;
+		}
+
+		if (digit >= base) {
+			tok->kind = L2_TOK_ERROR;
+			tok->v.str = "Number with digits too big for the base";
+			return;
+		}
+
+		buffer[fraction_len++] = digit;
+		read_ch(lexer);
+	}
+
+	if (fraction_len < 1) {
+		tok->kind = L2_TOK_ERROR;
+		tok->v.str = "Fraction with no digits";
+		return;
 	}
 
 	long long fraction = 0;
 	long long fraction_power = 1;
 	for (ssize_t i = fraction_len - 1; (ssize_t)i >= 0; --i) {
-		fraction += (buffer[i] - '0') * fraction_power;
-		fraction_power *= 10;
+		fraction += buffer[i] * fraction_power;
+		fraction_power *= base;
 	}
 
 	double num = (double)integral + ((double)fraction / (double)fraction_power);
@@ -389,7 +498,14 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		read_ch(lexer);
 		if (is_numeric(peek_ch(lexer))) {
 			tok->kind = L2_TOK_DOT_NUMBER;
-			tok->v.integer = read_integer(lexer);
+			long long num, base;
+			char *err;
+			if (read_integer(lexer, &num, &base, &err) < 0) {
+				tok->kind = L2_TOK_ERROR;
+				tok->v.str = err;
+			} else {
+				tok->v.integer = (int)num;
+			}
 		} else {
 			tok->kind = L2_TOK_PERIOD;
 		}
