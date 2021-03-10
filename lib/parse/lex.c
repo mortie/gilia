@@ -23,22 +23,16 @@ static void log_token(struct l2_token *tok) {
 	}
 }
 
-static int parse_number(const char *str, double *num) {
-	// TODO: Floats
-	size_t len = strlen(str);
-	*num = 0;
-	int power = 1;
-	for (int i = (int)len - 1; i >= 0; --i) {
+static long long parse_integer(const char *str, size_t len) {
+	long long num = 0;
+	long long power = 1;
+	for (ssize_t i = len - 1; (ssize_t)i >= 0; --i) {
 		char ch = str[i];
-		if (ch >= '0' && ch <= '9') {
-			*num += (ch - '0') * power;
-			power *= 10;
-		} else {
-			return -1;
-		}
+		num += (ch - '0') * power;
+		power *= 10;
 	}
 
-	return 0;
+	return num;
 }
 
 const char *l2_token_kind_name(enum l2_token_kind kind) {
@@ -153,22 +147,61 @@ static int skip_whitespace(struct l2_lexer *lexer) {
 	return nl;
 }
 
-static int read_integer(struct l2_lexer *lexer) {
-	char buffer[16]; // Should be enough
+static long long read_integer(struct l2_lexer *lexer) {
+	char buffer[32]; // Should be enough
 	size_t len = 0;
 
-	while (len < sizeof(buffer) - 1 && is_numeric(peek_ch(lexer))) {
+	while (len < sizeof(buffer) && is_numeric(peek_ch(lexer))) {
 		buffer[len++] = read_ch(lexer);
 	}
 
-	int num = 0;
-	int power = 1;
-	for (int i = len - 1; i >= 0; --i) {
-		num += (buffer[i] - '0') * power;
-		power *= 10;
+	return parse_integer(buffer, len);
+}
+
+static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
+	tok->kind = L2_TOK_NUMBER;
+
+	float sign = 1;
+	if (peek_ch(lexer) == '-') {
+		sign = -1;
+		read_ch(lexer);
 	}
 
-	return num;
+	if (!is_numeric(peek_ch(lexer))) {
+		tok->kind = L2_TOK_ERROR;
+		tok->v.str = "No number in number literal";
+		return;
+	}
+
+	long long integral = read_integer(lexer);
+	if (peek_ch(lexer) != '.') {
+		tok->v.num = (double)integral * sign;
+		return;
+	}
+
+	read_ch(lexer); // '.'
+
+	if (!is_numeric(peek_ch(lexer))) {
+		tok->kind = L2_TOK_ERROR;
+		tok->v.str = "Trailing dot in number literal";
+		return;
+	}
+
+	char buffer[32];
+	size_t fraction_len = 0;
+	while (fraction_len < sizeof(buffer) && is_numeric(peek_ch(lexer))) {
+		buffer[fraction_len++] = read_ch(lexer);
+	}
+
+	long long fraction = 0;
+	long long fraction_power = 1;
+	for (ssize_t i = fraction_len - 1; (ssize_t)i >= 0; --i) {
+		fraction += (buffer[i] - '0') * fraction_power;
+		fraction_power *= 10;
+	}
+
+	double num = (double)integral + ((double)fraction / (double)fraction_power);
+	tok->v.num = num * sign;
 }
 
 static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
@@ -392,18 +425,15 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		break;
 
 	default:
+		if (is_numeric(ch) || ch == '-') {
+			read_number(lexer, tok);
+			break;
+		}
+
 		read_ident(lexer, tok);
 		if (tok->kind != L2_TOK_IDENT) {
 			break;
 		}
-
-		double num;
-		if (parse_number(tok->v.str, &num) >= 0) {
-			free(tok->v.str);
-			tok->kind = L2_TOK_NUMBER;
-			tok->v.num = num;
-		}
-		break;
 	}
 }
 
