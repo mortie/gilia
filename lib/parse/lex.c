@@ -191,6 +191,7 @@ static int read_integer(struct l2_lexer *lexer, long long *num, long long *base,
 	while (len < sizeof(buffer)) {
 		int ch = peek_ch(lexer);
 		if (ch == '\'') {
+			read_ch(lexer);
 			continue;
 		}
 
@@ -266,6 +267,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	while (fraction_len < sizeof(buffer)) {
 		int ch = peek_ch(lexer);
 		if (ch == '\'') {
+			read_ch(lexer);
 			continue;
 		}
 
