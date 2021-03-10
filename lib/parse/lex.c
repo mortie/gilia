@@ -261,12 +261,6 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 
 	read_ch(lexer); // '.'
 
-	if (!is_numeric(peek_ch(lexer))) {
-		tok->kind = L2_TOK_ERROR;
-		tok->v.str = "Trailing dot in number literal";
-		return;
-	}
-
 	unsigned char buffer[32];
 	size_t fraction_len = 0;
 	while (fraction_len < sizeof(buffer)) {
@@ -298,7 +292,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 
 	if (fraction_len < 1) {
 		tok->kind = L2_TOK_ERROR;
-		tok->v.str = "Fraction with no digits";
+		tok->v.str = "Trailing dot in number literal";
 		return;
 	}
 
