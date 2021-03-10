@@ -7,23 +7,37 @@
 
 void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *fmt, ...) {
 	err->line = tok->line;
+	err->is_static = 0;
 	err->ch = tok->ch;
-	char buf[256];
 
+	if (tok->kind == L2_TOK_ERROR) {
+		l2_trace("Error token: %s", tok->v.str);
+		err->message = tok->v.str;
+		err->is_static = 1;
+		return;
+	}
+
+	char buf[256];
 	va_list va;
 	va_start(va, fmt);
 	int n = vsnprintf(buf, sizeof(buf), fmt, va);
 
 	if (n < 0) {
-		const char *message = "Failed to generate error message!";
-		err->message = malloc(strlen(message) + 1);
-		strcpy(err->message, message);
+		err->message = "Failed to generate error message!";
+		err->is_static = 1;
+
 		va_end(va);
 		l2_trace("Parse error: %s", err->message);
 		return;
 	} else if ((size_t)n + 1 < sizeof(buf)) {
 		err->message = malloc(n + 1);
-		strcpy(err->message, buf);
+		if (err->message == NULL) {
+			err->message = "Failed to allocate error message!";
+			err->is_static = 1;
+		} else {
+			strcpy(err->message, buf);
+		}
+
 		va_end(va);
 		l2_trace("Parse error: %s", err->message);
 		return;
@@ -31,11 +45,19 @@ void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *
 
 	// Need to allocate for this one
 	err->message = malloc(n + 1);
-	vsnprintf(err->message, n + 1, fmt, va);
+	if (err->message == NULL) {
+		err->message = "Failed to allocate error message!";
+		err->is_static = 1;
+	} else {
+		vsnprintf(err->message, n + 1, fmt, va);
+	}
+
 	va_end(va);
 	l2_trace("Parse error: %s", err->message);
 }
 
 void l2_parse_error_free(struct l2_parse_error *err) {
-	free(err->message);
+	if (!err->is_static) {
+		free(err->message);
+	}
 }

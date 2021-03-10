@@ -7,6 +7,7 @@
 struct l2_parse_error {
 	int line;
 	int ch;
+	int is_static;
 	char *message;
 };
 
