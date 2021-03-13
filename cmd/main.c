@@ -5,6 +5,7 @@
 #include "io.h"
 #include "bitset.h"
 #include "bytecode.h"
+#include "loader.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -14,87 +15,6 @@ static int do_print_tokens = 0;
 static int do_step = 0;
 static int do_serialize_bytecode = 0;
 static char *input_filename = "-";
-
-static int serialize_bytecode(FILE *outf, l2_word *data, size_t len) {
-	char header[4] = { 0x1b, 0x6c, 0x32, 0x63 };
-	if (fwrite(header, 1, 4, outf) < 4) {
-		fprintf(stderr, "Write error\n");
-		return -1;
-	}
-
-	char version[4] = {
-		(l2_bytecode_version & 0xff000000ul) >> 24,
-		(l2_bytecode_version & 0x00ff0000ul) >> 16,
-		(l2_bytecode_version & 0x0000ff00ul) >> 8,
-		(l2_bytecode_version & 0x000000fful) >> 0,
-	};
-	if (fwrite(version, 1, 4, outf) < 4) {
-		fprintf(stderr, "Write error\n");
-		return -1;
-	}
-
-	for (size_t i = 0; i < len; ++i) {
-		l2_word word = data[i];
-		char *dest = (char *)&data[i];
-		dest[0] = (word & 0xff000000ul) >> 24;
-		dest[1] = (word & 0x00ff0000ul) >> 16;
-		dest[2] = (word & 0x0000ff00ul) >> 8;
-		dest[3] = (word & 0x000000fful) >> 0;
-	}
-
-	if (fwrite(data, 4, len, outf) < len) {
-		fprintf(stderr, "Write error\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-static int load_bytecode(FILE *inf, struct l2_io_writer *w) {
-	// Header is already read by main
-
-	char version_buf[4];
-	if (fread(version_buf, 1, 4, inf) < 4) {
-		fprintf(stderr, "Read error\n");
-		return -1;
-	}
-
-	int version = 0 |
-		((unsigned int)version_buf[0]) << 24 |
-		((unsigned int)version_buf[1]) << 16 |
-		((unsigned int)version_buf[2]) << 8 |
-		((unsigned int)version_buf[3]) << 0;
-	if (version != l2_bytecode_version) {
-		fprintf(
-				stderr, "Version mismatch! Bytecode file uses bytecode version %i"
-				", but your build of lang2 uses bytecode version %i\n",
-				version, l2_bytecode_version);
-		return -1;
-	}
-
-	struct l2_bufio_writer writer;
-	l2_bufio_writer_init(&writer, w);
-
-	char buffer[4096];
-
-	while (1) {
-		size_t n = fread(buffer, 1, sizeof(buffer), inf);
-		if (n < 4) {
-			l2_bufio_flush(&writer);
-			return 0;
-		}
-
-		for (size_t i = 0; i < n; i += 4) {
-			l2_word word = 0 |
-				((unsigned int)buffer[i + 0]) << 24 |
-				((unsigned int)buffer[i + 1]) << 16 |
-				((unsigned int)buffer[i + 2]) << 8 |
-				((unsigned int)buffer[i + 3]) << 0;
-			l2_bufio_put_n(&writer, &word, 4);
-		}
-
-	}
-}
 
 static int parse_text(FILE *inf, struct l2_io_writer *w) {
 	// Init lexer with its input reader
@@ -225,7 +145,7 @@ int main(int argc, char **argv) {
 			fread(header, 1, 4, inf) >= 4 &&
 			header[0] == 0x1b && header[1] == 0x6c &&
 			header[2] == 0x32 && header[3] == 0x63) {
-		if (load_bytecode(inf, &bytecode_writer.w) < 0) {
+		if (l2_bc_load(inf, &bytecode_writer.w) < 0) {
 			return 1;
 		}
 	} else if (headerbyte == 0x1b) {
@@ -246,7 +166,9 @@ int main(int argc, char **argv) {
 	}
 
 	if (do_serialize_bytecode) {
-		serialize_bytecode(outbc, bytecode_writer.mem, bytecode_writer.len / sizeof(l2_word));
+		l2_bc_serialize(
+				outbc, bytecode_writer.mem,
+				bytecode_writer.len / sizeof(l2_word));
 	}
 
 	if (do_print_bytecode || do_print_tokens || do_serialize_bytecode) {
