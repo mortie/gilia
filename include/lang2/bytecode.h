@@ -5,6 +5,8 @@
 
 typedef uint32_t l2_word;
 
+#define l2_bytecode_version 1
+
 enum l2_opcode {
 	/*
 	 * Do nothing.
