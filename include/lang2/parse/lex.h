@@ -25,22 +25,42 @@ enum l2_token_kind {
 	L2_TOK_ERROR,
 };
 
+enum l2_token_flags {
+	L2_TOK_SMALL = 1 << 7,
+};
+
 const char *l2_token_kind_name(enum l2_token_kind kind);
 
+struct l2_token_value {
+	union {
+		struct {
+			unsigned char flags;
+			union {
+				char *str;
+				double num;
+				int integer;
+			};
+		};
+
+		struct {
+			unsigned char padding;
+			char strbuf[15];
+		};
+	};
+};
+
 struct l2_token {
-	enum l2_token_kind kind;
 	int line;
 	int ch;
 
-	union {
-		char *str;
-		double num;
-		int integer;
-	} v;
+	struct l2_token_value v;
 };
 
+#define l2_token_get_kind(tok) ((enum l2_token_kind)((tok)->v.flags & ~(1 << 7)))
+#define l2_token_get_name(tok) (l2_token_kind_name(l2_token_get_kind(tok)))
+#define l2_token_is_small(tok) ((tok)->v.flags & (1 << 7))
 void l2_token_free(struct l2_token *tok);
-char *l2_token_extract_str(struct l2_token *tok);
+struct l2_token_value l2_token_extract_val(struct l2_token *tok);
 void l2_token_print(struct l2_token *tok, struct l2_io_writer *w);
 
 struct l2_lexer {

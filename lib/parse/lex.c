@@ -3,22 +3,22 @@
 #include <stdlib.h>
 
 static void log_token(struct l2_token *tok) {
-	switch (tok->kind) {
+	switch (l2_token_get_kind(tok)) {
 	case L2_TOK_STRING:
 	case L2_TOK_IDENT:
 	case L2_TOK_ERROR:
 		printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
-				l2_token_kind_name(tok->kind), tok->v.str);
+				l2_token_get_name(tok), tok->v.str);
 		break;
 
 	case L2_TOK_NUMBER:
 		printf("%i:%i\t%s '%g'\n", tok->line, tok->ch,
-				l2_token_kind_name(tok->kind), tok->v.num);
+				l2_token_get_name(tok), tok->v.num);
 		break;
 
 	default:
 		printf("%i:%i\t%s\n", tok->line, tok->ch,
-				l2_token_kind_name(tok->kind));
+				l2_token_get_name(tok));
 		break;
 	}
 }
@@ -69,19 +69,22 @@ const char *l2_token_kind_name(enum l2_token_kind kind) {
 }
 
 void l2_token_free(struct l2_token *tok) {
-	if (tok->kind == L2_TOK_STRING || tok->kind == L2_TOK_IDENT) {
+	enum l2_token_kind kind = l2_token_get_kind(tok);
+	if (
+			(kind == L2_TOK_STRING || kind == L2_TOK_IDENT) &&
+			!l2_token_is_small(tok)) {
 		free(tok->v.str);
 	}
 }
 
-char *l2_token_extract_str(struct l2_token *tok) {
-	char *str = tok->v.str;
+struct l2_token_value l2_token_extract_val(struct l2_token *tok) {
+	struct l2_token_value v = tok->v;
 	tok->v.str = NULL;
-	return str;
+	return v;
 }
 
 void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
-	lexer->toks[0].kind = L2_TOK_EOF,
+	lexer->toks[0].v.flags = L2_TOK_EOF,
 	lexer->tokidx = 0;
 	lexer->line = 1;
 	lexer->ch = 1;
@@ -232,7 +235,7 @@ static int read_integer(struct l2_lexer *lexer, long long *num, long long *base,
 }
 
 static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
-	tok->kind = L2_TOK_NUMBER;
+	tok->v.flags = L2_TOK_NUMBER;
 
 	float sign = 1;
 	if (peek_ch(lexer) == '-') {
@@ -241,7 +244,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	}
 
 	if (!is_numeric(peek_ch(lexer))) {
-		tok->kind = L2_TOK_ERROR;
+		tok->v.flags = L2_TOK_ERROR;
 		tok->v.str = "No number in number literal";
 		return;
 	}
@@ -250,7 +253,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	long long base;
 	char *err;
 	if (read_integer(lexer, &integral, &base, &err) < 0) {
-		tok->kind = L2_TOK_ERROR;
+		tok->v.flags = L2_TOK_ERROR;
 		tok->v.str = err;
 		return;
 	}
@@ -283,7 +286,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 		}
 
 		if (digit >= base) {
-			tok->kind = L2_TOK_ERROR;
+			tok->v.flags = L2_TOK_ERROR;
 			tok->v.str = "Number with digits too big for the base";
 			return;
 		}
@@ -293,7 +296,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	}
 
 	if (fraction_len < 1) {
-		tok->kind = L2_TOK_ERROR;
+		tok->v.flags = L2_TOK_ERROR;
 		tok->v.str = "Trailing dot in number literal";
 		return;
 	}
@@ -310,25 +313,22 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 }
 
 static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
-	tok->kind = L2_TOK_STRING;
-	tok->v.str = malloc(16);
-	if (tok->v.str == NULL) {
-		tok->kind = L2_TOK_ERROR;
-		tok->v.str = "Allocaton failure";
-		return;
-	}
+	tok->v.flags = L2_TOK_STRING | L2_TOK_SMALL;
 
-	size_t size = 16;
+	char *dest = tok->v.strbuf;
+	size_t size = sizeof(tok->v.strbuf);
 	size_t idx = 0;
 
 	while (1) {
 		int ch = read_ch(lexer);
 		if (ch == '"') {
-			tok->v.str[idx] = '\0';
+			dest[idx] = '\0';
 			return;
 		} else if (ch == EOF) {
-			tok->kind = L2_TOK_EOF;
-			free(tok->v.str);
+			if (!l2_token_is_small(tok)) {
+				free(tok->v.str);
+			}
+			tok->v.flags = L2_TOK_ERROR;
 			tok->v.str = "Unexpected EOF";
 			return;
 		} else if (ch == '\\') {
@@ -347,8 +347,10 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 				break;
 
 			case EOF:
-				tok->kind = L2_TOK_EOF;
-				free(tok->v.str);
+				if (!l2_token_is_small(tok)) {
+					free(tok->v.str);
+				}
+				tok->v.flags = L2_TOK_ERROR;
 				tok->v.str = "Unexpected EOF";
 				return;
 
@@ -358,39 +360,51 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 			}
 		}
 
-		tok->v.str[idx++] = (char)ch;
-		if (idx >= size) {
-			size *= 2;
-			char *newbuf = realloc(tok->v.str, size);
-			if (newbuf == NULL) {
-				free(tok->v.str);
-				tok->kind = L2_TOK_ERROR;
-				tok->v.str = "Allocation failure";
-				return;
+		dest[idx++] = (char)ch;
+
+		// The first time we run out of space, we have to switch away from
+		// the small-string optimization and malloc memory.
+		if (idx + 1 >= size) {
+			char *newbuf;
+			if (l2_token_is_small(tok)) {
+				tok->v.flags &= ~L2_TOK_SMALL;
+				size = 32;
+				newbuf = malloc(size);
+				if (newbuf == NULL) {
+					tok->v.flags = L2_TOK_ERROR;
+					tok->v.str = "Allocation failure";
+					return;
+				}
+				memcpy(newbuf, tok->v.strbuf, idx);
+			} else {
+				size *= 2;
+				newbuf = realloc(tok->v.str, size);
+				if (newbuf == NULL) {
+					free(tok->v.str);
+					tok->v.flags = L2_TOK_ERROR;
+					tok->v.str = "Allocation failure";
+					return;
+				}
 			}
 
 			tok->v.str = newbuf;
+			dest = newbuf;
 		}
 	}
 }
 
 static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
-	tok->kind = L2_TOK_IDENT;
-	tok->v.str = malloc(16);
-	if (tok->v.str == NULL) {
-		tok->kind = L2_TOK_ERROR;
-		tok->v.str = "Allocaton failure";
-		return;
-	}
+	tok->v.flags = L2_TOK_IDENT | L2_TOK_SMALL;
 
-	size_t size = 16;
+	char *dest = tok->v.strbuf;
+	size_t size = sizeof(tok->v.strbuf);
 	size_t idx = 0;
 
 	while (1) {
 		int ch = peek_ch(lexer);
 
 		if (is_whitespace(ch)) {
-			tok->v.str[idx] = '\0';
+			dest[idx] = '\0';
 			return;
 		}
 
@@ -408,22 +422,39 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 		case '=':
 		case ';':
 		case EOF:
-			tok->v.str[idx] = '\0';
+			dest[idx] = '\0';
 			return;
 		}
 
-		tok->v.str[idx++] = (char)read_ch(lexer);
+		dest[idx++] = (char)read_ch(lexer);
+
+		// The first time we run out of space, we have to switch away from
+		// the small-string optimization and malloc memory.
 		if (idx + 1 >= size) {
-			size *= 2;
-			char *newbuf = realloc(tok->v.str, size);
-			if (newbuf == NULL) {
-				free(tok->v.str);
-				tok->kind = L2_TOK_ERROR;
-				tok->v.str = "Allocation failure";
-				return;
+			char *newbuf;
+			if (l2_token_is_small(tok)) {
+				tok->v.flags &= ~L2_TOK_SMALL;
+				size = 32;
+				newbuf = malloc(size);
+				if (newbuf == NULL) {
+					tok->v.flags = L2_TOK_ERROR;
+					tok->v.str = "Allocation failure";
+					return;
+				}
+				memcpy(newbuf, tok->v.strbuf, idx);
+			} else {
+				size *= 2;
+				newbuf = realloc(tok->v.str, size);
+				if (newbuf == NULL) {
+					free(tok->v.str);
+					tok->v.flags = L2_TOK_ERROR;
+					tok->v.str = "Allocation failure";
+					return;
+				}
 			}
 
 			tok->v.str = newbuf;
+			dest = newbuf;
 		}
 	}
 }
@@ -434,7 +465,7 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 	int nl = skip_whitespace(lexer);
 
 	if (nl && lexer->parens == 0) {
-		tok->kind = L2_TOK_EOL;
+		tok->v.flags = L2_TOK_EOL;
 		return;
 	}
 
@@ -442,38 +473,38 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 	switch (ch) {
 	case '(':
 		read_ch(lexer);
-		tok->kind = L2_TOK_OPEN_PAREN;
+		tok->v.flags = L2_TOK_OPEN_PAREN;
 		lexer->parens += 1;
 		break;
 
 	case ')':
 		read_ch(lexer);
-		tok->kind = L2_TOK_CLOSE_PAREN;
+		tok->v.flags = L2_TOK_CLOSE_PAREN;
 		lexer->parens -= 1;
 		break;
 
 	case '{':
 		read_ch(lexer);
-		tok->kind = L2_TOK_OPEN_BRACE;
+		tok->v.flags = L2_TOK_OPEN_BRACE;
 		break;
 
 	case '}':
 		read_ch(lexer);
-		tok->kind = L2_TOK_CLOSE_BRACE;
+		tok->v.flags = L2_TOK_CLOSE_BRACE;
 		break;
 
 	case '[':
 		read_ch(lexer);
-		tok->kind = L2_TOK_OPEN_BRACKET;
+		tok->v.flags = L2_TOK_OPEN_BRACKET;
 		break;
 
 	case ']':
 		read_ch(lexer);
-		tok->kind = L2_TOK_CLOSE_BRACKET;
+		tok->v.flags = L2_TOK_CLOSE_BRACKET;
 		break;
 
 	case ';':
-		tok->kind = L2_TOK_EOL;
+		tok->v.flags = L2_TOK_EOL;
 		do {
 			read_ch(lexer);
 			skip_whitespace(lexer);
@@ -482,28 +513,28 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 
 	case '\'':
 		read_ch(lexer);
-		tok->kind = L2_TOK_QUOT;
+		tok->v.flags = L2_TOK_QUOT;
 		break;
 
 	case ',':
 		read_ch(lexer);
-		tok->kind = L2_TOK_COMMA;
+		tok->v.flags = L2_TOK_COMMA;
 		break;
 
 	case '.':
 		read_ch(lexer);
 		if (is_numeric(peek_ch(lexer))) {
-			tok->kind = L2_TOK_DOT_NUMBER;
+			tok->v.flags = L2_TOK_DOT_NUMBER;
 			long long num, base;
 			char *err;
 			if (read_integer(lexer, &num, &base, &err) < 0) {
-				tok->kind = L2_TOK_ERROR;
+				tok->v.flags = L2_TOK_ERROR;
 				tok->v.str = err;
 			} else {
 				tok->v.integer = (int)num;
 			}
 		} else {
-			tok->kind = L2_TOK_PERIOD;
+			tok->v.flags = L2_TOK_PERIOD;
 		}
 		break;
 
@@ -513,22 +544,22 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		switch (ch) {
 		case '=':
 			read_ch(lexer);
-			tok->kind = L2_TOK_COLON_EQ;
+			tok->v.flags = L2_TOK_COLON_EQ;
 			break;
 
 		default:
-			tok->kind = L2_TOK_COLON;
+			tok->v.flags = L2_TOK_COLON;
 			break;
 		}
 		break;
 
 	case '=':
 		read_ch(lexer);
-		tok->kind = L2_TOK_EQUALS;
+		tok->v.flags = L2_TOK_EQUALS;
 		break;
 
 	case EOF:
-		tok->kind = L2_TOK_EOF;
+		tok->v.flags = L2_TOK_EOF;
 		break;
 
 	case '"':
@@ -543,9 +574,6 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		}
 
 		read_ident(lexer, tok);
-		if (tok->kind != L2_TOK_IDENT) {
-			break;
-		}
 	}
 }
 
@@ -569,7 +597,7 @@ void l2_lexer_consume(struct l2_lexer *lexer) {
 }
 
 void l2_lexer_skip_opt(struct l2_lexer *lexer, enum l2_token_kind kind) {
-	if (l2_lexer_peek(lexer, 1)->kind == kind) {
+	if (l2_token_get_kind(l2_lexer_peek(lexer, 1)) == kind) {
 		l2_lexer_consume(lexer);
 	}
 }

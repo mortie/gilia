@@ -30,19 +30,26 @@ void l2_gen_ret(struct l2_generator *gen);
 void l2_gen_none(struct l2_generator *gen);
 void l2_gen_number(struct l2_generator *gen, double num);
 void l2_gen_string(struct l2_generator *gen, char **str);
+void l2_gen_string_copy(struct l2_generator *gen, char *str);
 void l2_gen_atom(struct l2_generator *gen, char **ident);
+void l2_gen_atom_copy(struct l2_generator *gen, char *ident);
 void l2_gen_function(struct l2_generator *gen, l2_word pos);
 void l2_gen_array(struct l2_generator *gen, l2_word count);
 void l2_gen_namespace(struct l2_generator *gen);
 void l2_gen_namespace_set(struct l2_generator *gen, char **ident);
+void l2_gen_namespace_set_copy(struct l2_generator *gen, char *ident);
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident);
+void l2_gen_namespace_lookup_copy(struct l2_generator *gen, char *ident);
 void l2_gen_array_lookup(struct l2_generator *gen, int number);
 void l2_gen_array_set(struct l2_generator *gen, int number);
 void l2_gen_dynamic_lookup(struct l2_generator *gen);
 void l2_gen_dynamic_set(struct l2_generator *gen);
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident);
+void l2_gen_stack_frame_lookup_copy(struct l2_generator *gen, char *ident);
 void l2_gen_stack_frame_set(struct l2_generator *gen, char **ident);
+void l2_gen_stack_frame_set_copy(struct l2_generator *gen, char *ident);
 void l2_gen_stack_frame_replace(struct l2_generator *gen, char **ident);
+void l2_gen_stack_frame_replace_copy(struct l2_generator *gen, char *ident);
 void l2_gen_func_call(struct l2_generator *gen, l2_word argc);
 
 #endif

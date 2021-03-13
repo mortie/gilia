@@ -80,6 +80,7 @@ void l2_bufio_writer_init(struct l2_bufio_writer *b, struct l2_io_writer *w) {
 }
 
 void l2_bufio_flush(struct l2_bufio_writer *b) {
+	if (b->idx == 0) return;
 	b->w->write(b->w, b->buf, b->idx);
 	b->idx = 0;
 }

@@ -26,6 +26,7 @@ static int eval_impl(const char *str, struct l2_parse_error *err) {
 
 	w.w.write = l2_io_mem_write;
 	w.len = 0;
+	w.size = 0;
 	w.mem = NULL;
 	l2_gen_init(&gen, (struct l2_io_writer *)&w);
 

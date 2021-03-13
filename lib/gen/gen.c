@@ -70,6 +70,12 @@ void l2_gen_atom(struct l2_generator *gen, char **str) {
 	put(gen, id);
 }
 
+void l2_gen_atom_copy(struct l2_generator *gen, char *str) {
+	size_t id = l2_strset_put_copy(&gen->atomset, str);
+	put(gen, L2_OP_ALLOC_ATOM);
+	put(gen, id);
+}
+
 void l2_gen_string(struct l2_generator *gen, char **str) {
 	size_t id = l2_strset_get(&gen->stringset, *str);
 	if (id == 0) {
@@ -106,6 +112,19 @@ void l2_gen_string(struct l2_generator *gen, char **str) {
 	}
 }
 
+void l2_gen_string_copy(struct l2_generator *gen, char *str) {
+	size_t id = l2_strset_get(&gen->stringset, str);
+	if (id == 0) {
+		char *s = strdup(str);
+		l2_gen_string(gen, &s);
+	} else {
+		struct l2_generator_string *s = &gen->strings[id - 1];
+		put(gen, L2_OP_ALLOC_BUFFER_STATIC);
+		put(gen, s->length);
+		put(gen, s->pos);
+	}
+}
+
 void l2_gen_function(struct l2_generator *gen, l2_word pos) {
 	put(gen, L2_OP_ALLOC_FUNCTION);
 	put(gen, pos);
@@ -126,8 +145,20 @@ void l2_gen_namespace_set(struct l2_generator *gen, char **ident) {
 	put(gen, atom_id);
 }
 
+void l2_gen_namespace_set_copy(struct l2_generator *gen, char *ident) {
+	size_t atom_id = l2_strset_put_copy(&gen->atomset, ident);
+	put(gen, L2_OP_NAMESPACE_SET);
+	put(gen, atom_id);
+}
+
 void l2_gen_namespace_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
+	put(gen, L2_OP_NAMESPACE_LOOKUP);
+	put(gen, atom_id);
+}
+
+void l2_gen_namespace_lookup_copy(struct l2_generator *gen, char *ident) {
+	size_t atom_id = l2_strset_put_copy(&gen->atomset, ident);
 	put(gen, L2_OP_NAMESPACE_LOOKUP);
 	put(gen, atom_id);
 }
@@ -156,14 +187,32 @@ void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {
 	put(gen, atom_id);
 }
 
+void l2_gen_stack_frame_lookup_copy(struct l2_generator *gen, char *ident) {
+	size_t atom_id = l2_strset_put_copy(&gen->atomset, ident);
+	put(gen, L2_OP_STACK_FRAME_LOOKUP);
+	put(gen, atom_id);
+}
+
 void l2_gen_stack_frame_set(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
 	put(gen, L2_OP_STACK_FRAME_SET);
 	put(gen, atom_id);
 }
 
+void l2_gen_stack_frame_set_copy(struct l2_generator *gen, char *ident) {
+	size_t atom_id = l2_strset_put_copy(&gen->atomset, ident);
+	put(gen, L2_OP_STACK_FRAME_SET);
+	put(gen, atom_id);
+}
+
 void l2_gen_stack_frame_replace(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
+	put(gen, L2_OP_STACK_FRAME_REPLACE);
+	put(gen, atom_id);
+}
+
+void l2_gen_stack_frame_replace_copy(struct l2_generator *gen, char *ident) {
+	size_t atom_id = l2_strset_put_copy(&gen->atomset, ident);
 	put(gen, L2_OP_STACK_FRAME_REPLACE);
 	put(gen, atom_id);
 }
