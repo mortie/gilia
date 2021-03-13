@@ -12,16 +12,20 @@ static struct l2_io_file_writer std_error;
 
 static l2_word alloc_val(struct l2_vm *vm) {
 	size_t id = l2_bitset_set_next(&vm->valueset);
-	if (id >= vm->valuessize) {
-		if (vm->valuessize == 0) {
-			vm->valuessize = 16;
-		}
+	if (id + 16 >= vm->valuessize) {
+		if (id >= vm->valuessize) {
+			if (vm->valuessize == 0) {
+				vm->valuessize = 64;
+			}
 
-		while (id >= vm->valuessize) {
-			vm->valuessize *= 2;
-		}
+			while (id >= vm->valuessize) {
+				vm->valuessize *= 2;
+			}
 
-		vm->values = realloc(vm->values, sizeof(*vm->values) * vm->valuessize);
+			vm->values = realloc(vm->values, sizeof(*vm->values) * vm->valuessize);
+		} else {
+			vm->gc_scheduled = 1;
+		}
 	}
 
 	return (l2_word)id;
@@ -112,6 +116,7 @@ static size_t gc_sweep(struct l2_vm *vm) {
 
 		struct l2_vm_value *val = &vm->values[i];
 		if (!(val->flags & L2_VAL_MARKED)) {
+			l2_bitset_unset(&vm->valueset, i);
 			gc_free(vm, i);
 			freed += 1;
 		} else {
@@ -150,6 +155,7 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 	vm->std_error = &std_error.w;
 
 	vm->halted = 0;
+	vm->gc_scheduled = 0;
 	vm->ops = ops;
 	vm->opcount = opcount;
 	vm->iptr = 0;
@@ -564,5 +570,10 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_HALT:
 		vm->halted = 1;
 		break;
+	}
+
+	if (vm->gc_scheduled) {
+		l2_vm_gc(vm);
+		vm->gc_scheduled = 0;
 	}
 }
