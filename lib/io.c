@@ -103,8 +103,14 @@ size_t l2_io_file_read(struct l2_io_reader *self, void *buf, size_t len) {
 void l2_io_mem_write(struct l2_io_writer *self, const void *buf, size_t len) {
 	struct l2_io_mem_writer *w = (struct l2_io_mem_writer *)self;
 	size_t idx = w->len;
+
+	if (w->len + len > w->size) {
+		if (w->size == 0) w->size = 64;
+		while (w->len + len > w->size) w->size *= 2;
+		w->mem = realloc(w->mem, w->size);
+	}
+
 	w->len += len;
-	w->mem = realloc(w->mem, w->len);
 	memcpy((char *)w->mem + idx, buf, len);
 }
 

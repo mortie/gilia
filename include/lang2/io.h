@@ -62,6 +62,7 @@ size_t l2_io_file_read(struct l2_io_reader *self, void *buf, size_t len);
 struct l2_io_mem_writer {
 	struct l2_io_writer w;
 	size_t len;
+	size_t size;
 	void *mem;
 };
 void l2_io_mem_write(struct l2_io_writer *self, const void *buf, size_t len);

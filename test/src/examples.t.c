@@ -75,8 +75,6 @@ static void check_impl(const char *name) {
 
 	struct l2_io_mem_writer bytecode = {
 		.w.write = l2_io_mem_write,
-		.len = 0,
-		.mem = NULL,
 	};
 
 	struct l2_lexer lexer;
