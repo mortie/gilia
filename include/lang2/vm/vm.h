@@ -9,7 +9,12 @@
 
 struct l2_vm;
 struct l2_vm_array;
-typedef l2_word (*l2_vm_cfunction)(struct l2_vm *vm, struct l2_vm_array *args);
+struct l2_vm_args;
+typedef l2_word (*l2_vm_cfunction)(struct l2_vm *vm, l2_word argc, l2_word *argv);
+
+struct l2_vm_args {
+	l2_word argc;
+};
 
 enum l2_value_type {
 	L2_VAL_TYPE_NONE,
