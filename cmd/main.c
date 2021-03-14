@@ -94,6 +94,7 @@ static void repl() {
 		char *rline = readline("> ");
 		if (rline == NULL) return;
 		if (rline[0] == '\0') continue;
+		add_history(rline);
 		snprintf(line, sizeof(line), "print (%s)", rline);
 		free(rline);
 #else
