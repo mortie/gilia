@@ -7,8 +7,13 @@ static void log_token(struct l2_token *tok) {
 	case L2_TOK_STRING:
 	case L2_TOK_IDENT:
 	case L2_TOK_ERROR:
-		printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
-				l2_token_get_name(tok), tok->v.str);
+		if (l2_token_is_small(tok)) {
+			printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
+					l2_token_get_name(tok), tok->v.strbuf);
+		} else {
+			printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
+					l2_token_get_name(tok), tok->v.str);
+		}
 		break;
 
 	case L2_TOK_NUMBER:

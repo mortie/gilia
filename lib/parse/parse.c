@@ -428,11 +428,41 @@ static int parse_func_call_after_base(
 	size_t argc = 0;
 
 	do {
-		argc += 1;
-		l2_trace_scope("func call param");
-		if (parse_arg_level_expression(lexer, gen, err) < 0) {
-			return -1;
+		if (tok_is_infix(l2_lexer_peek(lexer, 1))) {
+			do {
+				// We already have one value (the lhs) on the stack,
+				// so we need to parse the operator, then the rhs
+
+				// Operator
+				if (parse_arg_level_expression(lexer, gen, err) < 0) {
+					return -1;
+				}
+
+				// RHS
+				if (parse_arg_level_expression(lexer, gen, err) < 0) {
+					return -1;
+				}
+
+				l2_gen_func_call_infix(gen);
+			} while (tok_is_infix(l2_lexer_peek(lexer, 1)));
+
+			// If this was the "first argument", this wasn't a function call
+			// after all, it was just a (series of?) infix calls.
+			if (argc == 0) {
+				return 0;
+			}
+
+			// Don't increment argc here, because after an infix, we have
+			// neither added nor removed an arguemnt, just transformed one
+		} else {
+			l2_trace_scope("func call param");
+			if (parse_arg_level_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+
+			argc += 1;
 		}
+
 	} while (!tok_is_end(l2_lexer_peek(lexer, 1)));
 
 	// The 'argc' previous expressions were arguments, the one before that was the function
@@ -488,19 +518,6 @@ static int parse_expression(
 	} else {
 		if (parse_arg_level_expression(lexer, gen, err) < 0) {
 			return -1;
-		}
-
-		if (tok_is_infix(l2_lexer_peek(lexer, 1))) {
-			if (parse_arg_level_expression(lexer, gen, err) < 0) {
-				return -1;
-			}
-
-			if (parse_expression(lexer, gen, err) < 0) {
-				return -1;
-			}
-
-
-			l2_gen_func_call_infix(gen);
 		}
 
 		if (!tok_is_end(l2_lexer_peek(lexer, 1))) {
