@@ -77,6 +77,5 @@ int l2_bc_load(FILE *inf, struct l2_io_writer *w) {
 				((unsigned int)buffer[i + 3]) << 0;
 			l2_bufio_put_n(&writer, &word, 4);
 		}
-
 	}
 }

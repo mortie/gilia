@@ -7,6 +7,6 @@
 #include <stdio.h>
 
 int l2_bc_serialize(FILE *outf, l2_word *data, size_t len);
-int l2_bc_load(FILE *outf, struct l2_io_writer *w);
+int l2_bc_load(FILE *inf, struct l2_io_writer *w);
 
 #endif
