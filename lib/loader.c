@@ -23,6 +23,7 @@ int l2_bc_serialize(FILE *outf, l2_word *data, size_t len) {
 	}
 
 	struct l2_io_file_writer w = {
+		.w.write = l2_io_file_write,
 		.f = outf,
 	};
 
