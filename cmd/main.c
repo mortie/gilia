@@ -71,7 +71,7 @@ static void step_through(struct l2_vm *vm) {
 	}
 }
 
-static int repl() {
+static void repl() {
 	struct l2_io_mem_writer w = {
 		.w.write = l2_io_mem_write,
 	};
@@ -92,13 +92,13 @@ static int repl() {
 		char line[4096];
 #ifdef USE_READLINE
 		char *rline = readline("> ");
-		if (rline == NULL) return -1;
+		if (rline == NULL) return;
 		if (rline[0] == '\0') continue;
 		snprintf(line, sizeof(line), "print (%s)", rline);
 		free(rline);
 #else
 		char rline[4096];
-		if (fgets(rline, sizeof(rline), stdin) == NULL) return -1;
+		if (fgets(rline, sizeof(rline), stdin) == NULL) return;
 		if (rline[0] == '\n' && rline[1] == '\0') continue;
 		snprintf(line, sizeof(line), "print (%s)", rline);
 #endif
@@ -126,8 +126,6 @@ static int repl() {
 			l2_vm_gc(&vm);
 		}
 	}
-
-	return 0;
 }
 
 static void usage(const char *argv0) {
@@ -205,10 +203,8 @@ int main(int argc, char **argv) {
 	}
 
 	if (do_repl) {
-		if (repl() < 0) {
-			return 1;
-		}
-
+		repl();
+		printf("\n");
 		return 0;
 	}
 
