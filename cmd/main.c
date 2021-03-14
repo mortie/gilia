@@ -112,7 +112,7 @@ static int repl() {
 
 		struct l2_parse_error err;
 		if (l2_parse_program(&lexer, &gen, &err) < 0) {
-			fprintf(stderr, "Parse error: %s\n", err.message);
+			fprintf(stderr, "Parse error: %s\n -- %s\n", err.message, line);
 			l2_parse_error_free(&err);
 			w.len = prev_len;
 		} else if (w.len > 0) {
