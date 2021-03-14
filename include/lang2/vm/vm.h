@@ -113,6 +113,8 @@ struct l2_vm {
 
 	struct l2_vm_stack_frame fstack[1024];
 	l2_word fsptr;
+
+	l2_word knone, ktrue, kfalse;
 };
 
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);

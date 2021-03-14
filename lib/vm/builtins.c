@@ -9,7 +9,13 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 			break;
 
 		case L2_VAL_TYPE_ATOM:
-			l2_io_printf(out, "(atom %u)", val->atom);
+			if (val->atom == vm->values[vm->ktrue].atom) {
+				l2_io_printf(out, "(true)");
+			} else if (val->atom == vm->values[vm->kfalse].atom) {
+				l2_io_printf(out, "(false)");
+			} else {
+				l2_io_printf(out, "(atom %u)", val->atom);
+			}
 			break;
 
 		case L2_VAL_TYPE_REAL:
