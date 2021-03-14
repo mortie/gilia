@@ -11,6 +11,23 @@ static int tok_is_end(struct l2_token *tok) {
 		kind == L2_TOK_EOL;
 }
 
+static int tok_is_infix(struct l2_token *tok) {
+	if (l2_token_get_kind(tok) != L2_TOK_IDENT) return 0;
+	char *str;
+	if (l2_token_is_small(tok)) {
+		str = tok->v.strbuf;
+	} else {
+		str = tok->v.str;
+	}
+
+	return
+			(str[0] == '$' && str[1] != '\0') ||
+			strcmp(str, "+") == 0 ||
+			strcmp(str, "-") == 0 ||
+			strcmp(str, "*") == 0 ||
+			strcmp(str, "/") == 0;
+}
+
 static int parse_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err);
 
@@ -85,9 +102,8 @@ static int parse_function_literal_impl(
 	// '{' and EOL already skipped by parse_object_or_function_literal
 
 	// The arguments array will be at the top of the stack
-	char *ident = malloc(2);
-	ident[0] = '$'; ident[1] = '\0';
-	l2_gen_stack_frame_set(gen, &ident);
+	char *ident = "$";
+	l2_gen_stack_frame_set_copy(gen, ident);
 
 	int first = 1;
 	while (1) {
@@ -472,6 +488,19 @@ static int parse_expression(
 	} else {
 		if (parse_arg_level_expression(lexer, gen, err) < 0) {
 			return -1;
+		}
+
+		if (tok_is_infix(l2_lexer_peek(lexer, 1))) {
+			if (parse_arg_level_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+
+			if (parse_arg_level_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+
+
+			l2_gen_func_call_infix(gen);
 		}
 
 		if (!tok_is_end(l2_lexer_peek(lexer, 1))) {

@@ -221,3 +221,7 @@ void l2_gen_func_call(struct l2_generator *gen, l2_word argc) {
 	put(gen, L2_OP_FUNC_CALL);
 	put(gen, argc);
 }
+
+void l2_gen_func_call_infix(struct l2_generator *gen) {
+	put(gen, L2_OP_FUNC_CALL_INFIX);
+}

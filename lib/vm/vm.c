@@ -319,7 +319,6 @@ void l2_vm_step(struct l2_vm *vm) {
 			struct l2_vm_value *func = &vm->values[func_id];
 
 			l2_word stack_base = vm->sptr;
-
 			enum l2_value_type typ = l2_vm_value_type(func);
 
 			// C functions are called differently from language functions
@@ -565,6 +564,56 @@ void l2_vm_step(struct l2_vm *vm) {
 			} else {
 				// TODO: error
 			}
+		}
+		break;
+
+	case L2_OP_FUNC_CALL_INFIX:
+		{
+			l2_word rhs = vm->stack[--vm->sptr];
+			l2_word func_id = vm->stack[--vm->sptr];
+			l2_word lhs = vm->stack[--vm->sptr];
+
+			struct l2_vm_value *func = &vm->values[func_id];
+
+			l2_word stack_base = vm->sptr;
+			enum l2_value_type typ = l2_vm_value_type(func);
+
+			// C functions are called differently from language functions
+			if (typ == L2_VAL_TYPE_CFUNCTION) {
+				l2_word argv[] = { lhs, rhs };
+				vm->stack[vm->sptr++] = func->cfunc(vm, 2, argv);
+				break;
+			}
+
+			// Don't interpret a non-function as a function
+			if (typ != L2_VAL_TYPE_FUNCTION) {
+				vm->stack[vm->sptr++] = l2_vm_error(vm, "Attempt to call non-function");
+				break;
+			}
+
+			l2_word arr_id = alloc_val(vm);
+			vm->values[arr_id].flags = L2_VAL_TYPE_ARRAY;
+			vm->values[arr_id].array = malloc(
+					sizeof(struct l2_vm_array) + sizeof(l2_word) * 2);
+			struct l2_vm_array *arr = vm->values[arr_id].array;
+			arr->len = 2;
+			arr->size = 2;
+			arr->data[0] = lhs;
+			arr->data[1] = rhs;
+
+			vm->stack[vm->sptr++] = arr_id;
+
+			l2_word ns_id = alloc_val(vm);
+			func = &vm->values[func_id]; // func might be stale after alloc
+			vm->values[ns_id].extra.ns_parent = func->func.ns;
+			vm->values[ns_id].ns = NULL;
+			vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
+			vm->fstack[vm->fsptr].ns = ns_id;
+			vm->fstack[vm->fsptr].retptr = vm->iptr;
+			vm->fstack[vm->fsptr].sptr = stack_base;
+			vm->fsptr += 1;
+
+			vm->iptr = func->func.pos;
 		}
 		break;
 

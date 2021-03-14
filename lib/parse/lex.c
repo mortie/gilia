@@ -98,6 +98,11 @@ static int peek_ch(struct l2_lexer *lexer) {
 	return ch;
 }
 
+static int peek_ch_n(struct l2_lexer *lexer, int n) {
+	int ch = l2_bufio_peek(&lexer->reader, n);
+	return ch;
+}
+
 static int read_ch(struct l2_lexer *lexer) {
 	int ch = l2_bufio_get(&lexer->reader);
 	lexer->ch += 1;
@@ -568,7 +573,9 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		break;
 
 	default:
-		if (is_numeric(ch) || ch == '-') {
+		if (
+				is_numeric(ch) ||
+				(ch == '-' && is_numeric(peek_ch_n(lexer, 2)))) {
 			read_number(lexer, tok);
 			break;
 		}

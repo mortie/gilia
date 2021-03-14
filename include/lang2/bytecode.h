@@ -52,6 +52,16 @@ enum l2_opcode {
 	L2_OP_FUNC_CALL,
 
 	/*
+	 * Call an infix function
+	 * Pop <rhs>
+	 * Pop <func>
+	 * Pop <lhs>
+	 * Call <func>
+	 * (Before returning, the function will push a return value onto the stack)
+	 */
+	L2_OP_FUNC_CALL_INFIX,
+
+	/*
 	 * Jump relative; rjmp <count>
 	 * Jump <count> words forwards
 	 */

@@ -51,5 +51,6 @@ void l2_gen_stack_frame_set_copy(struct l2_generator *gen, char *ident);
 void l2_gen_stack_frame_replace(struct l2_generator *gen, char **ident);
 void l2_gen_stack_frame_replace_copy(struct l2_generator *gen, char *ident);
 void l2_gen_func_call(struct l2_generator *gen, l2_word argc);
+void l2_gen_func_call_infix(struct l2_generator *gen);
 
 #endif

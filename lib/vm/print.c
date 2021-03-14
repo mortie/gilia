@@ -138,6 +138,10 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("FUNC_CALL %08x\n", ops[(*ptr)++]);
 		return;
 
+	case L2_OP_FUNC_CALL_INFIX:
+		printf("FUNC_CALL_INFIX\n");
+		return;
+
 	case L2_OP_RJMP:
 		printf("RJMP %08x\n", ops[(*ptr)++]);
 		return;
