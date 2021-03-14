@@ -92,14 +92,14 @@ static void repl() {
 		char line[4096];
 #ifdef USE_READLINE
 		char *rline = readline("> ");
-		if (rline == NULL) return;
+		if (rline == NULL) goto out;
 		if (rline[0] == '\0') continue;
 		add_history(rline);
 		snprintf(line, sizeof(line), "print (%s)", rline);
 		free(rline);
 #else
 		char rline[4096];
-		if (fgets(rline, sizeof(rline), stdin) == NULL) return;
+		if (fgets(rline, sizeof(rline), stdin) == NULL) goto out;
 		if (rline[0] == '\n' && rline[1] == '\0') continue;
 		snprintf(line, sizeof(line), "print (%s)", rline);
 #endif
@@ -109,13 +109,16 @@ static void repl() {
 		r.mem = line;
 		l2_lexer_init(&lexer, &r.r);
 
-		size_t prev_len = w.len;
-
 		struct l2_parse_error err;
 		if (l2_parse_program(&lexer, &gen, &err) < 0) {
 			fprintf(stderr, "Parse error: %s\n -- %s\n", err.message, line);
 			l2_parse_error_free(&err);
-			w.len = prev_len;
+
+			l2_vm_free(&vm);
+			l2_gen_free(&gen);
+			w.len = 0;
+			l2_gen_init(&gen, &w.w);
+			l2_vm_init(&vm, NULL, 0);
 		} else if (w.len > 0) {
 			vm.ops = w.mem;
 			vm.opcount = w.len / sizeof(l2_word);
@@ -127,6 +130,10 @@ static void repl() {
 			l2_vm_gc(&vm);
 		}
 	}
+
+out:
+	l2_gen_free(&gen);
+	l2_vm_free(&vm);
 }
 
 static void usage(const char *argv0) {
