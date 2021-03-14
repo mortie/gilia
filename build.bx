@@ -1,4 +1,5 @@
 includes := include/lang2
 files := lib cmd
 warnings := all extra no-unused-parameter pedantic
-cflags := -g
+cflags := -g -O3
+ldlibs := readline
