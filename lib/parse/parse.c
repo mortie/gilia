@@ -495,7 +495,7 @@ static int parse_expression(
 				return -1;
 			}
 
-			if (parse_arg_level_expression(lexer, gen, err) < 0) {
+			if (parse_expression(lexer, gen, err) < 0) {
 				return -1;
 			}
 
