@@ -9,12 +9,7 @@
 
 struct l2_vm;
 struct l2_vm_array;
-struct l2_vm_args;
 typedef l2_word (*l2_vm_cfunction)(struct l2_vm *vm, l2_word argc, l2_word *argv);
-
-struct l2_vm_args {
-	l2_word argc;
-};
 
 enum l2_value_type {
 	L2_VAL_TYPE_NONE,
@@ -25,6 +20,7 @@ enum l2_value_type {
 	L2_VAL_TYPE_NAMESPACE,
 	L2_VAL_TYPE_FUNCTION,
 	L2_VAL_TYPE_CFUNCTION,
+	L2_VAL_TYPE_CONTINUATION,
 	L2_VAL_TYPE_ERROR,
 };
 
@@ -60,6 +56,10 @@ struct l2_vm_value {
 			l2_word ns;
 		} func;
 		l2_vm_cfunction cfunc;
+		struct {
+			l2_word call;
+			l2_word arg;
+		} cont;
 		char *error;
 	};
 };

@@ -137,6 +137,7 @@ const char *l2_value_type_name(enum l2_value_type typ) {
 	case L2_VAL_TYPE_FUNCTION: return "FUNCTION";
 	case L2_VAL_TYPE_CFUNCTION: return "CFUNCTION";
 	case L2_VAL_TYPE_ERROR: return "ERROR";
+	case L2_VAL_TYPE_CONTINUATION: return "CONTINUATION";
 	}
 
 	return "(unknown)";
@@ -297,7 +298,35 @@ static void call_func(
 
 	// C functions are called differently from language functions
 	if (typ == L2_VAL_TYPE_CFUNCTION) {
+		// Make this a while loop, because using call_func would
+		// make the call stack depth unbounded
 		vm->stack[vm->sptr++] = func->cfunc(vm, argc, argv);
+		while (1) {
+			struct l2_vm_value *val = &vm->values[vm->stack[vm->sptr - 1]];
+			if (l2_vm_value_type(val) != L2_VAL_TYPE_CONTINUATION) {
+				break;
+			}
+
+			l2_word cont_id = val->cont.call;
+			struct l2_vm_value *cont = &vm->values[cont_id];
+
+			l2_word new_argc;
+			l2_word new_argv[1];
+			if (val->cont.arg == 0) {
+				new_argc = 0;
+			} else {
+				new_argc = 1;
+				new_argv[0] = val->cont.arg;
+			}
+
+			if (l2_vm_value_type(cont) == L2_VAL_TYPE_CFUNCTION) {
+				vm->stack[vm->sptr - 1] = cont->cfunc(vm, new_argc, new_argv);
+			} else {
+				vm->sptr -= 1;
+				call_func(vm, cont_id, new_argc, new_argv);
+				break;
+			}
+		}
 		return;
 	}
 

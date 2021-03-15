@@ -76,6 +76,10 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 	case L2_VAL_TYPE_ERROR:
 		printf("ERROR, %s\n", val->error);
 		break;
+
+	case L2_VAL_TYPE_CONTINUATION:
+		printf("CONTINUATION, call %u, arg %u\n", val->cont.call, val->cont.arg);
+		break;
 	}
 }
 

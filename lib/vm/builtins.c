@@ -57,6 +57,10 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 		case L2_VAL_TYPE_ERROR:
 			l2_io_printf(out, "(error: %s)", val->error);
 			break;
+
+		case L2_VAL_TYPE_CONTINUATION:
+			l2_io_printf(out, "(continuation)");
+			break;
 	}
 }
 
@@ -175,8 +179,8 @@ l2_word l2_builtin_print(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 }
 
 l2_word l2_builtin_len(struct l2_vm *vm, l2_word argc, l2_word *argv) {
-	if (argc < 1) {
-		return l2_vm_error(vm, "Expected at least 1 argument");
+	if (argc != 1) {
+		return l2_vm_error(vm, "Expected 1 argument");
 	}
 
 	l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
@@ -191,6 +195,7 @@ l2_word l2_builtin_len(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	case L2_VAL_TYPE_FUNCTION:
 	case L2_VAL_TYPE_CFUNCTION:
 	case L2_VAL_TYPE_ERROR:
+	case L2_VAL_TYPE_CONTINUATION:
 		break;
 
 	case L2_VAL_TYPE_BUFFER:
@@ -212,4 +217,30 @@ l2_word l2_builtin_len(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	}
 
 	return ret_id;
+}
+
+l2_word l2_builtin_if(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	if (argc != 2 && argc != 3) {
+		return l2_vm_error(vm, "Expected 2 or 3 arguments");
+	}
+
+	struct l2_vm_value *cond = &vm->values[argv[0]];
+
+	if (
+			l2_vm_value_type(cond) == L2_VAL_TYPE_ATOM &&
+			cond->atom == vm->values[vm->ktrue].atom) {
+		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
+		struct l2_vm_value *ret = &vm->values[ret_id];
+		ret->cont.call = argv[1];
+		ret->cont.arg = 0;
+		return ret_id;
+	} else if (argc == 3) {
+		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
+		struct l2_vm_value *ret = &vm->values[ret_id];
+		ret->cont.call = argv[2];
+		ret->cont.arg = 0;
+		return ret_id;
+	} else {
+		return 0;
+	}
 }
