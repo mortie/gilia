@@ -108,8 +108,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 
 static size_t gc_sweep(struct l2_vm *vm) {
 	size_t freed = 0;
-	// Skip ID 0, because that should always exist
-	for (size_t i = 1; i < vm->valuessize; ++i) {
+	for (size_t i = vm->gc_start; i < vm->valuessize; ++i) {
 		if (!l2_bitset_get(&vm->valueset, i)) {
 			continue;
 		}
@@ -212,6 +211,8 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 #include "builtins.x.h"
 #undef Y
 #undef X
+
+	vm->gc_start = id + 1;
 }
 
 l2_word l2_vm_alloc(struct l2_vm *vm, enum l2_value_type typ, enum l2_value_flags flags) {

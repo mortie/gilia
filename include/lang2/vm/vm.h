@@ -115,6 +115,7 @@ struct l2_vm {
 	l2_word fsptr;
 
 	l2_word knone, ktrue, kfalse;
+	l2_word gc_start;
 };
 
 void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);
