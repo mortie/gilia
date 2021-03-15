@@ -25,7 +25,9 @@ static int tok_is_infix(struct l2_token *tok) {
 			strcmp(str, "+") == 0 ||
 			strcmp(str, "-") == 0 ||
 			strcmp(str, "*") == 0 ||
-			strcmp(str, "/") == 0;
+			strcmp(str, "/") == 0 ||
+			strcmp(str, "==") == 0 ||
+			strcmp(str, "!=") == 0;
 }
 
 static int parse_expression(

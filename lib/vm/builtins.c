@@ -164,6 +164,60 @@ l2_word l2_builtin_div(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	return id;
 }
 
+l2_word l2_builtin_eq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	if (argc < 2) {
+		return vm->ktrue;
+	}
+
+	for (l2_word i = 1; i < argc; ++i) {
+		if (argv[i - 1] == argv[i]) continue;
+		struct l2_vm_value *a = &vm->values[argv[i - 1]];
+		struct l2_vm_value *b = &vm->values[argv[i]];
+		if (a->flags != b->flags) {
+			return vm->kfalse;
+		}
+
+		enum l2_value_type typ = l2_vm_value_type(a);
+		if (typ == L2_VAL_TYPE_ATOM) {
+			if (a->atom != b->atom) {
+				return vm->kfalse;
+			}
+		} else if (typ == L2_VAL_TYPE_REAL) {
+			if (a->real != b->real) {
+				return vm->kfalse;
+			}
+		} else if (typ == L2_VAL_TYPE_BUFFER) {
+			if (a->buffer == NULL && b->buffer == NULL) continue;
+			if (a->buffer == NULL || b->buffer == NULL) {
+				return vm->kfalse;
+			}
+
+			if (a->buffer->len != b->buffer->len) {
+				return vm->kfalse;
+			}
+
+			if (memcmp(a->buffer->data, b->buffer->data, a->buffer->len) != 0) {
+				return vm->kfalse;
+			}
+		} else {
+			return vm->kfalse;
+		}
+	}
+
+	return vm->ktrue;
+}
+
+l2_word l2_builtin_neq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	l2_word ret_id = l2_builtin_eq(vm, argc, argv);
+	if (ret_id == vm->ktrue) {
+		return vm->kfalse;
+	} else if (ret_id == vm->kfalse) {
+		return vm->ktrue;
+	} else {
+		return ret_id;
+	}
+}
+
 l2_word l2_builtin_print(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	for (size_t i = 0; i < argc; ++i) {
 		if (i != 0) {

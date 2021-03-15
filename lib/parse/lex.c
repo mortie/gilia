@@ -127,6 +127,16 @@ static int is_numeric(int ch) {
 	return ch >= '0' && ch <= '9';
 }
 
+static int is_ident(int ch) {
+	return !is_whitespace(ch) && ch != EOF &&
+		ch != '(' && ch != ')' &&
+		ch != '{' && ch != '}' &&
+		ch != '[' && ch != ']' &&
+		ch != '\'' &&
+		ch != ',' && ch != '.' &&
+		ch != ':' && ch != ';';
+}
+
 static int skip_whitespace(struct l2_lexer *lexer) {
 	int nl = 0;
 	while (1) {
@@ -413,25 +423,7 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 	while (1) {
 		int ch = peek_ch(lexer);
 
-		if (is_whitespace(ch)) {
-			dest[idx] = '\0';
-			return;
-		}
-
-		switch (ch) {
-		case '(':
-		case ')':
-		case '{':
-		case '}':
-		case '[':
-		case ']':
-		case '\'':
-		case ',':
-		case '.':
-		case ':':
-		case '=':
-		case ';':
-		case EOF:
+		if (!is_ident(ch)) {
 			dest[idx] = '\0';
 			return;
 		}
@@ -563,11 +555,6 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		}
 		break;
 
-	case '=':
-		read_ch(lexer);
-		tok->v.flags = L2_TOK_EQUALS;
-		break;
-
 	case EOF:
 		tok->v.flags = L2_TOK_EOF;
 		break;
@@ -578,14 +565,23 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		break;
 
 	default:
-		if (
-				is_numeric(ch) ||
-				(ch == '-' && is_numeric(peek_ch_n(lexer, 2)))) {
-			read_number(lexer, tok);
-			break;
-		}
+		{
+			int ch2 = peek_ch_n(lexer, 2);
 
-		read_ident(lexer, tok);
+			if (
+					is_numeric(ch) ||
+					(ch == '-' && is_numeric(ch2))) {
+				read_number(lexer, tok);
+				break;
+			}
+
+			tok->v.flags = L2_TOK_IDENT;
+			read_ident(lexer, tok);
+
+			if (l2_token_is_small(tok) && strcmp(tok->v.strbuf, "=") == 0) {
+				tok->v.flags = L2_TOK_EQUALS;
+			}
+		}
 	}
 }
 

@@ -196,19 +196,21 @@ void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount) {
 #define Y(name, k) \
 	if (strcmp(#k, "knone") == 0) { \
 		id = 0; \
+		l2_vm_namespace_set(&vm->values[builtins], key, id); \
 	} else { \
 		id = alloc_val(vm); \
 		vm->values[id].flags = L2_VAL_TYPE_ATOM | L2_VAL_CONST; \
 		vm->values[id].atom = key; \
 	} \
 	vm->k = id; \
-	l2_vm_namespace_set(&vm->values[builtins], key++, id);
+	key += 1;
 #define X(name, f) \
 	id = alloc_val(vm); \
 	vm->values[id].flags = L2_VAL_TYPE_CFUNCTION | L2_VAL_CONST; \
 	vm->values[id].cfunc = f; \
 	l2_vm_namespace_set(&vm->values[builtins], key++, id);
 #include "builtins.x.h"
+#undef Y
 #undef X
 }
 
