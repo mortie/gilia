@@ -122,6 +122,13 @@ static size_t gc_sweep(struct l2_vm *vm) {
 			val->flags &= ~L2_VAL_MARKED;
 		}
 	}
+
+	// Normal variables are unmarked by the above loop,
+	// but builtins don't go through that loop
+	for (size_t i = 0; i < vm->gc_start; ++i) {
+		vm->values[i].flags &= ~L2_VAL_MARKED;
+	}
+
 	return freed;
 }
 
@@ -275,7 +282,9 @@ size_t l2_vm_gc(struct l2_vm *vm) {
 		gc_mark(vm, vm->stack[sptr]);
 	}
 
-	for (l2_word fsptr = 0; fsptr < vm->fsptr; ++fsptr) {
+	// Don't need to mark the first stack frame, since that's where all the
+	// builtins live, and they aren't sweeped anyways
+	for (l2_word fsptr = 1; fsptr < vm->fsptr; ++fsptr) {
 		gc_mark(vm, vm->fstack[fsptr].ns);
 	}
 
