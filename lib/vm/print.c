@@ -4,8 +4,36 @@
 #include <string.h>
 #include <stdint.h>
 
-void l2_vm_print_val(struct l2_vm_value *val) {
+static l2_word read_u4le(unsigned char *ops, size_t *ptr) {
+	unsigned char *data = &ops[*ptr];
+	l2_word ret =
+		(l2_word)data[0] |
+		(l2_word)data[1] << 8 |
+		(l2_word)data[2] << 16 |
+		(l2_word)data[3] << 24;
+	*ptr += 4;
+	return ret;
+}
 
+static double read_d8le(unsigned char *ops, size_t *ptr) {
+	unsigned char *data = &ops[*ptr];
+	uint64_t integer = 0 |
+		(uint64_t)data[0] |
+		(uint64_t)data[1] << 8 |
+		(uint64_t)data[2] << 16 |
+		(uint64_t)data[3] << 24 |
+		(uint64_t)data[4] << 32 |
+		(uint64_t)data[5] << 40 |
+		(uint64_t)data[6] << 48 |
+		(uint64_t)data[7] << 56;
+
+	double num;
+	memcpy(&num, &integer, 8);
+	*ptr += 8;
+	return num;
+}
+
+void l2_vm_print_val(struct l2_vm_value *val) {
 	switch (l2_vm_value_type(val)) {
 	case L2_VAL_TYPE_NONE:
 		printf("NONE\n");
@@ -114,7 +142,7 @@ void l2_vm_print_fstack(struct l2_vm *vm) {
 	}
 }
 
-void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
+void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 	enum l2_opcode opcode = (enum l2_opcode)ops[(*ptr)++];
 
 	switch (opcode) {
@@ -138,28 +166,28 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("ADD\n");
 		return;
 
-	case L2_OP_FUNC_CALL:
-		printf("FUNC_CALL %08x\n", ops[(*ptr)++]);
+	case L2_OP_FUNC_CALL_U4:
+		printf("FUNC_CALL %08x\n", read_u4le(ops, ptr));
 		return;
 
 	case L2_OP_FUNC_CALL_INFIX:
 		printf("FUNC_CALL_INFIX\n");
 		return;
 
-	case L2_OP_RJMP:
-		printf("RJMP %08x\n", ops[(*ptr)++]);
+	case L2_OP_RJMP_U4:
+		printf("RJMP %08x\n", read_u4le(ops, ptr));
 		return;
 
-	case L2_OP_STACK_FRAME_LOOKUP:
-		printf("STACK_FRAME_LOOKUP %08x\n", ops[(*ptr)++]);
+	case L2_OP_STACK_FRAME_LOOKUP_U4:
+		printf("STACK_FRAME_LOOKUP %08x\n", read_u4le(ops, ptr));
 		return;
 
-	case L2_OP_STACK_FRAME_SET:
-		printf("STACK_FRAME_SET %08x\n", ops[(*ptr)++]);
+	case L2_OP_STACK_FRAME_SET_U4:
+		printf("STACK_FRAME_SET %08x\n", read_u4le(ops, ptr));
 		return;
 
-	case L2_OP_STACK_FRAME_REPLACE:
-		printf("STACK_FRAME_REPLACE %08x\n", ops[(*ptr)++]);
+	case L2_OP_STACK_FRAME_REPLACE_U4:
+		printf("STACK_FRAME_REPLACE %08x\n", read_u4le(ops, ptr));
 		return;
 
 	case L2_OP_RET:
@@ -170,52 +198,48 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 		printf("ALLOC_NONE\n");
 		return;
 
-	case L2_OP_ALLOC_ATOM:
-		printf("ALLOC_ATOM %08x\n", ops[(*ptr)++]);
+	case L2_OP_ALLOC_ATOM_U4:
+		printf("ALLOC_ATOM %08x\n", read_u4le(ops, ptr));
 		return;
 
-	case L2_OP_ALLOC_REAL:
-		{
-			l2_word w1 = ops[(*ptr)++];
-			l2_word w2 = ops[(*ptr)++];
-			printf("ALLOC_REAL %08x %08x\n", w1, w2);
-		}
+	case L2_OP_ALLOC_REAL_D8:
+		printf("ALLOC_REAL %f\n", read_d8le(ops, ptr));
 		return;
 
-	case L2_OP_ALLOC_BUFFER_STATIC:
+	case L2_OP_ALLOC_BUFFER_STATIC_U4:
 		{
-			l2_word w1 = ops[(*ptr)++];
-			l2_word w2 = ops[(*ptr)++];
+			l2_word w1 = read_u4le(ops, ptr);
+			l2_word w2 = read_u4le(ops, ptr);;
 			printf("ALLOC_BUFFER_STATIC %08x %08x\n", w1, w2);
 		}
 		return;
 
-	case L2_OP_ALLOC_ARRAY:
-		printf("ALLOC_ARRAY %08x\n", ops[(*ptr)++]);
+	case L2_OP_ALLOC_ARRAY_U4:
+		printf("ALLOC_ARRAY_U4 %08x\n", read_u4le(ops, ptr));
 		return;
 
 	case L2_OP_ALLOC_NAMESPACE:
 		printf("ALLOC_NAMESPACE\n");
 		return;
 
-	case L2_OP_ALLOC_FUNCTION:
-		printf("ALLOC_FUNCTION %08x\n", ops[(*ptr)++]);
+	case L2_OP_ALLOC_FUNCTION_U4:
+		printf("ALLOC_FUNCTION_U4 %08x\n", read_u4le(ops, ptr));
 		return;
 
-	case L2_OP_NAMESPACE_SET:
-		printf("NAMESPACE_SET %08x\n", ops[(*ptr)++]);
+	case L2_OP_NAMESPACE_SET_U4:
+		printf("NAMESPACE_SET_U4 %08x\n", read_u4le(ops, ptr));
 		return;
 
-	case L2_OP_NAMESPACE_LOOKUP:
-		printf("NAMESPACE_LOOKUP %08x\n", ops[(*ptr)++]);
+	case L2_OP_NAMESPACE_LOOKUP_U4:
+		printf("NAMESPACE_LOOKUP_U4 %08x\n", read_u4le(ops, ptr));
 		return;
 
-	case L2_OP_ARRAY_LOOKUP:
-		printf("ARRAY_LOOKUP %08x\n", ops[(*ptr)++]);
+	case L2_OP_ARRAY_LOOKUP_U4:
+		printf("ARRAY_LOOKUP_U4 %08x\n", read_u4le(ops, ptr));
 		return;
 
 	case L2_OP_ARRAY_SET:
-		printf("ARRAY_SET %08x\n", ops[(*ptr)++]);
+		printf("ARRAY_SET %08x\n", read_u4le(ops, ptr));
 		return;
 
 	case L2_OP_DYNAMIC_LOOKUP:
@@ -241,7 +265,7 @@ void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr) {
 	printf("\n");
 }
 
-void l2_vm_print_bytecode(l2_word *ops, size_t opcount) {
+void l2_vm_print_bytecode(unsigned char *ops, size_t opcount) {
 	size_t ptr = 0;
 	while (ptr < opcount) {
 		printf("%04zu ", ptr);

@@ -5,7 +5,7 @@
 
 typedef uint32_t l2_word;
 
-#define l2_bytecode_version 1
+#define l2_bytecode_version 2
 
 enum l2_opcode {
 	/*
@@ -42,14 +42,14 @@ enum l2_opcode {
 	L2_OP_ADD,
 
 	/*
-	 * Call a function; func_call <argc>
+	 * Call a function; func_call <argc:u4>
 	 * Pop <argc> times
 	 * Pop <func>
 	 * Push array with args
 	 * Call <func>
 	 * (Before returning, the function will push a return value onto the stack)
 	 */
-	L2_OP_FUNC_CALL,
+	L2_OP_FUNC_CALL_U4,
 
 	/*
 	 * Call an infix function
@@ -62,31 +62,31 @@ enum l2_opcode {
 	L2_OP_FUNC_CALL_INFIX,
 
 	/*
-	 * Jump relative; rjmp <count>
+	 * Jump relative; rjmp <count:u4>
 	 * Jump <count> words forwards
 	 */
-	L2_OP_RJMP,
+	L2_OP_RJMP_U4,
 
 	/*
-	 * Look up a value from the current stack frame; stack_frame_lookup <key>
+	 * Look up a value from the current stack frame; stack_frame_lookup <key:u4>
 	 * Find <val> in stack frame using <key>
 	 * Push <val>
 	 */
-	L2_OP_STACK_FRAME_LOOKUP,
+	L2_OP_STACK_FRAME_LOOKUP_U4,
 
 	/*
-	 * Set a value in the current stack frame; stack_frame_set <key>
+	 * Set a value in the current stack frame; stack_frame_set <key:u4>
 	 * Read <val>
 	 * Assign <val> to stack frame at <key>
 	 */
-	L2_OP_STACK_FRAME_SET,
+	L2_OP_STACK_FRAME_SET_U4,
 
 	/*
-	 * Replace a value on the stack; stack_frame_replace <key>
+	 * Replace a value on the stack; stack_frame_replace <key:U4>
 	 * Read <val>
 	 * Assign <val> to stack frame at <key>
 	 */
-	L2_OP_STACK_FRAME_REPLACE,
+	L2_OP_STACK_FRAME_REPLACE_U4,
 
 	/*
 	 * Return from a function.
@@ -105,33 +105,33 @@ enum l2_opcode {
 	L2_OP_ALLOC_NONE,
 
 	/*
-	 * Allocate an atom from one word; alloc_atom <word>
+	 * Allocate an atom from one word; alloc_atom <word:u4>
 	 * Alloc atom <var> from <word>
 	 * Push <var>
 	 */
-	L2_OP_ALLOC_ATOM,
+	L2_OP_ALLOC_ATOM_U4,
 
 	/*
-	 * Allocate a real from two words; alloc_real <high> <low>
-	 * Alloc real <var> from <high> << 32 | <low>
+	 * Allocate a real from two words; alloc_real <double:u8>
+	 * Alloc real <var> from <double>
 	 * Push <var>
 	 */
-	L2_OP_ALLOC_REAL,
+	L2_OP_ALLOC_REAL_D8,
 
 	/*
-	 * Allocate a buffer from static data; alloc_buffer_static <length> <offset>
+	 * Allocate a buffer from static data; alloc_buffer_static <length:u4> <offset:u4>
 	 * Alloc buffer <var> with <length> and <offset>
 	 * Push <var>
 	 */
-	L2_OP_ALLOC_BUFFER_STATIC,
+	L2_OP_ALLOC_BUFFER_STATIC_U4,
 
 	/*
-	 * Allocate an array; <count>
+	 * Allocate an array; <count:u4>
 	 * Pop <count> times
 	 * Alloc array <var>
 	 * Push <var>
 	 */
-	L2_OP_ALLOC_ARRAY,
+	L2_OP_ALLOC_ARRAY_U4,
 
 	/*
 	 * Allocate an integer->value map.
@@ -141,33 +141,33 @@ enum l2_opcode {
 	L2_OP_ALLOC_NAMESPACE,
 
 	/*
-	 * Allocate a function; alloc_function <pos>
+	 * Allocate a function; alloc_function <pos:u4>
 	 * Alloc function <var> pointing to location <word>
 	 * Push <var>
 	 */
-	L2_OP_ALLOC_FUNCTION,
+	L2_OP_ALLOC_FUNCTION_U4,
 
 	/*
-	 * Set a namespace's name to a value; namespace_set <key>
+	 * Set a namespace's name to a value; namespace_set <key:u4>
 	 * Read <val>
 	 * Read <ns>
 	 * Assign <val> to <ns[<key>]>
 	 */
-	L2_OP_NAMESPACE_SET,
+	L2_OP_NAMESPACE_SET_U4,
 
 	/*
-	 * Lookup a value from a namespace; namespace_lookup <key>
+	 * Lookup a value from a namespace; namespace_lookup <key:u4>
 	 * Pop <ns>
 	 * Push <ns[<key>]>
 	 */
-	L2_OP_NAMESPACE_LOOKUP,
+	L2_OP_NAMESPACE_LOOKUP_U4,
 
 	/*
-	 * Look up a value from an array; array_lookup <key>
+	 * Look up a value from an array; array_lookup <key:u4>
 	 * Pop <arr>
 	 * Push <arr[<key>]>
 	 */
-	L2_OP_ARRAY_LOOKUP,
+	L2_OP_ARRAY_LOOKUP_U4,
 
 	/*
 	 * Set a value in an array; array_set <key>

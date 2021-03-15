@@ -9,7 +9,7 @@ void l2_vm_print_heap(struct l2_vm *vm);
 void l2_vm_print_stack(struct l2_vm *vm);
 void l2_vm_print_fstack(struct l2_vm *vm);
 
-void l2_vm_print_op(l2_word *ops, size_t opcount, size_t *ptr);
-void l2_vm_print_bytecode(l2_word *ops, size_t opcount);
+void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr);
+void l2_vm_print_bytecode(unsigned char *ops, size_t opcount);
 
 #endif

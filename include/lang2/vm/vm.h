@@ -97,8 +97,8 @@ int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *ns, l2_word ke
 struct l2_vm {
 	int halted;
 	int gc_scheduled;
-	l2_word *ops;
-	size_t opcount;
+	unsigned char *ops;
+	size_t opslen;
 	l2_word iptr;
 
 	struct l2_io_writer *std_output;
@@ -118,7 +118,7 @@ struct l2_vm {
 	l2_word gc_start;
 };
 
-void l2_vm_init(struct l2_vm *vm, l2_word *ops, size_t opcount);
+void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen);
 l2_word l2_vm_alloc(struct l2_vm *vm, enum l2_value_type typ, enum l2_value_flags flags);
 l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...);
 l2_word l2_vm_type_error(struct l2_vm *vm, struct l2_vm_value *val);

@@ -61,7 +61,7 @@ static void step_through(struct l2_vm *vm) {
 	while (!vm->halted) {
 		size_t iptr = vm->iptr;
 		printf("\n======\n\n(%d) Will run instr: ", vm->iptr);
-		l2_vm_print_op(vm->ops, vm->opcount, &iptr);
+		l2_vm_print_op(vm->ops, vm->opslen, &iptr);
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			break;
 		}
@@ -125,9 +125,9 @@ static void repl() {
 			l2_vm_init(&vm, NULL, 0);
 		} else if (w.len > 0) {
 			vm.ops = w.mem;
-			vm.opcount = w.len / sizeof(l2_word);
+			vm.opslen = w.len;
 
-			while (vm.iptr < vm.opcount) {
+			while (vm.iptr < vm.opslen) {
 				l2_vm_step(&vm);
 			}
 
@@ -264,9 +264,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (do_serialize_bytecode) {
-		l2_bc_serialize(
-				outbc, bytecode_writer.mem,
-				bytecode_writer.len / sizeof(l2_word));
+		l2_bc_serialize(outbc, bytecode_writer.mem, bytecode_writer.len);
 	}
 
 	if (do_print_bytecode || do_print_tokens || do_serialize_bytecode) {
@@ -275,7 +273,7 @@ int main(int argc, char **argv) {
 	}
 
 	struct l2_vm vm;
-	l2_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len / sizeof(l2_word));
+	l2_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len);
 
 	if (do_step) {
 		step_through(&vm);
