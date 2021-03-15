@@ -245,7 +245,7 @@ static int parse_arg_level_expression_base(
 
 		tok = l2_lexer_peek(lexer, 1);
 		if (l2_token_get_kind(tok) != L2_TOK_CLOSE_PAREN) {
-			l2_parse_err(err, tok, "Expected '(', got %s",
+			l2_parse_err(err, tok, "Expected ')', got %s",
 					l2_token_get_name(tok));
 			return -1;
 		}
