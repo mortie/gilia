@@ -147,8 +147,8 @@ static int parse_function_literal(
 	w.w.write = l2_io_mem_write;
 	gen->writer.w = &w.w;
 
-	// Generates two words; RJMP, 0
-	l2_gen_rjmp(gen, 0);
+	// Generates five bytes; RJMP, then 4 byte counter
+	l2_gen_rjmp_placeholder(gen);
 
 	l2_word pos = gen->pos;
 
@@ -161,15 +161,16 @@ static int parse_function_literal(
 		return -1;
 	}
 
-	l2_word *ops = w.mem;
-	l2_word opcount = w.len / sizeof(l2_word);
+	unsigned char *ops = w.mem;
+	l2_word opcount = w.len - 5;
 
-	// Due to the earlier gen_rjmp, the second word will be the argument to RJMP.
-	// Need to set it properly to skip the function body.
-	// The '- 2' is because we don't skip the RJMP, <count> sequence.
-	ops[1] = opcount - 2;
+	// Write the jump distance (little endian)
+	ops[1] = (opcount >> 0) & 0xff;
+	ops[2] = (opcount >> 8) & 0xff;
+	ops[3] = (opcount >> 16) & 0xff;
+	ops[4] = (opcount >> 24) & 0xff;
 
-	l2_bufio_put_n(&gen->writer, ops, opcount * sizeof(l2_word));
+	l2_bufio_put_n(&gen->writer, ops, w.len);
 	free(w.mem);
 
 	l2_gen_function(gen, pos);

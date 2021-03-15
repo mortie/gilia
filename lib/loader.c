@@ -45,8 +45,8 @@ int l2_bc_load(FILE *inf, struct l2_io_writer *w) {
 		((uint32_t)version_buf[2]) << 16 |
 		((uint32_t)version_buf[3]) << 24;
 	if (version != l2_bytecode_version) {
-		fprintf(
-				stderr, "Version mismatch! Bytecode file uses bytecode version %i"
+		fprintf(stderr,
+				"Version mismatch! Bytecode file uses bytecode version %i"
 				", but your build of lang2 uses bytecode version %i\n",
 				version, l2_bytecode_version);
 		return -1;

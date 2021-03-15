@@ -24,6 +24,7 @@ void l2_gen_free(struct l2_generator *gen);
 
 void l2_gen_halt(struct l2_generator *gen);
 void l2_gen_rjmp(struct l2_generator *gen, l2_word len);
+void l2_gen_rjmp_placeholder(struct l2_generator *gen);
 void l2_gen_discard(struct l2_generator *gen);
 void l2_gen_swap_discard(struct l2_generator *gen);
 void l2_gen_ret(struct l2_generator *gen);

@@ -379,6 +379,10 @@ static l2_word read_u4le(struct l2_vm *vm) {
 	return ret;
 }
 
+static l2_word read_u1le(struct l2_vm *vm) {
+	return vm->ops[vm->iptr++];
+}
+
 static double read_d8le(struct l2_vm *vm) {
 	unsigned char *data = &vm->ops[vm->iptr];
 	uint64_t integer = 0 |
@@ -432,46 +436,46 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->sptr -= 1;
 		break;
 
-	case L2_OP_FUNC_CALL_U4:
-		{
-			l2_word argc = read_u4le(vm);
-			vm->sptr -= argc;
-			l2_word *argv = vm->stack + vm->sptr;
+#define X(read) \
+		l2_word argc = read(vm); \
+		vm->sptr -= argc; \
+		l2_word *argv = vm->stack + vm->sptr; \
+		l2_word func_id = vm->stack[--vm->sptr]; \
+		call_func(vm, func_id, argc, argv)
+	case L2_OP_FUNC_CALL_U4: { X(read_u4le); } break;
+	case L2_OP_FUNC_CALL_U1: { X(read_u1le); } break;
+#undef X
 
-			l2_word func_id = vm->stack[--vm->sptr];
-			call_func(vm, func_id, argc, argv);
-		}
-		break;
+#define X(read) word = read(vm); vm->iptr += word;
+	case L2_OP_RJMP_U4: { X(read_u4le); } break;
+	case L2_OP_RJMP_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_RJMP_U4:
-		vm->iptr += read_u4le(vm) + 1;
-		break;
+#define X(read) \
+		l2_word key = read(vm); \
+		struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
+		vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, ns, key);
+	case L2_OP_STACK_FRAME_LOOKUP_U4: { X(read_u4le); } break;
+	case L2_OP_STACK_FRAME_LOOKUP_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_STACK_FRAME_LOOKUP_U4:
-		{
-			l2_word key = read_u4le(vm);
-			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
-			vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, ns, key);
-		}
-		break;
+#define X(read) \
+		l2_word key = read(vm); \
+		l2_word val = vm->stack[vm->sptr - 1]; \
+		struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
+		l2_vm_namespace_set(ns, key, val);
+	case L2_OP_STACK_FRAME_SET_U4: { X(read_u4le); } break;
+	case L2_OP_STACK_FRAME_SET_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_STACK_FRAME_SET_U4:
-		{
-			l2_word key = read_u4le(vm);
-			l2_word val = vm->stack[vm->sptr - 1];
-			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
-			l2_vm_namespace_set(ns, key, val);
-		}
-		break;
-
-	case L2_OP_STACK_FRAME_REPLACE_U4:
-		{
-			l2_word key = read_u4le(vm);
-			l2_word val = vm->stack[vm->sptr - 1];
-			struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
-			l2_vm_namespace_replace(vm, ns, key, val); // TODO: error if returns -1
-		}
-		break;
+#define X(read) \
+		l2_word key = read(vm); \
+		l2_word val = vm->stack[vm->sptr - 1]; \
+		struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
+		l2_vm_namespace_replace(vm, ns, key, val); // TODO: error if returns -1
+	case L2_OP_STACK_FRAME_REPLACE_U4: { X(read_u4le); } break;
+	case L2_OP_STACK_FRAME_REPLACE_U1: { X(read_u1le); } break;
+#undef X
 
 	case L2_OP_RET:
 		{
@@ -489,12 +493,14 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->stack[vm->sptr++] = 0;
 		break;
 
-	case L2_OP_ALLOC_ATOM_U4:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_ATOM;
-		vm->values[word].atom = read_u4le(vm);
+#define X(read) \
+		word = alloc_val(vm); \
+		vm->values[word].flags = L2_VAL_TYPE_ATOM; \
+		vm->values[word].atom = read(vm); \
 		vm->stack[vm->sptr++] = word;
-		break;
+	case L2_OP_ALLOC_ATOM_U4: { X(read_u4le); } break;
+	case L2_OP_ALLOC_ATOM_U1: { X(read_u1le); } break;
+#undef X
 
 	case L2_OP_ALLOC_REAL_D8:
 		{
@@ -505,44 +511,42 @@ void l2_vm_step(struct l2_vm *vm) {
 		}
 		break;
 
-	case L2_OP_ALLOC_BUFFER_STATIC_U4:
-		{
-			word = alloc_val(vm);
-			l2_word length = read_u4le(vm);
-			l2_word offset = read_u4le(vm);
-			vm->values[word].flags = L2_VAL_TYPE_BUFFER;
-			vm->values[word].buffer = malloc(sizeof(struct l2_vm_buffer) + length);
-			vm->values[word].buffer->len = length;
-			memcpy(
-				(unsigned char *)vm->values[word].buffer + sizeof(struct l2_vm_buffer),
-				vm->ops + offset, length);
-			vm->stack[vm->sptr] = word;
-			vm->sptr += 1;
-		}
-		break;
+#define X(read) \
+		word = alloc_val(vm); \
+		l2_word length = read(vm); \
+		l2_word offset = read(vm); \
+		vm->values[word].flags = L2_VAL_TYPE_BUFFER; \
+		vm->values[word].buffer = malloc(sizeof(struct l2_vm_buffer) + length); \
+		vm->values[word].buffer->len = length; \
+		memcpy( \
+			(unsigned char *)vm->values[word].buffer + sizeof(struct l2_vm_buffer), \
+			vm->ops + offset, length); \
+		vm->stack[vm->sptr] = word; \
+		vm->sptr += 1;
+	case L2_OP_ALLOC_BUFFER_STATIC_U4: { X(read_u4le); } break;
+	case L2_OP_ALLOC_BUFFER_STATIC_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_ALLOC_ARRAY_U4:
-		{
-			l2_word count = read_u4le(vm);
-			l2_word arr_id = alloc_val(vm);
-			struct l2_vm_value *arr = &vm->values[arr_id];
-			arr->flags = L2_VAL_TYPE_ARRAY;
-			if (count == 0) {
-				arr->array = NULL;
-				vm->stack[vm->sptr++] = arr_id;
-				break;
-			}
-
-			arr->array = malloc(sizeof(struct l2_vm_array) + count * sizeof(l2_word));
-			arr->array->len = count;
-			arr->array->size = count;
-			for (l2_word i = 0; i < count; ++i) {
-				arr->array->data[count - 1 - i] = vm->stack[--vm->sptr];
-			}
-
-			vm->stack[vm->sptr++] = arr_id;
-		}
-		break;
+#define X(read) \
+		l2_word count = read(vm); \
+		l2_word arr_id = alloc_val(vm); \
+		struct l2_vm_value *arr = &vm->values[arr_id]; \
+		arr->flags = L2_VAL_TYPE_ARRAY; \
+		if (count == 0) { \
+			arr->array = NULL; \
+			vm->stack[vm->sptr++] = arr_id; \
+			break; \
+		} \
+		arr->array = malloc(sizeof(struct l2_vm_array) + count * sizeof(l2_word)); \
+		arr->array->len = count; \
+		arr->array->size = count; \
+		for (l2_word i = 0; i < count; ++i) { \
+			arr->array->data[count - 1 - i] = vm->stack[--vm->sptr]; \
+		} \
+		vm->stack[vm->sptr++] = arr_id;
+	case L2_OP_ALLOC_ARRAY_U4: { X(read_u4le); } break;
+	case L2_OP_ALLOC_ARRAY_U1: { X(read_u1le); } break;
+#undef X
 
 	case L2_OP_ALLOC_NAMESPACE:
 		word = alloc_val(vm);
@@ -553,50 +557,51 @@ void l2_vm_step(struct l2_vm *vm) {
 		vm->sptr += 1;
 		break;
 
-	case L2_OP_ALLOC_FUNCTION_U4:
-		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_FUNCTION;
-		vm->values[word].func.pos = read_u4le(vm);
-		vm->values[word].func.ns = vm->fstack[vm->fsptr - 1].ns;
-		vm->stack[vm->sptr] = word;
+#define X(read) \
+		word = alloc_val(vm); \
+		vm->values[word].flags = L2_VAL_TYPE_FUNCTION; \
+		vm->values[word].func.pos = read(vm); \
+		vm->values[word].func.ns = vm->fstack[vm->fsptr - 1].ns; \
+		vm->stack[vm->sptr] = word; \
 		vm->sptr += 1;
-		break;
+	case L2_OP_ALLOC_FUNCTION_U4: { X(read_u4le); } break;
+	case L2_OP_ALLOC_FUNCTION_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_NAMESPACE_SET_U4:
-		{
-			l2_word key = read_u4le(vm);
-			l2_word val = vm->stack[vm->sptr - 1];
-			l2_word ns = vm->stack[vm->sptr - 2];
-			l2_vm_namespace_set(&vm->values[ns], key, val);
-		}
-		break;
+#define X(read) \
+		l2_word key = read(vm); \
+		l2_word val = vm->stack[vm->sptr - 1]; \
+		l2_word ns = vm->stack[vm->sptr - 2]; \
+		l2_vm_namespace_set(&vm->values[ns], key, val);
+	case L2_OP_NAMESPACE_SET_U4: { X(read_u4le); } break;
+	case L2_OP_NAMESPACE_SET_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_NAMESPACE_LOOKUP_U4:
-		{
-			l2_word key = read_u4le(vm);
-			l2_word ns = vm->stack[--vm->sptr];
-			vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, &vm->values[ns], key);
-		}
-		break;
+#define X(read) \
+		l2_word key = read(vm); \
+		l2_word ns = vm->stack[--vm->sptr]; \
+		vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, &vm->values[ns], key);
+	case L2_OP_NAMESPACE_LOOKUP_U4: { X(read_u4le); } break;
+	case L2_OP_NAMESPACE_LOOKUP_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_ARRAY_LOOKUP_U4:
-		{
-			l2_word key = read_u4le(vm);
-			l2_word arr = vm->stack[--vm->sptr];
-			// TODO: Error if out of bounds or incorrect type
-			vm->stack[vm->sptr++] = vm->values[arr].array->data[key];
-		}
-		break;
+#define X(read) \
+		l2_word key = read(vm); \
+		l2_word arr = vm->stack[--vm->sptr]; \
+		/* TODO: Error if out of bounds or incorrect type */ \
+		vm->stack[vm->sptr++] = vm->values[arr].array->data[key];
+	case L2_OP_ARRAY_LOOKUP_U4: { X(read_u4le); } break;
+	case L2_OP_ARRAY_LOOKUP_U1: { X(read_u1le); } break;
+#undef X
 
-	case L2_OP_ARRAY_SET:
-		{
-			l2_word key = vm->ops[vm->iptr++];
-			l2_word val = vm->stack[vm->sptr - 1];
-			l2_word arr = vm->stack[vm->sptr - 2];
-			// TODO: Error if out of bounds or incorrect type
-			vm->values[arr].array->data[key] = val;
-		}
-		break;
+#define X(read) \
+		l2_word key = read(vm); \
+		l2_word val = vm->stack[vm->sptr - 1]; \
+		l2_word arr = vm->stack[vm->sptr - 2]; \
+		/* TODO: Error if out of bounds or incorrect type */ \
+		vm->values[arr].array->data[key] = val;
+	case L2_OP_ARRAY_SET_U4: { X(read_u4le); } break;
+	case L2_OP_ARRAY_SET_U1: { X(read_u1le); } break;
 
 	case L2_OP_DYNAMIC_LOOKUP:
 		{

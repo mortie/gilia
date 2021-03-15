@@ -15,6 +15,10 @@ static l2_word read_u4le(unsigned char *ops, size_t *ptr) {
 	return ret;
 }
 
+static l2_word read_u1le(unsigned char *ops, size_t *ptr) {
+	return ops[(*ptr)++];
+}
+
 static double read_d8le(unsigned char *ops, size_t *ptr) {
 	unsigned char *data = &ops[*ptr];
 	uint64_t integer = 0 |
@@ -169,6 +173,9 @@ void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 	case L2_OP_FUNC_CALL_U4:
 		printf("FUNC_CALL %08x\n", read_u4le(ops, ptr));
 		return;
+	case L2_OP_FUNC_CALL_U1:
+		printf("FUNC_CALL %02x\n", read_u1le(ops, ptr));
+		return;
 
 	case L2_OP_FUNC_CALL_INFIX:
 		printf("FUNC_CALL_INFIX\n");
@@ -177,17 +184,29 @@ void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 	case L2_OP_RJMP_U4:
 		printf("RJMP %08x\n", read_u4le(ops, ptr));
 		return;
+	case L2_OP_RJMP_U1:
+		printf("RJMP %02x\n", read_u1le(ops, ptr));
+		return;
 
 	case L2_OP_STACK_FRAME_LOOKUP_U4:
 		printf("STACK_FRAME_LOOKUP %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_STACK_FRAME_LOOKUP_U1:
+		printf("STACK_FRAME_LOOKUP %02x\n", read_u1le(ops, ptr));
 		return;
 
 	case L2_OP_STACK_FRAME_SET_U4:
 		printf("STACK_FRAME_SET %08x\n", read_u4le(ops, ptr));
 		return;
+	case L2_OP_STACK_FRAME_SET_U1:
+		printf("STACK_FRAME_SET %02x\n", read_u1le(ops, ptr));
+		return;
 
 	case L2_OP_STACK_FRAME_REPLACE_U4:
 		printf("STACK_FRAME_REPLACE %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_STACK_FRAME_REPLACE_U1:
+		printf("STACK_FRAME_REPLACE %02x\n", read_u1le(ops, ptr));
 		return;
 
 	case L2_OP_RET:
@@ -201,6 +220,9 @@ void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 	case L2_OP_ALLOC_ATOM_U4:
 		printf("ALLOC_ATOM %08x\n", read_u4le(ops, ptr));
 		return;
+	case L2_OP_ALLOC_ATOM_U1:
+		printf("ALLOC_ATOM %02x\n", read_u1le(ops, ptr));
+		return;
 
 	case L2_OP_ALLOC_REAL_D8:
 		printf("ALLOC_REAL %f\n", read_d8le(ops, ptr));
@@ -213,9 +235,19 @@ void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 			printf("ALLOC_BUFFER_STATIC %08x %08x\n", w1, w2);
 		}
 		return;
+	case L2_OP_ALLOC_BUFFER_STATIC_U1:
+		{
+			l2_word w1 = read_u1le(ops, ptr);
+			l2_word w2 = read_u1le(ops, ptr);;
+			printf("ALLOC_BUFFER_STATIC %02x %02x\n", w1, w2);
+		}
+		return;
 
 	case L2_OP_ALLOC_ARRAY_U4:
-		printf("ALLOC_ARRAY_U4 %08x\n", read_u4le(ops, ptr));
+		printf("ALLOC_ARRAY %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_ALLOC_ARRAY_U1:
+		printf("ALLOC_ARRAY %02x\n", read_u1le(ops, ptr));
 		return;
 
 	case L2_OP_ALLOC_NAMESPACE:
@@ -223,23 +255,38 @@ void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 		return;
 
 	case L2_OP_ALLOC_FUNCTION_U4:
-		printf("ALLOC_FUNCTION_U4 %08x\n", read_u4le(ops, ptr));
+		printf("ALLOC_FUNCTION %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_ALLOC_FUNCTION_U1:
+		printf("ALLOC_FUNCTION %02x\n", read_u1le(ops, ptr));
 		return;
 
 	case L2_OP_NAMESPACE_SET_U4:
-		printf("NAMESPACE_SET_U4 %08x\n", read_u4le(ops, ptr));
+		printf("NAMESPACE_SET %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_NAMESPACE_SET_U1:
+		printf("NAMESPACE_SET %02x\n", read_u1le(ops, ptr));
 		return;
 
 	case L2_OP_NAMESPACE_LOOKUP_U4:
-		printf("NAMESPACE_LOOKUP_U4 %08x\n", read_u4le(ops, ptr));
+		printf("NAMESPACE_LOOKUP %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_NAMESPACE_LOOKUP_U1:
+		printf("NAMESPACE_LOOKUP %02x\n", read_u1le(ops, ptr));
 		return;
 
 	case L2_OP_ARRAY_LOOKUP_U4:
-		printf("ARRAY_LOOKUP_U4 %08x\n", read_u4le(ops, ptr));
+		printf("ARRAY_LOOKUP %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_ARRAY_LOOKUP_U1:
+		printf("ARRAY_LOOKUP %02x\n", read_u1le(ops, ptr));
 		return;
 
-	case L2_OP_ARRAY_SET:
+	case L2_OP_ARRAY_SET_U4:
 		printf("ARRAY_SET %08x\n", read_u4le(ops, ptr));
+		return;
+	case L2_OP_ARRAY_SET_U1:
+		printf("ARRAY_SET %02x\n", read_u1le(ops, ptr));
 		return;
 
 	case L2_OP_DYNAMIC_LOOKUP:
