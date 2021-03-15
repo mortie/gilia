@@ -93,16 +93,20 @@ static void repl() {
 #ifdef USE_READLINE
 		char *rline = readline("> ");
 		if (rline == NULL) goto out;
-		if (rline[0] == '\0') continue;
+		if (rline[0] == '\0') goto next;
 		add_history(rline);
 		snprintf(line, sizeof(line), "print (%s)", rline);
-		free(rline);
 #else
 		char rline[4096];
 		if (fgets(rline, sizeof(rline), stdin) == NULL) goto out;
-		if (rline[0] == '\n' && rline[1] == '\0') continue;
+		if (rline[0] == '\n' && rline[1] == '\0') goto next;
 		snprintf(line, sizeof(line), "print (%s)", rline);
 #endif
+
+		if (strncmp(rline, "\\state", strlen("\\state")) == 0) {
+			l2_vm_print_state(&vm);
+			goto next;
+		}
 
 		r.idx = 0;
 		r.len = strlen(line);
@@ -129,6 +133,11 @@ static void repl() {
 
 			l2_vm_gc(&vm);
 		}
+
+next:
+#ifdef USE_READLINE
+		free(rline);
+#endif
 	}
 
 out:
