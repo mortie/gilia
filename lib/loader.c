@@ -52,7 +52,6 @@ int l2_bc_load(FILE *inf, struct l2_io_writer *w) {
 		return -1;
 	}
 
-	// Must be divisible by 4
 	unsigned char buffer[4096];
 
 	while (1) {
