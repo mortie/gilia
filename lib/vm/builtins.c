@@ -166,7 +166,7 @@ l2_word l2_builtin_div(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 
 l2_word l2_builtin_eq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	if (argc < 2) {
-		return vm->ktrue;
+		return l2_vm_error(vm, "Expected at least 2 arguments");
 	}
 
 	for (l2_word i = 1; i < argc; ++i) {
@@ -217,6 +217,33 @@ l2_word l2_builtin_neq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 		return ret_id;
 	}
 }
+
+#define X(name, op) \
+l2_word name(struct l2_vm *vm, l2_word argc, l2_word *argv) { \
+	if (argc < 2) { \
+		return l2_vm_error(vm, "Expected at least 2 arguments"); \
+	} \
+	struct l2_vm_value *lhs = &vm->values[argv[0]]; \
+	if (l2_vm_value_type(lhs) != L2_VAL_TYPE_REAL) { \
+		return l2_vm_type_error(vm, lhs); \
+	} \
+	for (l2_word i = 1; i < argc; ++i) { \
+		struct l2_vm_value *rhs = &vm->values[argv[i]]; \
+		if (l2_vm_value_type(rhs) != L2_VAL_TYPE_REAL) { \
+			return l2_vm_type_error(vm, rhs); \
+		} \
+		if (!(lhs->real op rhs->real)) { \
+			return vm->kfalse; \
+		} \
+		lhs = rhs; \
+	} \
+	return vm->ktrue; \
+}
+X(l2_builtin_lt, <)
+X(l2_builtin_lteq, <=)
+X(l2_builtin_gt, >)
+X(l2_builtin_gteq, >=)
+#undef X
 
 l2_word l2_builtin_print(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	for (size_t i = 0; i < argc; ++i) {
