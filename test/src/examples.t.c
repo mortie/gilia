@@ -88,7 +88,7 @@ static void check_impl(const char *name) {
 		free(bytecode.mem);
 		fclose(input.f);
 		error_message = err.message;
-		snow_fail("%s: %s", example_path, err.message);
+		snow_fail("%s:%i:%i: %s", example_path, err.line, err.ch, err.message);
 	}
 
 	l2_gen_free(&gen);
