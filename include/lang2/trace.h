@@ -16,7 +16,7 @@ extern int l2_trace_depth;
 #ifdef __GNUC__
 #define l2_trace_scope(name) \
 	l2_trace_push(name); \
-	__attribute__((cleanup(l2_trace_cleanup))) int l2_trace_scope
+	__attribute__((unused,cleanup(l2_trace_cleanup))) int l2_trace_scope
 #define l2_trace_func() l2_trace_scope(__func__)
 #else
 #define l2_trace_scope(name) l2_trace(name)

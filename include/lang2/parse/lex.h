@@ -4,6 +4,7 @@
 #include "../io.h"
 
 enum l2_token_kind {
+	L2_TOK_OPEN_PAREN_NS,
 	L2_TOK_OPEN_PAREN,
 	L2_TOK_CLOSE_PAREN,
 	L2_TOK_OPEN_BRACE,

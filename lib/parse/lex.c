@@ -30,6 +30,8 @@ static void log_token(struct l2_token *tok) {
 
 const char *l2_token_kind_name(enum l2_token_kind kind) {
 	switch (kind) {
+	case L2_TOK_OPEN_PAREN_NS:
+		return "open-paren-no-space";
 	case L2_TOK_OPEN_PAREN:
 		return "open-paren";
 	case L2_TOK_CLOSE_PAREN:
@@ -137,25 +139,27 @@ static int is_ident(int ch) {
 		ch != ':' && ch != ';';
 }
 
-static int skip_whitespace(struct l2_lexer *lexer) {
-	int nl = 0;
+static void skip_whitespace(struct l2_lexer *lexer, int *nl, int *skipped) {
 	while (1) {
-		while (is_whitespace(peek_ch(lexer))) {
-			int ch = read_ch(lexer);
-			if (ch == '\n') {
-				nl = 1;
-			}
+		if (is_whitespace(peek_ch(lexer))) {
+			*skipped = 1;
+			do {
+				int ch = read_ch(lexer);
+				if (ch == '\n') {
+					*nl = 1;
+				}
+			} while (is_whitespace(peek_ch(lexer)));
 		}
 
 		if (peek_ch(lexer) == '#') {
-			nl = 1;
+			*nl = 1;
 			while (read_ch(lexer) != '\n');
 		} else {
 			break;
 		}
-	}
 
-	return nl;
+		*skipped = 1;
+	}
 }
 
 static int read_integer(struct l2_lexer *lexer, long long *num, long long *base, char **err) {
@@ -464,7 +468,8 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 	tok->line = lexer->line;
 	tok->ch = lexer->ch;
-	int nl = skip_whitespace(lexer);
+	int nl = 0, skipped_whitespace = 0;
+	skip_whitespace(lexer, &nl, &skipped_whitespace);
 
 	if (nl && lexer->parens == 0) {
 		tok->v.flags = L2_TOK_EOL;
@@ -475,7 +480,11 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 	switch (ch) {
 	case '(':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_OPEN_PAREN;
+		if (skipped_whitespace) {
+			tok->v.flags = L2_TOK_OPEN_PAREN;
+		} else {
+			tok->v.flags =L2_TOK_OPEN_PAREN_NS;
+		}
 		lexer->parens += 1;
 		break;
 
@@ -509,7 +518,7 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		tok->v.flags = L2_TOK_EOL;
 		do {
 			read_ch(lexer);
-			skip_whitespace(lexer);
+			skip_whitespace(lexer, &nl, &skipped_whitespace);
 		} while (peek_ch(lexer) == ';');
 		break;
 

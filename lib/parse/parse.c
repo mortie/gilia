@@ -258,7 +258,11 @@ static int parse_arg_level_expression_base(
 		l2_lexer_consume(lexer); // ')'
 	} else if (l2_token_get_kind(tok) == L2_TOK_IDENT) {
 		l2_trace_scope("ident");
-		l2_trace("ident '%s'", tok->v.str);
+		if (l2_token_is_small(tok)) {
+			l2_trace("ident '%s'", tok->v.strbuf);
+		} else {
+			l2_trace("ident '%s'", tok->v.str);
+		}
 		struct l2_token_value ident = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // ident
 
@@ -316,6 +320,56 @@ static int parse_arg_level_expression_base(
 	return 0;
 }
 
+static int parse_func_call_after_base(
+		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err,
+		size_t infix_start) {
+	l2_trace_scope("func call after base");
+
+	size_t argc = 0;
+
+	do {
+		if (argc >= infix_start && tok_is_infix(l2_lexer_peek(lexer, 1))) {
+			do {
+				// We already have one value (the lhs) on the stack,
+				// so we need to parse the operator, then the rhs
+
+				// Operator
+				if (parse_arg_level_expression(lexer, gen, err) < 0) {
+					return -1;
+				}
+
+				// RHS
+				if (parse_arg_level_expression(lexer, gen, err) < 0) {
+					return -1;
+				}
+
+				l2_gen_func_call_infix(gen);
+			} while (tok_is_infix(l2_lexer_peek(lexer, 1)));
+
+			// If this was the "first argument", this wasn't a function call
+			// after all, it was just a (series of?) infix calls.
+			if (argc == 0) {
+				return 0;
+			}
+
+			// Don't increment argc here, because after an infix, we have
+			// neither added nor removed an arguemnt, just transformed one
+		} else {
+			l2_trace_scope("func call param");
+			if (parse_arg_level_expression(lexer, gen, err) < 0) {
+				return -1;
+			}
+
+			argc += 1;
+		}
+	} while (!tok_is_end(l2_lexer_peek(lexer, 1)));
+
+	// The 'argc' previous expressions were arguments, the one before that was the function
+	l2_gen_func_call(gen, argc);
+
+	return 0;
+}
+
 static int parse_arg_level_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
 	l2_trace_scope("arg level expression");
@@ -328,20 +382,36 @@ static int parse_arg_level_expression(
 		struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
 		struct l2_token *tok3 = l2_lexer_peek(lexer, 3);
 
-		if (
-				l2_token_get_kind(tok) == L2_TOK_OPEN_PAREN &&
-				l2_token_get_kind(tok2) == L2_TOK_CLOSE_PAREN) {
-			l2_trace_scope("niladic func call");
+		if (l2_token_get_kind(tok) == L2_TOK_OPEN_PAREN_NS) {
+			l2_trace_scope("parenthesized func call");
 			l2_lexer_consume(lexer); // '('
-			l2_lexer_consume(lexer); // ')'
 
-			l2_gen_func_call(gen, 0);
+			if (l2_token_get_kind(l2_lexer_peek(lexer, 1)) == L2_TOK_CLOSE_PAREN) {
+				l2_lexer_consume(lexer); // ')'
+				l2_gen_func_call(gen, 0);
+			} else {
+				if (parse_func_call_after_base(lexer, gen, err, 1) < 0) {
+					return -1;
+				}
+
+				tok = l2_lexer_peek(lexer, 1);
+				if (l2_token_get_kind(tok) != L2_TOK_CLOSE_PAREN) {
+					l2_parse_err(err, tok, "Expected ')', got %s",
+							l2_token_get_name(tok));
+					return -1;
+				}
+				l2_lexer_consume(lexer); // ')'
+			}
 		} else if (
 				l2_token_get_kind(tok) == L2_TOK_PERIOD &&
 				l2_token_get_kind(tok2) == L2_TOK_IDENT &&
 				l2_token_get_kind(tok3) == L2_TOK_EQUALS) {
 			l2_trace_scope("namespace assign");
-			l2_trace("ident '%s'", tok2->v.str);
+			if (l2_token_is_small(tok2)) {
+				l2_trace("ident '%s'", tok2->v.strbuf);
+			} else {
+				l2_trace("ident '%s'", tok2->v.str);
+			}
 			struct l2_token_value ident = l2_token_extract_val(tok2);
 			l2_lexer_consume(lexer); // '.'
 			l2_lexer_consume(lexer); // ident
@@ -362,7 +432,11 @@ static int parse_arg_level_expression(
 				l2_token_get_kind(tok) == L2_TOK_PERIOD &&
 				l2_token_get_kind(tok2) == L2_TOK_IDENT) {
 			l2_trace_scope("namespace lookup");
-			l2_trace("ident '%s'", tok2->v.str);
+			if (l2_token_is_small(tok2)) {
+				l2_trace("ident '%s'", tok2->v.strbuf);
+			} else {
+				l2_trace("ident '%s'", tok2->v.str);
+			}
 			struct l2_token_value ident = l2_token_extract_val(tok2);
 			l2_lexer_consume(lexer); // '.'
 			l2_lexer_consume(lexer); // ident
@@ -403,8 +477,9 @@ static int parse_arg_level_expression(
 				return -1;
 			}
 
-			if (l2_token_get_kind(l2_lexer_peek(lexer, 1)) != L2_TOK_CLOSE_PAREN) {
-				l2_parse_err(err, tok, "Expected '(', got %s",
+			tok = l2_lexer_peek(lexer, 1);
+			if (l2_token_get_kind(tok) != L2_TOK_CLOSE_PAREN) {
+				l2_parse_err(err, tok, "Expected ')', got %s",
 						l2_token_get_name(tok));
 				return -1;
 			}
@@ -428,56 +503,6 @@ static int parse_arg_level_expression(
 	return 0;
 }
 
-static int parse_func_call_after_base(
-		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
-	l2_trace_scope("func call after base");
-
-	size_t argc = 0;
-
-	do {
-		if (tok_is_infix(l2_lexer_peek(lexer, 1))) {
-			do {
-				// We already have one value (the lhs) on the stack,
-				// so we need to parse the operator, then the rhs
-
-				// Operator
-				if (parse_arg_level_expression(lexer, gen, err) < 0) {
-					return -1;
-				}
-
-				// RHS
-				if (parse_arg_level_expression(lexer, gen, err) < 0) {
-					return -1;
-				}
-
-				l2_gen_func_call_infix(gen);
-			} while (tok_is_infix(l2_lexer_peek(lexer, 1)));
-
-			// If this was the "first argument", this wasn't a function call
-			// after all, it was just a (series of?) infix calls.
-			if (argc == 0) {
-				return 0;
-			}
-
-			// Don't increment argc here, because after an infix, we have
-			// neither added nor removed an arguemnt, just transformed one
-		} else {
-			l2_trace_scope("func call param");
-			if (parse_arg_level_expression(lexer, gen, err) < 0) {
-				return -1;
-			}
-
-			argc += 1;
-		}
-
-	} while (!tok_is_end(l2_lexer_peek(lexer, 1)));
-
-	// The 'argc' previous expressions were arguments, the one before that was the function
-	l2_gen_func_call(gen, argc);
-
-	return 0;
-}
-
 static int parse_expression(
 		struct l2_lexer *lexer, struct l2_generator *gen, struct l2_parse_error *err) {
 	l2_trace_scope("expression");
@@ -488,7 +513,11 @@ static int parse_expression(
 			l2_token_get_kind(tok) == L2_TOK_IDENT &&
 			l2_token_get_kind(tok2) == L2_TOK_COLON_EQ) {
 		l2_trace_scope("assign expression");
-		l2_trace("ident '%s'", tok->v.str);
+		if (l2_token_is_small(tok)) {
+			l2_trace("ident '%s'", tok->v.strbuf);
+		} else {
+			l2_trace("ident '%s'", tok->v.str);
+		}
 		struct l2_token_value ident = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // ident
 		l2_lexer_consume(lexer); // :=
@@ -507,7 +536,11 @@ static int parse_expression(
 			l2_token_get_kind(tok) == L2_TOK_IDENT &&
 			l2_token_get_kind(tok2) == L2_TOK_EQUALS) {
 		l2_trace_scope("replacement assign expression");
-		l2_trace("ident '%s'", tok->v.str);
+		if (l2_token_is_small(tok)) {
+			l2_trace("ident '%s'", tok->v.strbuf);
+		} else {
+			l2_trace("ident '%s'", tok->v.str);
+		}
 		struct l2_token_value ident = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // ident
 		l2_lexer_consume(lexer); // =
@@ -528,7 +561,7 @@ static int parse_expression(
 		}
 
 		if (!tok_is_end(l2_lexer_peek(lexer, 1))) {
-			if (parse_func_call_after_base(lexer, gen, err) < 0) {
+			if (parse_func_call_after_base(lexer, gen, err, 0) < 0) {
 				return -1;
 			}
 		}
