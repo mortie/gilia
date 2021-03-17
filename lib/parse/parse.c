@@ -468,7 +468,7 @@ static int parse_arg_level_expression(
 			l2_gen_array_lookup(gen, number);
 		} else if (
 				l2_token_get_kind(tok) == L2_TOK_PERIOD &&
-				l2_token_get_kind(tok2) == L2_TOK_OPEN_PAREN) {
+				l2_token_get_kind(tok2) == L2_TOK_OPEN_PAREN_NS) {
 			l2_trace_scope("dynamic lookup");
 			l2_lexer_consume(lexer); // '.'
 			l2_lexer_consume(lexer); // '('
