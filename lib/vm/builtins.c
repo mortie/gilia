@@ -66,7 +66,9 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 
 l2_word l2_builtin_add(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	if (argc < 1) {
-		return 0;
+		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+		vm->values[id].real = 0;
+		return id;
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
@@ -91,7 +93,9 @@ l2_word l2_builtin_add(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 
 l2_word l2_builtin_sub(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	if (argc < 1) {
-		return 0;
+		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+		vm->values[id].real = 0;
+		return id;
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
@@ -116,7 +120,9 @@ l2_word l2_builtin_sub(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 
 l2_word l2_builtin_mul(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	if (argc < 1) {
-		return 0;
+		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+		vm->values[id].real = 1;
+		return id;
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
@@ -141,7 +147,9 @@ l2_word l2_builtin_mul(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 
 l2_word l2_builtin_div(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	if (argc < 1) {
-		return 0;
+		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
+		vm->values[id].real = 1;
+		return id;
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
@@ -166,7 +174,7 @@ l2_word l2_builtin_div(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 
 l2_word l2_builtin_eq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	if (argc < 2) {
-		return l2_vm_error(vm, "Expected at least 2 arguments");
+		return vm->ktrue;
 	}
 
 	for (l2_word i = 1; i < argc; ++i) {
@@ -221,7 +229,7 @@ l2_word l2_builtin_neq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 #define X(name, op) \
 l2_word name(struct l2_vm *vm, l2_word argc, l2_word *argv) { \
 	if (argc < 2) { \
-		return l2_vm_error(vm, "Expected at least 2 arguments"); \
+		return vm->ktrue; \
 	} \
 	struct l2_vm_value *lhs = &vm->values[argv[0]]; \
 	if (l2_vm_value_type(lhs) != L2_VAL_TYPE_REAL) { \
