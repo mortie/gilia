@@ -110,7 +110,8 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 		break;
 
 	case L2_VAL_TYPE_CONTINUATION:
-		printf("CONTINUATION, call %u, arg %u\n", val->cont.call, val->cont.arg);
+		printf("CONTINUATION, call %u, cont %jx\n",
+				val->extra.cont_call, (uintmax_t)val->cont);
 		break;
 	}
 }
@@ -125,7 +126,10 @@ void l2_vm_print_state(struct l2_vm *vm) {
 }
 
 void l2_vm_print_heap(struct l2_vm *vm) {
-	for (l2_word i = 0; i < vm->valuessize; ++i) {
+	printf("  Root: ");
+	l2_vm_print_val(&vm->values[2]);
+	printf("  0-%u: (builtins)\n", vm->gc_start - 1);
+	for (l2_word i = vm->gc_start; i < vm->valuessize; ++i) {
 		if (l2_bitset_get(&vm->valueset, i)) {
 			printf("  %u: ", i);
 			l2_vm_print_val(&vm->values[i]);
@@ -302,14 +306,7 @@ void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 		return;
 	}
 
-	l2_word word = (l2_word)opcode;
-	char bytes[sizeof(word)];
-	memcpy(&bytes, &word, sizeof(word));
-	printf("?");
-	for (size_t i = 0; i < sizeof(bytes); ++i) {
-		printf(" %02x", bytes[i]);
-	}
-	printf("\n");
+	printf("? %02x\n", opcode);
 }
 
 void l2_vm_print_bytecode(unsigned char *ops, size_t opcount) {

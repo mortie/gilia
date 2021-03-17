@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
 	fclose(inf);
 
 	if (do_print_bytecode) {
-		l2_vm_print_bytecode(bytecode_writer.mem, bytecode_writer.len / sizeof(l2_word));
+		l2_vm_print_bytecode(bytecode_writer.mem, bytecode_writer.len);
 	}
 
 	if (do_serialize_bytecode) {
