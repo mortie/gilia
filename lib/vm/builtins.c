@@ -312,16 +312,57 @@ l2_word l2_builtin_if(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 			cond->atom == vm->values[vm->ktrue].atom) {
 		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
 		struct l2_vm_value *ret = &vm->values[ret_id];
-		ret->cont.call = argv[1];
-		ret->cont.arg = 0;
+		ret->extra.cont_call = argv[1];
 		return ret_id;
 	} else if (argc == 3) {
 		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
 		struct l2_vm_value *ret = &vm->values[ret_id];
-		ret->cont.call = argv[2];
-		ret->cont.arg = 0;
+		ret->extra.cont_call = argv[2];
 		return ret_id;
 	} else {
 		return 0;
 	}
+}
+
+struct loop_context {
+	struct l2_vm_contcontext base;
+	l2_word cond;
+};
+
+static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
+	struct l2_vm_value *ret = &vm->values[retval];
+	if (
+			l2_vm_value_type(ret) == L2_VAL_TYPE_ATOM &&
+			ret->atom == vm->values[vm->ktrue].atom) {
+		return cont;
+	}
+
+	return retval;
+}
+
+static void loop_marker(
+		struct l2_vm *vm, void *data, void (*mark)(struct l2_vm *vm, l2_word id)) {
+	struct loop_context *ctx = data;
+	mark(vm, ctx->cond);
+}
+
+l2_word l2_builtin_loop(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	if (argc != 1 && argc != 2) {
+		return l2_vm_error(vm, "Expected 1 or 2 arguments");
+	}
+
+	struct loop_context *ctx = malloc(sizeof(*ctx));
+	if (ctx == NULL) {
+		return l2_vm_error(vm, "Allocation failure");
+	}
+
+	ctx->base.callback = loop_callback;
+	ctx->base.marker = loop_marker;
+	ctx->cond = argv[0];
+
+	l2_word cont_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
+	struct l2_vm_value *cont = &vm->values[cont_id];
+	cont->extra.cont_call = argv[0];
+	cont->cont = &ctx->base;
+	return cont_id;
 }

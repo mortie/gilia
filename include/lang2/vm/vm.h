@@ -10,6 +10,9 @@
 struct l2_vm;
 struct l2_vm_array;
 typedef l2_word (*l2_vm_cfunction)(struct l2_vm *vm, l2_word argc, l2_word *argv);
+typedef l2_word (*l2_vm_contcallback)(struct l2_vm *vm, l2_word retval, l2_word cont);
+typedef void (*l2_vm_gcmarker)(
+		struct l2_vm *vm, void *data, void (*mark)(struct l2_vm *vm, l2_word id));
 
 enum l2_value_type {
 	L2_VAL_TYPE_NONE,
@@ -29,6 +32,12 @@ const char *l2_value_type_name(enum l2_value_type typ);
 enum l2_value_flags {
 	L2_VAL_MARKED = 1 << 6,
 	L2_VAL_CONST = 1 << 7,
+	L2_VAL_CONT_CALLBACK = 1 << 7, // Re-use the const bit
+};
+
+struct l2_vm_contcontext {
+	l2_vm_contcallback callback;
+	l2_vm_gcmarker marker;
 };
 
 // The smallest size an l2_vm_value can be is 16 bytes on common platforms.
@@ -39,6 +48,7 @@ struct l2_vm_value {
 	// Byte 0: 4 bytes
 	union {
 		l2_word ns_parent;
+		l2_word cont_call;
 	} extra;
 
 	// Byte 4: 1 byte, 3 bytes padding
@@ -56,10 +66,7 @@ struct l2_vm_value {
 			l2_word ns;
 		} func;
 		l2_vm_cfunction cfunc;
-		struct {
-			l2_word call;
-			l2_word arg;
-		} cont;
+		struct l2_vm_contcontext *cont;
 		char *error;
 	};
 };

@@ -20,4 +20,5 @@ X(">=", l2_builtin_gteq)
 X("print", l2_builtin_print)
 X("len", l2_builtin_len)
 X("if", l2_builtin_if)
+X("loop", l2_builtin_loop)
 #endif

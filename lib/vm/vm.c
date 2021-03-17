@@ -49,6 +49,10 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 		gc_mark_namespace(vm, val);
 	} else if (typ == L2_VAL_TYPE_FUNCTION) {
 		gc_mark(vm, val->func.ns);
+	} else if (
+			typ == L2_VAL_TYPE_CONTINUATION &&
+			val->cont != NULL && val->cont->marker != NULL) {
+		val->cont->marker(vm, val->cont, gc_mark);
 	}
 }
 
@@ -96,6 +100,8 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 		free(val->ns);
 	} else if (typ == L2_VAL_TYPE_ERROR) {
 		free(val->error);
+	} else if (typ == L2_VAL_TYPE_CONTINUATION) {
+		free(val->cont);
 	}
 }
 
@@ -178,6 +184,7 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->values[builtins].flags = L2_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = builtins;
 	vm->fstack[vm->fsptr].retptr = 0;
+	vm->fstack[vm->fsptr].sptr = 0;
 	vm->fsptr += 1;
 
 	// Need to allocate a root namespace
@@ -187,6 +194,7 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->values[root].flags = L2_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = root;
 	vm->fstack[vm->fsptr].retptr = 0;
+	vm->fstack[vm->fsptr].sptr = 0;
 	vm->fsptr += 1;
 
 	// Define a C function variable for every builtin
@@ -307,31 +315,38 @@ static void call_func(
 		// make the call stack depth unbounded
 		vm->stack[vm->sptr++] = func->cfunc(vm, argc, argv);
 		while (1) {
-			struct l2_vm_value *val = &vm->values[vm->stack[vm->sptr - 1]];
-			if (l2_vm_value_type(val) != L2_VAL_TYPE_CONTINUATION) {
-				break;
-			}
-
-			l2_word cont_id = val->cont.call;
+			l2_word cont_id = vm->stack[vm->sptr - 1];
 			struct l2_vm_value *cont = &vm->values[cont_id];
-
-			l2_word new_argc;
-			l2_word new_argv[1];
-			if (val->cont.arg == 0) {
-				new_argc = 0;
-			} else {
-				new_argc = 1;
-				new_argv[0] = val->cont.arg;
+			if (l2_vm_value_type(cont) != L2_VAL_TYPE_CONTINUATION) {
+				break;
 			}
 
-			if (l2_vm_value_type(cont) == L2_VAL_TYPE_CFUNCTION) {
-				vm->stack[vm->sptr - 1] = cont->cfunc(vm, new_argc, new_argv);
-			} else {
+			// If there's no callback it's easy, just call the function
+			// it wants us to call
+			l2_word call_id = cont->extra.cont_call;
+			if (cont->cont == NULL) {
 				vm->sptr -= 1;
-				call_func(vm, cont_id, new_argc, new_argv);
+				call_func(vm, call_id, 0, NULL);
 				break;
+			}
+
+			struct l2_vm_value *call = &vm->values[call_id];
+
+			if (l2_vm_value_type(call) == L2_VAL_TYPE_CFUNCTION) {
+				l2_word retval = call->cfunc(vm, 0, NULL);
+				vm->stack[vm->sptr - 1] = cont->cont->callback(vm, retval, cont_id);
+			} else if (l2_vm_value_type(call) == L2_VAL_TYPE_FUNCTION) {
+				// Leave the continuation on the stack,
+				// let the L2_OP_RET code deal with it
+				cont->flags |= L2_VAL_CONT_CALLBACK;
+				call_func(vm, call_id, 0, NULL);
+				break;
+			} else {
+				l2_word err = l2_vm_type_error(vm, call);
+				vm->stack[vm->sptr - 1] = cont->cont->callback(vm, err, cont_id);
 			}
 		}
+
 		return;
 	}
 
@@ -484,8 +499,41 @@ void l2_vm_step(struct l2_vm *vm) {
 			l2_word sptr = vm->fstack[vm->fsptr - 1].sptr;
 			vm->fsptr -= 1;
 			vm->sptr = sptr;
-			vm->stack[vm->sptr++] = retval;
 			vm->iptr = retptr;
+
+			l2_word cont_id;
+			struct l2_vm_value *cont = NULL;
+			if (vm->sptr > 0) {
+				cont_id = vm->stack[vm->sptr - 1];
+				cont = &vm->values[cont_id];
+			}
+
+			int iscont =
+				cont != NULL && l2_vm_value_type(cont) == L2_VAL_TYPE_CONTINUATION;
+			int nocallback =
+				!iscont || (cont->flags & L2_VAL_CONT_CALLBACK && cont->cont == NULL);
+			if (nocallback) {
+				if (iscont) {
+					vm->stack[vm->sptr - 1] = retval;
+				} else {
+					vm->stack[vm->sptr++] = retval;
+				}
+				break;
+			}
+
+			if (cont->flags & L2_VAL_CONT_CALLBACK) {
+				retval = cont->cont->callback(vm, retval, cont_id);
+				cont_id = retval;
+				cont = &vm->values[cont_id];
+
+				if (l2_vm_value_type(cont) != L2_VAL_TYPE_CONTINUATION) {
+					vm->stack[vm->sptr - 1] = retval;
+					break;
+				}
+			}
+
+			cont->flags |= L2_VAL_CONT_CALLBACK;
+			call_func(vm, cont->extra.cont_call, 0, NULL);
 		}
 		break;
 
