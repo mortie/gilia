@@ -355,8 +355,8 @@ static void loop_marker(
 }
 
 l2_word l2_builtin_loop(struct l2_vm *vm, l2_word argc, l2_word *argv) {
-	if (argc != 1 && argc != 2) {
-		return l2_vm_error(vm, "Expected 1 or 2 arguments");
+	if (argc != 1) {
+		return l2_vm_error(vm, "Expected 1 argument");
 	}
 
 	struct loop_context *ctx = malloc(sizeof(*ctx));
