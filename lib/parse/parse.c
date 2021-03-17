@@ -165,16 +165,16 @@ static int parse_function_literal(
 		return -1;
 	}
 
-	unsigned char *ops = w.mem;
-	l2_word opcount = w.len - 5;
+	unsigned char *bc = w.mem;
+	l2_word jdist = w.len - 5;
 
 	// Write the jump distance (little endian)
-	ops[1] = (opcount >> 0) & 0xff;
-	ops[2] = (opcount >> 8) & 0xff;
-	ops[3] = (opcount >> 16) & 0xff;
-	ops[4] = (opcount >> 24) & 0xff;
+	bc[1] = (jdist >> 0) & 0xff;
+	bc[2] = (jdist >> 8) & 0xff;
+	bc[3] = (jdist >> 16) & 0xff;
+	bc[4] = (jdist >> 24) & 0xff;
 
-	l2_bufio_put_n(&gen->writer, ops, w.len);
+	l2_bufio_put_n(&gen->writer, bc, w.len);
 	free(w.mem);
 
 	l2_gen_function(gen, pos);
