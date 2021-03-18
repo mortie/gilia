@@ -304,11 +304,7 @@ l2_word l2_builtin_if(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 		return l2_vm_error(vm, "Expected 2 or 3 arguments");
 	}
 
-	struct l2_vm_value *cond = &vm->values[argv[0]];
-
-	if (
-			l2_value_get_type(cond) == L2_VAL_TYPE_ATOM &&
-			cond->atom == vm->values[vm->ktrue].atom) {
+	if (l2_vm_val_is_true(vm, argv[0])) {
 		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
 		struct l2_vm_value *ret = &vm->values[ret_id];
 		ret->extra.cont_call = argv[1];
@@ -329,10 +325,7 @@ struct loop_context {
 };
 
 static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
-	struct l2_vm_value *ret = &vm->values[retval];
-	if (
-			l2_value_get_type(ret) == L2_VAL_TYPE_ATOM &&
-			ret->atom == vm->values[vm->ktrue].atom) {
+	if (l2_vm_val_is_true(vm, retval)) {
 		return cont;
 	}
 

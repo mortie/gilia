@@ -130,4 +130,6 @@ void l2_vm_step(struct l2_vm *vm);
 void l2_vm_run(struct l2_vm *vm);
 size_t l2_vm_gc(struct l2_vm *vm);
 
+int l2_vm_val_is_true(struct l2_vm *vm, l2_word id);
+
 #endif
