@@ -58,8 +58,8 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 				return;
 			}
 
-			printf("ARRAY, len %zu\n", val->array->len);
-			for (size_t i = 0; i < val->array->len; ++i) {
+			printf("ARRAY, len %u\n", val->extra.arr_length);
+			for (size_t i = 0; i < val->extra.arr_length; ++i) {
 				printf("    %zu: %u\n", i, val->array->data[i]);
 			}
 		}
@@ -72,9 +72,9 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 				return;
 			}
 
-			printf("BUFFER, len %zu\n", val->buffer->len);
-			for (size_t i = 0; i < val->buffer->len; ++i) {
-				printf("    %zu: %c\n", i, val->buffer->data[i]);
+			printf("BUFFER, len %u\n", val->extra.buf_length);
+			for (size_t i = 0; i < val->extra.buf_length; ++i) {
+				printf("    %zu: %c\n", i, val->buffer[i]);
 			}
 		}
 		break;

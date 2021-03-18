@@ -61,7 +61,7 @@ static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val) {
 		return;
 	}
 
-	for (size_t i = 0; i < val->array->len; ++i) {
+	for (size_t i = 0; i < val->extra.arr_length; ++i) {
 		gc_mark(vm, val->array->data[i]);
 	}
 }
@@ -360,8 +360,8 @@ static void call_func(
 	vm->values[arr_id].flags = L2_VAL_TYPE_ARRAY;
 	vm->values[arr_id].array = malloc(
 			sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
+	vm->values[arr_id].extra.arr_length = argc;
 	struct l2_vm_array *arr = vm->values[arr_id].array;
-	arr->len = argc;
 	arr->size = argc;
 
 	for (l2_word i = 0; i < argc; ++i) {
@@ -564,11 +564,9 @@ void l2_vm_step(struct l2_vm *vm) {
 		l2_word length = read(vm); \
 		l2_word offset = read(vm); \
 		vm->values[word].flags = L2_VAL_TYPE_BUFFER; \
-		vm->values[word].buffer = malloc(sizeof(struct l2_vm_buffer) + length); \
-		vm->values[word].buffer->len = length; \
-		memcpy( \
-			(unsigned char *)vm->values[word].buffer + sizeof(struct l2_vm_buffer), \
-			vm->ops + offset, length); \
+		vm->values[word].buffer = length > 0 ? malloc(length) : NULL; \
+		vm->values[word].extra.buf_length = length; \
+		memcpy(vm->values[word].buffer, vm->ops + offset, length); \
 		vm->stack[vm->sptr] = word; \
 		vm->sptr += 1;
 	case L2_OP_ALLOC_BUFFER_STATIC_U4: { X(read_u4le); } break;
@@ -580,13 +578,13 @@ void l2_vm_step(struct l2_vm *vm) {
 		l2_word arr_id = alloc_val(vm); \
 		struct l2_vm_value *arr = &vm->values[arr_id]; \
 		arr->flags = L2_VAL_TYPE_ARRAY; \
+		arr->extra.arr_length = count; \
 		if (count == 0) { \
 			arr->array = NULL; \
 			vm->stack[vm->sptr++] = arr_id; \
 			break; \
 		} \
 		arr->array = malloc(sizeof(struct l2_vm_array) + count * sizeof(l2_word)); \
-		arr->array->len = count; \
 		arr->array->size = count; \
 		for (l2_word i = 0; i < count; ++i) { \
 			arr->array->data[count - 1 - i] = vm->stack[--vm->sptr]; \

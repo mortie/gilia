@@ -24,18 +24,13 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 
 		case L2_VAL_TYPE_BUFFER:
 			if (val->buffer != NULL) {
-				out->write(out, val->buffer->data, val->buffer->len);
+				out->write(out, val->buffer, val->extra.buf_length);
 			}
 			break;
 
 		case L2_VAL_TYPE_ARRAY:
-			if (val->array == NULL) {
-				out->write(out, "[]", 2);
-				break;
-			}
-
 			out->write(out, "[", 1);
-			for (size_t i = 0; i < val->array->len; ++i) {
+			for (size_t i = 0; i < val->extra.arr_length; ++i) {
 				if (i != 0) {
 					out->write(out, " ", 1);
 				}
@@ -200,11 +195,11 @@ l2_word l2_builtin_eq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 				return vm->kfalse;
 			}
 
-			if (a->buffer->len != b->buffer->len) {
+			if (a->extra.buf_length != b->extra.buf_length) {
 				return vm->kfalse;
 			}
 
-			if (memcmp(a->buffer->data, b->buffer->data, a->buffer->len) != 0) {
+			if (memcmp(a->buffer, b->buffer, a->extra.buf_length) != 0) {
 				return vm->kfalse;
 			}
 		} else {
@@ -288,15 +283,11 @@ l2_word l2_builtin_len(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 		break;
 
 	case L2_VAL_TYPE_BUFFER:
-		if (val->buffer) {
-			ret->real = val->buffer->len;
-		}
+		ret->real = val->extra.buf_length;
 		break;
 
 	case L2_VAL_TYPE_ARRAY:
-		if (val->array) {
-			ret->real = val->array->len;
-		}
+		ret->real = val->extra.arr_length;
 		break;
 
 	case L2_VAL_TYPE_NAMESPACE:

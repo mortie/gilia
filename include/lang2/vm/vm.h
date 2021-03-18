@@ -49,6 +49,8 @@ struct l2_vm_value {
 	union {
 		l2_word ns_parent;
 		l2_word cont_call;
+		l2_word buf_length;
+		l2_word arr_length;
 	} extra;
 
 	// Byte 4: 1 byte, 3 bytes padding
@@ -58,7 +60,7 @@ struct l2_vm_value {
 	union {
 		l2_word atom;
 		double real;
-		struct l2_vm_buffer *buffer;
+		char *buffer;
 		struct l2_vm_array *array;
 		struct l2_vm_namespace *ns;
 		struct {
@@ -73,13 +75,7 @@ struct l2_vm_value {
 
 #define l2_vm_value_type(val) ((enum l2_value_type)((val)->flags & 0x0f))
 
-struct l2_vm_buffer {
-	size_t len;
-	char data[];
-};
-
 struct l2_vm_array {
-	size_t len;
 	size_t size;
 	l2_word data[];
 };
