@@ -56,7 +56,7 @@ describe(eval) {
 		defer(l2_vm_free(&vm));
 		defer(l2_gen_free(&gen));
 
-		asserteq(l2_vm_value_type(var_lookup("foo")), L2_VAL_TYPE_REAL);
+		asserteq(l2_value_get_type(var_lookup("foo")), L2_VAL_TYPE_REAL);
 		asserteq(var_lookup("foo")->real, 10);
 	}
 
@@ -65,9 +65,9 @@ describe(eval) {
 		defer(l2_vm_free(&vm));
 		defer(l2_gen_free(&gen));
 
-		asserteq(l2_vm_value_type(var_lookup("foo")), L2_VAL_TYPE_REAL);
+		asserteq(l2_value_get_type(var_lookup("foo")), L2_VAL_TYPE_REAL);
 		asserteq(var_lookup("foo")->real, 10);
-		asserteq(l2_vm_value_type(var_lookup("bar")), L2_VAL_TYPE_REAL);
+		asserteq(l2_value_get_type(var_lookup("bar")), L2_VAL_TYPE_REAL);
 		asserteq(var_lookup("bar")->real, 10);
 	}
 
@@ -76,9 +76,9 @@ describe(eval) {
 		defer(l2_vm_free(&vm));
 		defer(l2_gen_free(&gen));
 
-		asserteq(l2_vm_value_type(var_lookup("foo")), L2_VAL_TYPE_BUFFER);
-		struct l2_vm_buffer *buf = var_lookup("foo")->buffer;
-		asserteq(buf->len, 11);
-		assert(strncmp(buf->data, "hello world", 11) == 0);
+		asserteq(l2_value_get_type(var_lookup("foo")), L2_VAL_TYPE_BUFFER);
+		struct l2_vm_value *buf = var_lookup("foo");
+		asserteq(buf->extra.buf_length, 11);
+		assert(strncmp(buf->buffer, "hello world", 11) == 0);
 	}
 }
