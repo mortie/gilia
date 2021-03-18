@@ -38,7 +38,7 @@ static double read_d8le(unsigned char *ops, size_t *ptr) {
 }
 
 void l2_vm_print_val(struct l2_vm_value *val) {
-	switch (l2_vm_value_type(val)) {
+	switch (l2_value_get_type(val)) {
 	case L2_VAL_TYPE_NONE:
 		printf("NONE\n");
 		break;

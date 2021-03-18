@@ -42,7 +42,7 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 
 	val->flags |= L2_VAL_MARKED;
 
-	int typ = l2_vm_value_type(val);
+	int typ = l2_value_get_type(val);
 	if (typ == L2_VAL_TYPE_ARRAY) {
 		gc_mark_array(vm, val);
 	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
@@ -91,7 +91,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 
 	// Don't need to do anything more; the next round of GC will free
 	// whichever values were only referenced by the array
-	int typ = l2_vm_value_type(val);
+	int typ = l2_value_get_type(val);
 	if (typ == L2_VAL_TYPE_ARRAY) {
 		free(val->array);
 	} else if (typ == L2_VAL_TYPE_BUFFER) {
@@ -261,7 +261,7 @@ l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...) {
 }
 
 l2_word l2_vm_type_error(struct l2_vm *vm, struct l2_vm_value *val) {
-	return l2_vm_error(vm, "Unexpected type %s", l2_value_type_name(l2_vm_value_type(val)));
+	return l2_vm_error(vm, "Unexpected type %s", l2_value_type_name(l2_value_get_type(val)));
 }
 
 void l2_vm_free(struct l2_vm *vm) {
@@ -307,7 +307,7 @@ static void call_func(
 	l2_word stack_base = vm->sptr;
 
 	struct l2_vm_value *func = &vm->values[func_id];
-	enum l2_value_type typ = l2_vm_value_type(func);
+	enum l2_value_type typ = l2_value_get_type(func);
 
 	// C functions are called differently from language functions
 	if (typ == L2_VAL_TYPE_CFUNCTION) {
@@ -317,7 +317,7 @@ static void call_func(
 		while (1) {
 			l2_word cont_id = vm->stack[vm->sptr - 1];
 			struct l2_vm_value *cont = &vm->values[cont_id];
-			if (l2_vm_value_type(cont) != L2_VAL_TYPE_CONTINUATION) {
+			if (l2_value_get_type(cont) != L2_VAL_TYPE_CONTINUATION) {
 				break;
 			}
 
@@ -332,10 +332,10 @@ static void call_func(
 
 			struct l2_vm_value *call = &vm->values[call_id];
 
-			if (l2_vm_value_type(call) == L2_VAL_TYPE_CFUNCTION) {
+			if (l2_value_get_type(call) == L2_VAL_TYPE_CFUNCTION) {
 				l2_word retval = call->cfunc(vm, 0, NULL);
 				vm->stack[vm->sptr - 1] = cont->cont->callback(vm, retval, cont_id);
-			} else if (l2_vm_value_type(call) == L2_VAL_TYPE_FUNCTION) {
+			} else if (l2_value_get_type(call) == L2_VAL_TYPE_FUNCTION) {
 				// Leave the continuation on the stack,
 				// let the L2_OP_RET code deal with it
 				cont->flags |= L2_VAL_CONT_CALLBACK;
@@ -426,7 +426,7 @@ void l2_vm_step(struct l2_vm *vm) {
 
 	case L2_OP_DISCARD:
 		vm->sptr -= 1;
-		if (l2_vm_value_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
+		if (l2_value_get_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
 			l2_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
 			vm->halted = 1;
 		}
@@ -435,7 +435,7 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_SWAP_DISCARD:
 		vm->stack[vm->sptr - 2] = vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;
-		if (l2_vm_value_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
+		if (l2_value_get_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
 			l2_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
 			vm->halted = 1;
 		}
@@ -511,7 +511,7 @@ void l2_vm_step(struct l2_vm *vm) {
 			}
 
 			int iscont =
-				cont != NULL && l2_vm_value_type(cont) == L2_VAL_TYPE_CONTINUATION;
+				cont != NULL && l2_value_get_type(cont) == L2_VAL_TYPE_CONTINUATION;
 			int nocallback =
 				!iscont || (cont->flags & L2_VAL_CONT_CALLBACK && cont->cont == NULL);
 			if (nocallback) {
@@ -528,7 +528,7 @@ void l2_vm_step(struct l2_vm *vm) {
 				cont_id = retval;
 				cont = &vm->values[cont_id];
 
-				if (l2_vm_value_type(cont) != L2_VAL_TYPE_CONTINUATION) {
+				if (l2_value_get_type(cont) != L2_VAL_TYPE_CONTINUATION) {
 					vm->stack[vm->sptr - 1] = retval;
 					break;
 				}
@@ -637,7 +637,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		l2_word key = read(vm); \
 		l2_word arr_id = vm->stack[--vm->sptr]; \
 		struct l2_vm_value *arr = &vm->values[arr_id]; \
-		if (l2_vm_value_type(arr) != L2_VAL_TYPE_ARRAY) { \
+		if (l2_value_get_type(arr) != L2_VAL_TYPE_ARRAY) { \
 			vm->stack[vm->sptr++] = l2_vm_type_error(vm, arr); \
 		} else if (key >= arr->extra.arr_length) { \
 			vm->stack[vm->sptr++] = l2_vm_error(vm, "Index out of range"); \
@@ -653,7 +653,7 @@ void l2_vm_step(struct l2_vm *vm) {
 		l2_word val = vm->stack[vm->sptr - 1]; \
 		l2_word arr_id = vm->stack[vm->sptr - 2]; \
 		struct l2_vm_value *arr = &vm->values[arr_id]; \
-		if (l2_vm_value_type(arr) != L2_VAL_TYPE_ARRAY) { \
+		if (l2_value_get_type(arr) != L2_VAL_TYPE_ARRAY) { \
 			vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, arr); \
 		} else if (key >= arr->extra.arr_length) { \
 			vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Index out of range"); \
@@ -670,16 +670,16 @@ void l2_vm_step(struct l2_vm *vm) {
 
 			struct l2_vm_value *key = &vm->values[key_id];
 			struct l2_vm_value *container = &vm->values[container_id];
-			if (l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
-				if (l2_vm_value_type(key) != L2_VAL_TYPE_REAL) {
+			if (l2_value_get_type(container) == L2_VAL_TYPE_ARRAY) {
+				if (l2_value_get_type(key) != L2_VAL_TYPE_REAL) {
 					vm->stack[vm->sptr++] = l2_vm_type_error(vm, key);
 				} else if (key->real >= container->extra.arr_length) {
 					vm->stack[vm->sptr++] = l2_vm_error(vm, "Index out of range");
 				} else {
 					vm->stack[vm->sptr++] = container->array->data[(l2_word)key->real];
 				}
-			} else if (l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
-				if (l2_vm_value_type(key) != L2_VAL_TYPE_ATOM) {
+			} else if (l2_value_get_type(container) == L2_VAL_TYPE_NAMESPACE) {
+				if (l2_value_get_type(key) != L2_VAL_TYPE_ATOM) {
 					vm->stack[vm->sptr++] = l2_vm_type_error(vm, key);
 				} else {
 					vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, container, key->atom);
@@ -700,16 +700,16 @@ void l2_vm_step(struct l2_vm *vm) {
 			struct l2_vm_value *key = &vm->values[key_id];
 			struct l2_vm_value *container = &vm->values[container_id];
 
-			if (l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
-				if (l2_vm_value_type(key) != L2_VAL_TYPE_REAL) {
+			if (l2_value_get_type(container) == L2_VAL_TYPE_ARRAY) {
+				if (l2_value_get_type(key) != L2_VAL_TYPE_REAL) {
 					vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, key);
 				} else if (key->real >= container->extra.arr_length) {
 					vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Index out of range");
 				} else {
 					container->array->data[(size_t)key->real] = val;
 				}
-			} else if (l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
-				if (l2_vm_value_type(key) != L2_VAL_TYPE_ATOM) {
+			} else if (l2_value_get_type(container) == L2_VAL_TYPE_NAMESPACE) {
+				if (l2_value_get_type(key) != L2_VAL_TYPE_ATOM) {
 					vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, key);
 				} else {
 					l2_vm_namespace_set(container, key->atom, val);

@@ -73,7 +73,7 @@ struct l2_vm_value {
 	};
 };
 
-#define l2_vm_value_type(val) ((enum l2_value_type)((val)->flags & 0x0f))
+#define l2_value_get_type(val) ((enum l2_value_type)((val)->flags & 0x0f))
 
 struct l2_vm_array {
 	size_t size;

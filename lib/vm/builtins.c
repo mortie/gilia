@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_value *val) {
-	switch (l2_vm_value_type(val)) {
+	switch (l2_value_get_type(val)) {
 		case L2_VAL_TYPE_NONE:
 			l2_io_printf(out, "(none)");
 			break;
@@ -67,14 +67,14 @@ l2_word l2_builtin_add(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 		return l2_vm_type_error(vm, val);
 	}
 
 	double sum = val->real;
 	for (l2_word i = 1; i < argc; ++i) {
 		val = &vm->values[argv[i]];
-		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 			return l2_vm_type_error(vm, val);
 		}
 
@@ -94,14 +94,14 @@ l2_word l2_builtin_sub(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 		return l2_vm_type_error(vm, val);
 	}
 
 	double sum = val->real;
 	for (l2_word i = 1; i < argc; ++i) {
 		val = &vm->values[argv[i]];
-		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 			return l2_vm_type_error(vm, val);
 		}
 
@@ -121,14 +121,14 @@ l2_word l2_builtin_mul(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 		return l2_vm_type_error(vm, val);
 	}
 
 	double sum = val->real;
 	for (l2_word i = 1; i < argc; ++i) {
 		val = &vm->values[argv[i]];
-		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 			return l2_vm_type_error(vm, val);
 		}
 
@@ -148,14 +148,14 @@ l2_word l2_builtin_div(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	}
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 		return l2_vm_type_error(vm, val);
 	}
 
 	double sum = val->real;
 	for (l2_word i = 1; i < argc; ++i) {
 		val = &vm->values[argv[i]];
-		if (l2_vm_value_type(val) != L2_VAL_TYPE_REAL) {
+		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
 			return l2_vm_type_error(vm, val);
 		}
 
@@ -180,7 +180,7 @@ l2_word l2_builtin_eq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 			return vm->kfalse;
 		}
 
-		enum l2_value_type typ = l2_vm_value_type(a);
+		enum l2_value_type typ = l2_value_get_type(a);
 		if (typ == L2_VAL_TYPE_ATOM) {
 			if (a->atom != b->atom) {
 				return vm->kfalse;
@@ -227,12 +227,12 @@ l2_word name(struct l2_vm *vm, l2_word argc, l2_word *argv) { \
 		return vm->ktrue; \
 	} \
 	struct l2_vm_value *lhs = &vm->values[argv[0]]; \
-	if (l2_vm_value_type(lhs) != L2_VAL_TYPE_REAL) { \
+	if (l2_value_get_type(lhs) != L2_VAL_TYPE_REAL) { \
 		return l2_vm_type_error(vm, lhs); \
 	} \
 	for (l2_word i = 1; i < argc; ++i) { \
 		struct l2_vm_value *rhs = &vm->values[argv[i]]; \
-		if (l2_vm_value_type(rhs) != L2_VAL_TYPE_REAL) { \
+		if (l2_value_get_type(rhs) != L2_VAL_TYPE_REAL) { \
 			return l2_vm_type_error(vm, rhs); \
 		} \
 		if (!(lhs->real op rhs->real)) { \
@@ -272,7 +272,7 @@ l2_word l2_builtin_len(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	ret->real = 0;
 
 	struct l2_vm_value *val = &vm->values[argv[0]];
-	switch (l2_vm_value_type(val)) {
+	switch (l2_value_get_type(val)) {
 	case L2_VAL_TYPE_NONE:
 	case L2_VAL_TYPE_ATOM:
 	case L2_VAL_TYPE_REAL:
@@ -307,7 +307,7 @@ l2_word l2_builtin_if(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	struct l2_vm_value *cond = &vm->values[argv[0]];
 
 	if (
-			l2_vm_value_type(cond) == L2_VAL_TYPE_ATOM &&
+			l2_value_get_type(cond) == L2_VAL_TYPE_ATOM &&
 			cond->atom == vm->values[vm->ktrue].atom) {
 		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
 		struct l2_vm_value *ret = &vm->values[ret_id];
@@ -331,7 +331,7 @@ struct loop_context {
 static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
 	struct l2_vm_value *ret = &vm->values[retval];
 	if (
-			l2_vm_value_type(ret) == L2_VAL_TYPE_ATOM &&
+			l2_value_get_type(ret) == L2_VAL_TYPE_ATOM &&
 			ret->atom == vm->values[vm->ktrue].atom) {
 		return cont;
 	}
