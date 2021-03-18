@@ -487,7 +487,9 @@ void l2_vm_step(struct l2_vm *vm) {
 		l2_word key = read(vm); \
 		l2_word val = vm->stack[vm->sptr - 1]; \
 		struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
-		l2_vm_namespace_replace(vm, ns, key, val); // TODO: error if returns -1
+		if (l2_vm_namespace_replace(vm, ns, key, val) < 0) { \
+			vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Variable not found"); \
+		}
 	case L2_OP_STACK_FRAME_REPLACE_U4: { X(read_u4le); } break;
 	case L2_OP_STACK_FRAME_REPLACE_U1: { X(read_u1le); } break;
 #undef X
@@ -633,9 +635,15 @@ void l2_vm_step(struct l2_vm *vm) {
 
 #define X(read) \
 		l2_word key = read(vm); \
-		l2_word arr = vm->stack[--vm->sptr]; \
-		/* TODO: Error if out of bounds or incorrect type */ \
-		vm->stack[vm->sptr++] = vm->values[arr].array->data[key];
+		l2_word arr_id = vm->stack[--vm->sptr]; \
+		struct l2_vm_value *arr = &vm->values[arr_id]; \
+		if (l2_vm_value_type(arr) != L2_VAL_TYPE_ARRAY) { \
+			vm->stack[vm->sptr++] = l2_vm_type_error(vm, arr); \
+		} else if (key >= arr->extra.arr_length) { \
+			vm->stack[vm->sptr++] = l2_vm_error(vm, "Index out of range"); \
+		} else { \
+			vm->stack[vm->sptr++] = arr->array->data[key]; \
+		}
 	case L2_OP_ARRAY_LOOKUP_U4: { X(read_u4le); } break;
 	case L2_OP_ARRAY_LOOKUP_U1: { X(read_u1le); } break;
 #undef X
@@ -643,9 +651,15 @@ void l2_vm_step(struct l2_vm *vm) {
 #define X(read) \
 		l2_word key = read(vm); \
 		l2_word val = vm->stack[vm->sptr - 1]; \
-		l2_word arr = vm->stack[vm->sptr - 2]; \
-		/* TODO: Error if out of bounds or incorrect type */ \
-		vm->values[arr].array->data[key] = val;
+		l2_word arr_id = vm->stack[vm->sptr - 2]; \
+		struct l2_vm_value *arr = &vm->values[arr_id]; \
+		if (l2_vm_value_type(arr) != L2_VAL_TYPE_ARRAY) { \
+			vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, arr); \
+		} else if (key >= arr->extra.arr_length) { \
+			vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Index out of range"); \
+		} else { \
+			arr->array->data[key] = val; \
+		}
 	case L2_OP_ARRAY_SET_U4: { X(read_u4le); } break;
 	case L2_OP_ARRAY_SET_U1: { X(read_u1le); } break;
 
@@ -656,18 +670,22 @@ void l2_vm_step(struct l2_vm *vm) {
 
 			struct l2_vm_value *key = &vm->values[key_id];
 			struct l2_vm_value *container = &vm->values[container_id];
-			if (
-					l2_vm_value_type(key) == L2_VAL_TYPE_REAL &&
-					l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
-				// TODO: Error if out of bounds
-				vm->stack[vm->sptr++] = container->array->data[(size_t)key->real];
-			} else if (
-					l2_vm_value_type(key) == L2_VAL_TYPE_ATOM &&
-					l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
-				// TODO: Error if out of bounds
-				vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, container, key->atom);
+			if (l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
+				if (l2_vm_value_type(key) != L2_VAL_TYPE_REAL) {
+					vm->stack[vm->sptr++] = l2_vm_type_error(vm, key);
+				} else if (key->real >= container->extra.arr_length) {
+					vm->stack[vm->sptr++] = l2_vm_error(vm, "Index out of range");
+				} else {
+					vm->stack[vm->sptr++] = container->array->data[(l2_word)key->real];
+				}
+			} else if (l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
+				if (l2_vm_value_type(key) != L2_VAL_TYPE_ATOM) {
+					vm->stack[vm->sptr++] = l2_vm_type_error(vm, key);
+				} else {
+					vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, container, key->atom);
+				}
 			} else {
-				// TODO: error
+				vm->stack[vm->sptr++] = l2_vm_type_error(vm, container);
 			}
 		}
 		break;
@@ -682,18 +700,22 @@ void l2_vm_step(struct l2_vm *vm) {
 			struct l2_vm_value *key = &vm->values[key_id];
 			struct l2_vm_value *container = &vm->values[container_id];
 
-			if (
-					l2_vm_value_type(key) == L2_VAL_TYPE_REAL &&
-					l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
-				// TODO: Error if out of bounds
-				container->array->data[(size_t)key->real] = val;
-			} else if (
-					l2_vm_value_type(key) == L2_VAL_TYPE_ATOM &&
-					l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
-				// TODO: Error if out of bounds
-				l2_vm_namespace_set(container, key->atom, val);
+			if (l2_vm_value_type(container) == L2_VAL_TYPE_ARRAY) {
+				if (l2_vm_value_type(key) != L2_VAL_TYPE_REAL) {
+					vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, key);
+				} else if (key->real >= container->extra.arr_length) {
+					vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Index out of range");
+				} else {
+					container->array->data[(size_t)key->real] = val;
+				}
+			} else if (l2_vm_value_type(container) == L2_VAL_TYPE_NAMESPACE) {
+				if (l2_vm_value_type(key) != L2_VAL_TYPE_ATOM) {
+					vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, key);
+				} else {
+					l2_vm_namespace_set(container, key->atom, val);
+				}
 			} else {
-				// TODO: error
+				vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, container);
 			}
 		}
 		break;
