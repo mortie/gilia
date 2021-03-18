@@ -21,4 +21,5 @@ X("print", l2_builtin_print)
 X("len", l2_builtin_len)
 X("if", l2_builtin_if)
 X("loop", l2_builtin_loop)
+X("while", l2_builtin_while)
 #endif

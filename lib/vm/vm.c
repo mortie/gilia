@@ -744,5 +744,6 @@ void l2_vm_step(struct l2_vm *vm) {
 
 int l2_vm_val_is_true(struct l2_vm *vm, l2_word id) {
 	struct l2_vm_value *val = &vm->values[id];
-	return l2_value_get_type(val) == L2_VAL_TYPE_ATOM && val->atom == vm->ktrue;
+	l2_word true_atom = vm->values[vm->ktrue].atom;
+	return l2_value_get_type(val) == L2_VAL_TYPE_ATOM && val->atom == true_atom;
 }

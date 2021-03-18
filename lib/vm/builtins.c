@@ -321,7 +321,7 @@ l2_word l2_builtin_if(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 
 struct loop_context {
 	struct l2_vm_contcontext base;
-	l2_word cond;
+	l2_word func;
 };
 
 static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
@@ -335,7 +335,7 @@ static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
 static void loop_marker(
 		struct l2_vm *vm, void *data, void (*mark)(struct l2_vm *vm, l2_word id)) {
 	struct loop_context *ctx = data;
-	mark(vm, ctx->cond);
+	mark(vm, ctx->func);
 }
 
 l2_word l2_builtin_loop(struct l2_vm *vm, l2_word argc, l2_word *argv) {
@@ -350,11 +350,67 @@ l2_word l2_builtin_loop(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 
 	ctx->base.callback = loop_callback;
 	ctx->base.marker = loop_marker;
-	ctx->cond = argv[0];
+	ctx->func = argv[0];
 
 	l2_word cont_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
 	struct l2_vm_value *cont = &vm->values[cont_id];
-	cont->extra.cont_call = argv[0];
+	cont->extra.cont_call = ctx->func;
+	cont->cont = &ctx->base;
+	return cont_id;
+}
+
+struct while_context {
+	struct l2_vm_contcontext base;
+	l2_word cond, body;
+};
+
+static l2_word while_callback(struct l2_vm *vm, l2_word retval, l2_word cont_id) {
+	struct l2_vm_value *cont = &vm->values[cont_id];
+	struct while_context *ctx = (struct while_context *)cont->cont;
+
+	if (cont->extra.cont_call == ctx->cond) {
+		if (l2_vm_val_is_true(vm, retval)) {
+			cont->extra.cont_call = ctx->body;
+			return cont_id;
+		} else {
+			return retval;
+		}
+	} else {
+		struct l2_vm_value *ret = &vm->values[retval];
+		if (l2_value_get_type(ret) == L2_VAL_TYPE_ERROR) {
+			return retval;
+		} else {
+			cont->extra.cont_call = ctx->cond;
+			return cont_id;
+		}
+	}
+}
+
+static void while_marker(
+		struct l2_vm *vm, void *data, void (*mark)(struct l2_vm *vm, l2_word id)) {
+	struct while_context *ctx = data;
+	mark(vm, ctx->cond);
+	mark(vm, ctx->body);
+}
+
+l2_word l2_builtin_while(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	if (argc != 2) {
+		return l2_vm_error(vm, "Expected 2 arguments");
+	}
+
+	struct while_context *ctx = malloc(sizeof(*ctx));
+	if (ctx == NULL) {
+		return l2_vm_error(vm, "Allocation failure");
+	}
+
+	ctx->base.callback = while_callback;
+	ctx->base.marker = while_marker;
+	ctx->cond = argv[0];
+	ctx->body = argv[1];
+
+	l2_word cont_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
+	struct l2_vm_value *cont = &vm->values[cont_id];
+	cont->extra.cont_call = ctx->cond;
 	cont->cont = &ctx->base;
 	return cont_id;
 }
