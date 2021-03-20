@@ -57,12 +57,15 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 }
 
 static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val) {
-	if (val->array == NULL) {
-		return;
+	l2_word *data;
+	if (val->flags & L2_VAL_SBO) {
+		data = val->shortarray;
+	} else {
+		data = val->array->data;
 	}
 
 	for (size_t i = 0; i < val->extra.arr_length; ++i) {
-		gc_mark(vm, val->array->data[i]);
+		gc_mark(vm, data[i]);
 	}
 }
 
@@ -92,7 +95,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 	// Don't need to do anything more; the next round of GC will free
 	// whichever values were only referenced by the array
 	int typ = l2_value_get_type(val);
-	if (typ == L2_VAL_TYPE_ARRAY) {
+	if (typ == L2_VAL_TYPE_ARRAY && !(val->flags & L2_VAL_SBO)) {
 		free(val->array);
 	} else if (typ == L2_VAL_TYPE_BUFFER) {
 		free(val->buffer);
@@ -146,6 +149,30 @@ const char *l2_value_type_name(enum l2_value_type typ) {
 	}
 
 	return "(unknown)";
+}
+
+l2_word l2_value_arr_get(struct l2_vm *vm, struct l2_vm_value *val, l2_word k) {
+	if (k >= val->extra.arr_length) {
+		return l2_vm_error(vm, "Array index out of bounds");
+	}
+
+	if (val->flags & L2_VAL_SBO) {
+		return val->shortarray[k];
+	}
+
+	return val->array->data[k];
+}
+
+l2_word l2_value_arr_set(struct l2_vm *vm, struct l2_vm_value *val, l2_word k, l2_word v) {
+	if (k >= val->extra.arr_length) {
+		return l2_vm_error(vm, "Array index out of bounds");
+	}
+
+	if (val->flags & L2_VAL_SBO) {
+		return val->shortarray[k] = v;
+	}
+
+	return val->array->data[k] = v;
 }
 
 void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
@@ -261,6 +288,11 @@ l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...) {
 }
 
 l2_word l2_vm_type_error(struct l2_vm *vm, struct l2_vm_value *val) {
+	enum l2_value_type typ = l2_value_get_type(val);
+	if (typ == L2_VAL_TYPE_ERROR) {
+		return val - vm->values;
+	}
+
 	return l2_vm_error(vm, "Unexpected type %s", l2_value_type_name(l2_value_get_type(val)));
 }
 
@@ -357,15 +389,17 @@ static void call_func(
 	}
 
 	l2_word arr_id = alloc_val(vm);
-	vm->values[arr_id].flags = L2_VAL_TYPE_ARRAY;
-	vm->values[arr_id].array = malloc(
-			sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
-	vm->values[arr_id].extra.arr_length = argc;
-	struct l2_vm_array *arr = vm->values[arr_id].array;
-	arr->size = argc;
-
-	for (l2_word i = 0; i < argc; ++i) {
-		arr->data[i] = argv[i];
+	struct l2_vm_value *arr = &vm->values[arr_id];
+	arr->extra.arr_length = argc;
+	if (argc <= 2) {
+		arr->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO;
+		memcpy(arr->shortarray, argv, argc * sizeof(l2_word));
+	} else {
+		arr->flags = L2_VAL_TYPE_ARRAY;
+		arr->array = malloc(
+				sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
+		arr->array->size = argc;
+		memcpy(arr->array->data, argv, argc * sizeof(l2_word));
 	}
 
 	vm->stack[vm->sptr++] = arr_id;
@@ -579,17 +613,19 @@ void l2_vm_step(struct l2_vm *vm) {
 		l2_word count = read(vm); \
 		l2_word arr_id = alloc_val(vm); \
 		struct l2_vm_value *arr = &vm->values[arr_id]; \
-		arr->flags = L2_VAL_TYPE_ARRAY; \
 		arr->extra.arr_length = count; \
-		if (count == 0) { \
-			arr->array = NULL; \
-			vm->stack[vm->sptr++] = arr_id; \
-			break; \
+		l2_word *data; \
+		if (count <= 2) { \
+			arr->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO; \
+			data = arr->shortarray; \
+		} else { \
+			arr->flags = L2_VAL_TYPE_ARRAY; \
+			arr->array = malloc(sizeof(struct l2_vm_array) + count * sizeof(l2_word)); \
+			arr->array->size = count; \
+			data = arr->array->data; \
 		} \
-		arr->array = malloc(sizeof(struct l2_vm_array) + count * sizeof(l2_word)); \
-		arr->array->size = count; \
 		for (l2_word i = 0; i < count; ++i) { \
-			arr->array->data[count - 1 - i] = vm->stack[--vm->sptr]; \
+			data[count - 1 - i] = vm->stack[--vm->sptr]; \
 		} \
 		vm->stack[vm->sptr++] = arr_id;
 	case L2_OP_ALLOC_ARRAY_U4: { X(read_u4le); } break;
@@ -639,10 +675,8 @@ void l2_vm_step(struct l2_vm *vm) {
 		struct l2_vm_value *arr = &vm->values[arr_id]; \
 		if (l2_value_get_type(arr) != L2_VAL_TYPE_ARRAY) { \
 			vm->stack[vm->sptr++] = l2_vm_type_error(vm, arr); \
-		} else if (key >= arr->extra.arr_length) { \
-			vm->stack[vm->sptr++] = l2_vm_error(vm, "Index out of range"); \
 		} else { \
-			vm->stack[vm->sptr++] = arr->array->data[key]; \
+			vm->stack[vm->sptr++] = l2_value_arr_get(vm, arr, key); \
 		}
 	case L2_OP_ARRAY_LOOKUP_U4: { X(read_u4le); } break;
 	case L2_OP_ARRAY_LOOKUP_U1: { X(read_u1le); } break;
@@ -655,10 +689,8 @@ void l2_vm_step(struct l2_vm *vm) {
 		struct l2_vm_value *arr = &vm->values[arr_id]; \
 		if (l2_value_get_type(arr) != L2_VAL_TYPE_ARRAY) { \
 			vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, arr); \
-		} else if (key >= arr->extra.arr_length) { \
-			vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Index out of range"); \
 		} else { \
-			arr->array->data[key] = val; \
+			vm->stack[vm->sptr - 1] = l2_value_arr_set(vm, arr, key, val); \
 		}
 	case L2_OP_ARRAY_SET_U4: { X(read_u4le); } break;
 	case L2_OP_ARRAY_SET_U1: { X(read_u1le); } break;

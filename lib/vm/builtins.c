@@ -30,12 +30,19 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 
 		case L2_VAL_TYPE_ARRAY:
 			out->write(out, "[", 1);
+			l2_word *data;
+			if (val->flags & L2_VAL_SBO) {
+				data = val->shortarray;
+			} else {
+				data = val->array->data;
+			}
+
 			for (size_t i = 0; i < val->extra.arr_length; ++i) {
 				if (i != 0) {
 					out->write(out, " ", 1);
 				}
 
-				print_val(vm, out, &vm->values[val->array->data[i]]);
+				print_val(vm, out, &vm->values[data[i]]);
 			}
 			out->write(out, "]", 1);
 			break;

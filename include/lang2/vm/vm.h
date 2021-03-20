@@ -30,9 +30,10 @@ enum l2_value_type {
 const char *l2_value_type_name(enum l2_value_type typ);
 
 enum l2_value_flags {
-	L2_VAL_MARKED = 1 << 6,
-	L2_VAL_CONST = 1 << 7,
-	L2_VAL_CONT_CALLBACK = 1 << 7, // Re-use the const bit
+	L2_VAL_MARKED = 1 << 7,
+	L2_VAL_CONST = 1 << 6,
+	L2_VAL_CONT_CALLBACK = 1 << 6, // Re-use the const bit
+	L2_VAL_SBO = 1 << 5,
 };
 
 struct l2_vm_contcontext {
@@ -62,6 +63,7 @@ struct l2_vm_value {
 		double real;
 		char *buffer;
 		struct l2_vm_array *array;
+		l2_word shortarray[2];
 		struct l2_vm_namespace *ns;
 		struct {
 			l2_word pos;
@@ -74,6 +76,9 @@ struct l2_vm_value {
 };
 
 #define l2_value_get_type(val) ((enum l2_value_type)((val)->flags & 0x0f))
+
+l2_word l2_value_arr_get(struct l2_vm *vm, struct l2_vm_value *val, l2_word k);
+l2_word l2_value_arr_set(struct l2_vm *vm, struct l2_vm_value *val, l2_word k, l2_word v);
 
 struct l2_vm_array {
 	size_t size;
