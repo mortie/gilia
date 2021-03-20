@@ -13,12 +13,7 @@ static int tok_is_end(struct l2_token *tok) {
 
 static int tok_is_infix(struct l2_token *tok) {
 	if (l2_token_get_kind(tok) != L2_TOK_IDENT) return 0;
-	char *str;
-	if (l2_token_is_small(tok)) {
-		str = tok->v.strbuf;
-	} else {
-		str = tok->v.str;
-	}
+	const char *str = l2_token_get_str(tok);
 
 	return
 			(str[0] == '$' && str[1] != '\0') ||
@@ -58,7 +53,7 @@ static int parse_object_literal(
 			return -1;
 		}
 
-		l2_trace("key: '%s'", tok->v.str);
+		l2_trace("key: '%s'", l2_token_get_str(tok));
 		struct l2_token_value key = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // ident
 
@@ -258,11 +253,7 @@ static int parse_arg_level_expression_base(
 		l2_lexer_consume(lexer); // ')'
 	} else if (l2_token_get_kind(tok) == L2_TOK_IDENT) {
 		l2_trace_scope("ident");
-		if (l2_token_is_small(tok)) {
-			l2_trace("ident '%s'", tok->v.strbuf);
-		} else {
-			l2_trace("ident '%s'", tok->v.str);
-		}
+		l2_trace("ident '%s'", l2_token_get_str(tok));
 		struct l2_token_value ident = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // ident
 
@@ -280,7 +271,7 @@ static int parse_arg_level_expression_base(
 		l2_gen_number(gen, number);
 	} else if (l2_token_get_kind(tok) == L2_TOK_STRING) {
 		l2_trace_scope("string literal");
-		l2_trace("string '%s'", tok->v.str);
+		l2_trace("string '%s'", l2_token_get_str(tok));
 		struct l2_token_value str = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // string
 
@@ -293,7 +284,7 @@ static int parse_arg_level_expression_base(
 			l2_token_get_kind(tok) == L2_TOK_QUOT &&
 			l2_token_get_kind(tok2) == L2_TOK_IDENT) {
 		l2_trace_scope("atom literal");
-		l2_trace("atom '%s'", tok->v.str);
+		l2_trace("atom '%s'", l2_token_get_str(tok2));
 		struct l2_token_value ident = l2_token_extract_val(tok2);
 		l2_lexer_consume(lexer); // "'"
 		l2_lexer_consume(lexer); // ident
@@ -334,8 +325,16 @@ static int parse_func_call_after_base(
 				// so we need to parse the operator, then the rhs
 
 				// Operator
-				if (parse_arg_level_expression(lexer, gen, err) < 0) {
+				int ret = parse_arg_level_expression(lexer, gen, err);
+				if (ret < 0) {
 					return -1;
+				}
+
+				// If the operator wasn't just the one base expression,
+				// abort; we're not doing the infix call
+				if (ret == 1) {
+					argc += 1;
+					break;
 				}
 
 				// RHS
@@ -377,6 +376,7 @@ static int parse_arg_level_expression(
 		return -1;
 	}
 
+	int ret = 0;
 	while (1) {
 		struct l2_token *tok = l2_lexer_peek(lexer, 1);
 		struct l2_token *tok2 = l2_lexer_peek(lexer, 2);
@@ -407,11 +407,7 @@ static int parse_arg_level_expression(
 				l2_token_get_kind(tok2) == L2_TOK_IDENT &&
 				l2_token_get_kind(tok3) == L2_TOK_EQUALS) {
 			l2_trace_scope("namespace assign");
-			if (l2_token_is_small(tok2)) {
-				l2_trace("ident '%s'", tok2->v.strbuf);
-			} else {
-				l2_trace("ident '%s'", tok2->v.str);
-			}
+			l2_trace("ident '%s'", l2_token_get_str(tok2));
 			struct l2_token_value ident = l2_token_extract_val(tok2);
 			l2_lexer_consume(lexer); // '.'
 			l2_lexer_consume(lexer); // ident
@@ -432,11 +428,7 @@ static int parse_arg_level_expression(
 				l2_token_get_kind(tok) == L2_TOK_PERIOD &&
 				l2_token_get_kind(tok2) == L2_TOK_IDENT) {
 			l2_trace_scope("namespace lookup");
-			if (l2_token_is_small(tok2)) {
-				l2_trace("ident '%s'", tok2->v.strbuf);
-			} else {
-				l2_trace("ident '%s'", tok2->v.str);
-			}
+			l2_trace("ident '%s'", l2_token_get_str(tok2));
 			struct l2_token_value ident = l2_token_extract_val(tok2);
 			l2_lexer_consume(lexer); // '.'
 			l2_lexer_consume(lexer); // ident
@@ -498,9 +490,11 @@ static int parse_arg_level_expression(
 		} else {
 			break;
 		}
+
+		ret = 1;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int parse_expression(
@@ -513,11 +507,7 @@ static int parse_expression(
 			l2_token_get_kind(tok) == L2_TOK_IDENT &&
 			l2_token_get_kind(tok2) == L2_TOK_COLON_EQ) {
 		l2_trace_scope("assign expression");
-		if (l2_token_is_small(tok)) {
-			l2_trace("ident '%s'", tok->v.strbuf);
-		} else {
-			l2_trace("ident '%s'", tok->v.str);
-		}
+		l2_trace("ident '%s'", l2_token_get_str(tok));
 		struct l2_token_value ident = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // ident
 		l2_lexer_consume(lexer); // :=
@@ -536,11 +526,7 @@ static int parse_expression(
 			l2_token_get_kind(tok) == L2_TOK_IDENT &&
 			l2_token_get_kind(tok2) == L2_TOK_EQUALS) {
 		l2_trace_scope("replacement assign expression");
-		if (l2_token_is_small(tok)) {
-			l2_trace("ident '%s'", tok->v.strbuf);
-		} else {
-			l2_trace("ident '%s'", tok->v.str);
-		}
+		l2_trace("ident '%s'", l2_token_get_str(tok));
 		struct l2_token_value ident = l2_token_extract_val(tok);
 		l2_lexer_consume(lexer); // ident
 		l2_lexer_consume(lexer); // =

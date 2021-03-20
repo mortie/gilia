@@ -59,9 +59,10 @@ struct l2_token {
 
 #define l2_token_get_kind(tok) ((enum l2_token_kind)((tok)->v.flags & ~(1 << 7)))
 #define l2_token_get_name(tok) (l2_token_kind_name(l2_token_get_kind(tok)))
-#define l2_token_is_small(tok) ((tok)->v.flags & (1 << 7))
+#define l2_token_is_small(tok) ((tok)->v.flags & L2_TOK_SMALL)
 void l2_token_free(struct l2_token *tok);
 struct l2_token_value l2_token_extract_val(struct l2_token *tok);
+const char *l2_token_get_str(struct l2_token *tok);
 void l2_token_print(struct l2_token *tok, struct l2_io_writer *w);
 
 struct l2_lexer {

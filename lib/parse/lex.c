@@ -90,6 +90,14 @@ struct l2_token_value l2_token_extract_val(struct l2_token *tok) {
 	return v;
 }
 
+const char *l2_token_get_str(struct l2_token *tok) {
+	if (l2_token_is_small(tok)) {
+		return tok->v.strbuf;
+	} else {
+		return tok->v.str;
+	}
+}
+
 void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
 	lexer->toks[0].v.flags = L2_TOK_EOF,
 	lexer->tokidx = 0;

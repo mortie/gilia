@@ -66,113 +66,39 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 	}
 }
 
-l2_word l2_builtin_add(struct l2_vm *vm, l2_word argc, l2_word *argv) {
-	if (argc < 1) {
-		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-		vm->values[id].real = 0;
-		return id;
-	}
-
-	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-		return l2_vm_type_error(vm, val);
-	}
-
-	double sum = val->real;
-	for (l2_word i = 1; i < argc; ++i) {
-		val = &vm->values[argv[i]];
-		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-			return l2_vm_type_error(vm, val);
-		}
-
-		sum += val->real;
-	}
-
-	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-	vm->values[id].real = sum;
-	return id;
+#define X(name, identity, op) \
+l2_word name(struct l2_vm *vm, l2_word argc, l2_word *argv) { \
+	if (argc == 0) { \
+		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0); \
+		vm->values[id].real = identity; \
+		return id; \
+	} \
+	struct l2_vm_value *first = &vm->values[argv[0]]; \
+	if (l2_value_get_type(first) != L2_VAL_TYPE_REAL) { \
+		return l2_vm_type_error(vm, first); \
+	} \
+	if (argc == 1) { \
+		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0); \
+		vm->values[id].real = identity op first->real; \
+		return id; \
+	} \
+	double sum = first->real; \
+	for (l2_word i = 1; i < argc; ++i) { \
+		struct l2_vm_value *val = &vm->values[argv[i]]; \
+		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) { \
+			return l2_vm_type_error(vm, val); \
+		} \
+		sum = sum op val->real; \
+	} \
+	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0); \
+	vm->values[id].real = sum; \
+	return id; \
 }
-
-l2_word l2_builtin_sub(struct l2_vm *vm, l2_word argc, l2_word *argv) {
-	if (argc < 1) {
-		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-		vm->values[id].real = 0;
-		return id;
-	}
-
-	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-		return l2_vm_type_error(vm, val);
-	}
-
-	double sum = val->real;
-	for (l2_word i = 1; i < argc; ++i) {
-		val = &vm->values[argv[i]];
-		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-			return l2_vm_type_error(vm, val);
-		}
-
-		sum -= val->real;
-	}
-
-	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-	vm->values[id].real = sum;
-	return id;
-}
-
-l2_word l2_builtin_mul(struct l2_vm *vm, l2_word argc, l2_word *argv) {
-	if (argc < 1) {
-		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-		vm->values[id].real = 1;
-		return id;
-	}
-
-	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-		return l2_vm_type_error(vm, val);
-	}
-
-	double sum = val->real;
-	for (l2_word i = 1; i < argc; ++i) {
-		val = &vm->values[argv[i]];
-		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-			return l2_vm_type_error(vm, val);
-		}
-
-		sum *= val->real;
-	}
-
-	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-	vm->values[id].real = sum;
-	return id;
-}
-
-l2_word l2_builtin_div(struct l2_vm *vm, l2_word argc, l2_word *argv) {
-	if (argc < 1) {
-		l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-		vm->values[id].real = 1;
-		return id;
-	}
-
-	struct l2_vm_value *val = &vm->values[argv[0]];
-	if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-		return l2_vm_type_error(vm, val);
-	}
-
-	double sum = val->real;
-	for (l2_word i = 1; i < argc; ++i) {
-		val = &vm->values[argv[i]];
-		if (l2_value_get_type(val) != L2_VAL_TYPE_REAL) {
-			return l2_vm_type_error(vm, val);
-		}
-
-		sum /= val->real;
-	}
-
-	l2_word id = l2_vm_alloc(vm, L2_VAL_TYPE_REAL, 0);
-	vm->values[id].real = sum;
-	return id;
-}
+X(l2_builtin_add, 0, +)
+X(l2_builtin_sub, 0, -)
+X(l2_builtin_mul, 1, *)
+X(l2_builtin_div, 1, /)
+#undef X
 
 l2_word l2_builtin_eq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	if (argc < 2) {

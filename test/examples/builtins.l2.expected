@@ -1,0 +1,73 @@
++
+0
+10
+30
+60
+
+-
+0 -10
+-10
+-40
+
+/
+1 0.1
+5
+2.5
+
+*
+1 10
+20
+6000
+
+==
+(true) (true)
+(true) (false)
+(false)
+(true)
+
+!=
+(false) (false)
+(false) (true)
+(true)
+(false)
+
+>
+(false)
+(true)
+(false)
+(false)
+
+>=
+(false)
+(true)
+(true)
+(false)
+
+<
+(true)
+(false)
+(false)
+(true)
+
+<=
+(true)
+(false)
+(true)
+(true)
+
+print
+(none)
+(true) (false) (atom 20)
+100
+100.5
+255
+Hello World
+[(none) (true) (false) (atom 20) 100.1 Nope (namespace) (function)]
+(namespace) (namespace)
+
+len
+0
+0
+2
+5
+3
