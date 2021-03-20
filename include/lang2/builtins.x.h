@@ -7,6 +7,7 @@ XNAME("none", knone)
 #ifdef XATOM
 XATOM("true", ktrue)
 XATOM("false", kfalse)
+XATOM("stop", kstop)
 #endif
 
 #ifdef XFUNCTION

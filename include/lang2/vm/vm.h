@@ -122,7 +122,7 @@ struct l2_vm {
 	struct l2_vm_stack_frame fstack[1024];
 	l2_word fsptr;
 
-	l2_word knone, ktrue, kfalse;
+	l2_word knone, ktrue, kfalse, kstop;
 	l2_word gc_start;
 };
 

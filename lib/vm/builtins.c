@@ -298,11 +298,12 @@ struct loop_context {
 };
 
 static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
-	if (l2_vm_val_is_true(vm, &vm->values[retval])) {
+	struct l2_vm_value *val = &vm->values[retval];
+	if (l2_value_get_type(val) == L2_VAL_TYPE_ATOM && val->atom == vm->values[vm->kstop].atom) {
+		return vm->knone;
+	} else {
 		return cont;
 	}
-
-	return retval;
 }
 
 static void loop_marker(
