@@ -71,3 +71,26 @@ print (len [])
 print (len [10 20])
 print (len "Hello")
 print (len {a: 10; b: 20; c: 30})
+
+print "\n&&"
+print &&()
+print &&('true)
+print &&('false)
+print 'true && 'true
+print (&& 10 == 10 20 == 20 30 != 40)
+print 'true && 10
+
+print "\n||"
+print ||()
+print ||('true)
+print ||('false)
+print 'true || 'true
+print 'true || 'false
+print (|| 'false 10 'true)
+print (|| 'false 10 'nope)
+
+print "\n??"
+print none ?? none ?? 30 ?? 20
+print (?? 10 none none)
+print (?? none none "hello")
+print ??()

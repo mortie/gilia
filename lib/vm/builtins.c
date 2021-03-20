@@ -181,6 +181,46 @@ X(l2_builtin_gt, >)
 X(l2_builtin_gteq, >=)
 #undef X
 
+l2_word l2_builtin_land(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	for (l2_word i = 0; i < argc; ++i) {
+		struct l2_vm_value *val = &vm->values[argv[i]];
+		if (l2_value_get_type(val) == L2_VAL_TYPE_ERROR) {
+			return argv[i];
+		}
+
+		if (!l2_vm_val_is_true(vm, val)) {
+			return vm->kfalse;
+		}
+	}
+
+	return vm->ktrue;
+}
+
+l2_word l2_builtin_lor(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	for (l2_word i = 0; i < argc; ++i) {
+		struct l2_vm_value *val = &vm->values[argv[i]];
+		if (l2_value_get_type(val) == L2_VAL_TYPE_ERROR) {
+			return argv[i];
+		}
+
+		if (l2_vm_val_is_true(vm, val)) {
+			return vm->ktrue;
+		}
+	}
+
+	return vm->kfalse;
+}
+
+l2_word l2_builtin_first(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	for (l2_word i = 0; i < argc; ++i) {
+		if (l2_value_get_type(&vm->values[argv[i]]) != L2_VAL_TYPE_NONE) {
+			return argv[i];
+		}
+	}
+
+	return vm->knone;
+}
+
 l2_word l2_builtin_print(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	for (size_t i = 0; i < argc; ++i) {
 		if (i != 0) {
@@ -237,7 +277,7 @@ l2_word l2_builtin_if(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 		return l2_vm_error(vm, "Expected 2 or 3 arguments");
 	}
 
-	if (l2_vm_val_is_true(vm, argv[0])) {
+	if (l2_vm_val_is_true(vm, &vm->values[argv[0]])) {
 		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
 		struct l2_vm_value *ret = &vm->values[ret_id];
 		ret->extra.cont_call = argv[1];
@@ -258,7 +298,7 @@ struct loop_context {
 };
 
 static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
-	if (l2_vm_val_is_true(vm, retval)) {
+	if (l2_vm_val_is_true(vm, &vm->values[retval])) {
 		return cont;
 	}
 
@@ -302,7 +342,7 @@ static l2_word while_callback(struct l2_vm *vm, l2_word retval, l2_word cont_id)
 	struct while_context *ctx = (struct while_context *)cont->cont;
 
 	if (cont->extra.cont_call == ctx->cond) {
-		if (l2_vm_val_is_true(vm, retval)) {
+		if (l2_vm_val_is_true(vm, &vm->values[retval])) {
 			cont->extra.cont_call = ctx->body;
 			return cont_id;
 		} else {
