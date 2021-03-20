@@ -224,28 +224,32 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->fstack[vm->fsptr].sptr = 0;
 	vm->fsptr += 1;
 
+	// None is always at 0
+	vm->knone = 0;
+	vm->values[vm->knone].flags = L2_VAL_TYPE_NONE | L2_VAL_CONST;
+
 	// Define a C function variable for every builtin
 	l2_word id;
 	l2_word key = 1;
-#define Y(name, k) \
-	if (strcmp(#k, "knone") == 0) { \
-		id = 0; \
-		l2_vm_namespace_set(&vm->values[builtins], key, id); \
-	} else { \
-		id = alloc_val(vm); \
-		vm->values[id].flags = L2_VAL_TYPE_ATOM | L2_VAL_CONST; \
-		vm->values[id].atom = key; \
-	} \
+#define XNAME(name, k) \
+	l2_vm_namespace_set(&vm->values[builtins], key, vm->k); \
+	key += 1;
+#define XATOM(name, k) \
+	id = alloc_val(vm); \
+	vm->values[id].flags = L2_VAL_TYPE_ATOM | L2_VAL_CONST; \
+	vm->values[id].atom = key; \
 	vm->k = id; \
 	key += 1;
-#define X(name, f) \
+#define XFUNCTION(name, f) \
 	id = alloc_val(vm); \
 	vm->values[id].flags = L2_VAL_TYPE_CFUNCTION | L2_VAL_CONST; \
 	vm->values[id].cfunc = f; \
-	l2_vm_namespace_set(&vm->values[builtins], key++, id);
+	l2_vm_namespace_set(&vm->values[builtins], key, id); \
+	key += 1;
 #include "builtins.x.h"
-#undef Y
-#undef X
+#undef XNAME
+#undef XATOM
+#undef XFUNCTION
 
 	vm->gc_start = id + 1;
 }

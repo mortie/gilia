@@ -48,13 +48,16 @@ void l2_gen_init(struct l2_generator *gen, struct l2_io_writer *w) {
 	l2_bufio_writer_init(&gen->writer, w);
 
 	// Register atoms for all builtins
-#define Y(name, k) \
+#define XNAME(name, k) \
 	l2_strset_put_copy(&gen->atomset, name);
-#define X(name, f) \
+#define XATOM(name, k) \
+	l2_strset_put_copy(&gen->atomset, name);
+#define XFUNCTION(name, f) \
 	l2_strset_put_copy(&gen->atomset, name);
 #include "builtins.x.h"
-#undef Y
-#undef X
+#undef XNAME
+#undef XATOM
+#undef XFUNCTION
 }
 
 void l2_gen_flush(struct l2_generator *gen) {

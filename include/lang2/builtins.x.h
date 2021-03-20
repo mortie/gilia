@@ -1,28 +1,31 @@
 // X macro: Define a macro named X, then include this file, then undef X.
 
-#ifdef Y
-Y("none", knone)
-Y("true", ktrue)
-Y("false", kfalse)
+#ifdef XNAME
+XNAME("none", knone)
 #endif
 
-#ifdef X
-X("+", l2_builtin_add)
-X("-", l2_builtin_sub)
-X("*", l2_builtin_mul)
-X("/", l2_builtin_div)
-X("==", l2_builtin_eq)
-X("!=", l2_builtin_neq)
-X("<", l2_builtin_lt)
-X("<=", l2_builtin_lteq)
-X(">", l2_builtin_gt)
-X(">=", l2_builtin_gteq)
-X("&&", l2_builtin_land)
-X("||", l2_builtin_lor)
-X("??", l2_builtin_first)
-X("print", l2_builtin_print)
-X("len", l2_builtin_len)
-X("if", l2_builtin_if)
-X("loop", l2_builtin_loop)
-X("while", l2_builtin_while)
+#ifdef XATOM
+XATOM("true", ktrue)
+XATOM("false", kfalse)
+#endif
+
+#ifdef XFUNCTION
+XFUNCTION("+", l2_builtin_add)
+XFUNCTION("-", l2_builtin_sub)
+XFUNCTION("*", l2_builtin_mul)
+XFUNCTION("/", l2_builtin_div)
+XFUNCTION("==", l2_builtin_eq)
+XFUNCTION("!=", l2_builtin_neq)
+XFUNCTION("<", l2_builtin_lt)
+XFUNCTION("<=", l2_builtin_lteq)
+XFUNCTION(">", l2_builtin_gt)
+XFUNCTION(">=", l2_builtin_gteq)
+XFUNCTION("&&", l2_builtin_land)
+XFUNCTION("||", l2_builtin_lor)
+XFUNCTION("??", l2_builtin_first)
+XFUNCTION("print", l2_builtin_print)
+XFUNCTION("len", l2_builtin_len)
+XFUNCTION("if", l2_builtin_if)
+XFUNCTION("loop", l2_builtin_loop)
+XFUNCTION("while", l2_builtin_while)
 #endif

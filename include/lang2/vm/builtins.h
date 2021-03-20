@@ -1,6 +1,6 @@
 #include "vm.h"
 
-#define X(name, f) \
+#define XFUNCTION(name, f) \
 	l2_word f(struct l2_vm *vm, l2_word argc, l2_word *argv);
 #include "../builtins.x.h"
-#undef X
+#undef XFUNCTION
