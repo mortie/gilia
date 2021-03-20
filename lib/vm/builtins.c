@@ -109,7 +109,7 @@ l2_word l2_builtin_eq(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 		if (argv[i - 1] == argv[i]) continue;
 		struct l2_vm_value *a = &vm->values[argv[i - 1]];
 		struct l2_vm_value *b = &vm->values[argv[i]];
-		if (a->flags != b->flags) {
+		if (l2_value_get_type(a) != l2_value_get_type(b)) {
 			return vm->kfalse;
 		}
 
