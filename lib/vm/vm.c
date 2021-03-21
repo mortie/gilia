@@ -156,7 +156,7 @@ const char *l2_value_type_name(enum l2_value_type typ) {
 
 l2_word l2_value_arr_get(struct l2_vm *vm, struct l2_vm_value *val, l2_word k) {
 	if (k >= val->extra.arr_length) {
-		return l2_vm_error(vm, "Array index out of bounds");
+		return vm->knone;
 	}
 
 	if (val->flags & L2_VAL_SBO) {
