@@ -57,12 +57,12 @@
 
 print
 (none)
-(true) (false) (atom 23)
+(true) (false) (atom 25)
 100
 100.5
 255
 Hello World
-[(none) (true) (false) (atom 23) 100.1 Nope (namespace) (function)]
+[(none) (true) (false) (atom 25) 100.1 Nope (namespace) (function)]
 (namespace) (namespace)
 
 len

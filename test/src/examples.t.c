@@ -132,6 +132,7 @@ describe(exaples) {
 	check("functions.l2");
 	check("dynamic-lookups.l2");
 	check("builtins.l2");
+	check("control-flow.l2");
 
 	if (error_message != NULL) {
 		free(error_message);

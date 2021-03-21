@@ -1,0 +1,45 @@
+Run loop 10 times
+Hello World
+Hello World
+Hello World
+Hello World
+Hello World
+Hello World
+Hello World
+Hello World
+Hello World
+Hello World
+
+With while this time
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+Hallo Wrodl
+
+And with the for loop
+Hello with [0]
+Hello with [1]
+Hello with [2]
+Hello with [3]
+Hello with [4]
+Hello with [5]
+Hello with [6]
+Hello with [7]
+Hello with [8]
+Hello with [9]
+
+Array iterator
+[0 hello]
+[1 world]
+[2 how]
+[3 are]
+[4 you]
+[5 10]
+[6 20]
+[7 (true)]

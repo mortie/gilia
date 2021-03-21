@@ -1,5 +1,3 @@
-// X macro: Define a macro named X, then include this file, then undef X.
-
 #ifdef XNAME
 XNAME("none", knone)
 #endif

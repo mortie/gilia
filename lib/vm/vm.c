@@ -154,6 +154,16 @@ const char *l2_value_type_name(enum l2_value_type typ) {
 	return "(unknown)";
 }
 
+l2_word *l2_value_arr_data(struct l2_vm *vm, struct l2_vm_value *val) {
+	if (val->flags & L2_VAL_SBO) {
+		return val->shortarray;
+	} else if (val->array) {
+		return val->array->data;
+	} else {
+		return NULL;
+	}
+}
+
 l2_word l2_value_arr_get(struct l2_vm *vm, struct l2_vm_value *val, l2_word k) {
 	if (k >= val->extra.arr_length) {
 		return vm->knone;
@@ -337,6 +347,68 @@ void l2_vm_run(struct l2_vm *vm) {
 	}
 }
 
+static void call_func_with_args(
+		struct l2_vm *vm, l2_word func_id, l2_word args_id);
+static void call_func(
+		struct l2_vm *vm, l2_word func_id,
+		l2_word argc, l2_word *argv);
+
+static void after_func_return(struct l2_vm *vm) {
+	// TODO: Rewrite parts of this into a loop. Currently, continuously calling
+	//       a C function with continuations will stack overflow.
+	struct l2_vm_value *ret = &vm->values[vm->stack[vm->sptr - 1]];
+
+	// If the function returns a continuation, we leave that continuation
+	// on the stack to be handled later, then call the function
+	if (l2_value_get_type(ret) == L2_VAL_TYPE_CONTINUATION) {
+		if (ret->cont && ret->cont->args != vm->knone) {
+			struct l2_vm_value *args = &vm->values[ret->cont->args];
+			struct l2_vm_value *func = &vm->values[ret->extra.cont_call];
+
+			// We can optimize calling a non-C function by re-using the
+			// args array rather than allocating a new one
+			if (l2_value_get_type(func) == L2_VAL_TYPE_FUNCTION) {
+				call_func_with_args(vm, ret->extra.cont_call, ret->cont->args);
+			} else {
+				call_func(
+						vm, ret->extra.cont_call, args->extra.arr_length,
+						l2_value_arr_data(vm, args));
+			}
+		} else {
+			call_func(vm, ret->extra.cont_call, 0, NULL);
+		}
+
+		return;
+	}
+
+	// If the value right below the returned value is a continuation,
+	// it's a continuation left on the stack to be handled later - i.e now
+	if (
+			vm->sptr >= 2 &&
+			l2_value_get_type(&vm->values[vm->stack[vm->sptr - 2]]) ==
+				L2_VAL_TYPE_CONTINUATION) {
+		struct l2_vm_value *cont = &vm->values[vm->stack[vm->sptr - 2]];
+
+		// If it's just a basic continuation, don't need to do anything
+		if (cont->cont == NULL || cont->cont->callback == NULL) {
+			// Return the return value of the function, discard the continuation
+			vm->stack[vm->sptr - 2] = vm->stack[vm->sptr - 1];
+			vm->sptr -= 1;
+			return;
+		}
+
+		// After this, the original return value and the continuation
+		// are both replaced by whatever the callback returned
+		l2_word contret = cont->cont->callback(
+				vm, vm->stack[vm->sptr - 1], vm->stack[vm->sptr - 2]);
+		vm->stack[vm->sptr - 2] = contret;
+		vm->sptr -= 1;
+
+		after_func_return(vm);
+		return;
+	}
+}
+
 static void call_func_with_args(struct l2_vm *vm, l2_word func_id, l2_word args_id) {
 	l2_word stack_base = vm->sptr;
 	vm->stack[vm->sptr++] = args_id;
@@ -368,60 +440,7 @@ static void call_func(
 		// Make this a while loop, because using call_func would
 		// make the call stack depth unbounded
 		vm->stack[vm->sptr++] = func->cfunc(vm, argc, argv);
-		while (1) {
-			l2_word cont_id = vm->stack[vm->sptr - 1];
-			struct l2_vm_value *cont = &vm->values[cont_id];
-			if (l2_value_get_type(cont) != L2_VAL_TYPE_CONTINUATION) {
-				break;
-			}
-
-			// If there's no callback it's easy, just call the function
-			// it wants us to call
-			l2_word call_id = cont->extra.cont_call;
-			if (cont->cont == NULL) {
-				vm->sptr -= 1;
-				call_func(vm, call_id, 0, NULL);
-				break;
-			}
-
-			struct l2_vm_value *call = &vm->values[call_id];
-
-			if (l2_value_get_type(call) == L2_VAL_TYPE_CFUNCTION) {
-				int argc = 0;
-				l2_word *argv = NULL;
-				if (cont->cont && cont->cont->args != 0) {
-					struct l2_vm_value *args = &vm->values[cont->cont->args];
-					if (l2_value_get_type(args) != L2_VAL_TYPE_ARRAY) {
-						vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, args);
-						break;
-					}
-
-					argc = args->extra.arr_length;
-					if (args->flags & L2_VAL_SBO) {
-						argv = args->shortarray;
-					} else {
-						argv = args->array->data;
-					}
-				}
-
-				l2_word retval = call->cfunc(vm, argc, argv);
-				vm->stack[vm->sptr - 1] = cont->cont->callback(vm, retval, cont_id);
-			} else if (l2_value_get_type(call) == L2_VAL_TYPE_FUNCTION) {
-				// Leave the continuation on the stack,
-				// let the L2_OP_RET code deal with it
-				cont->flags |= L2_VAL_CONT_CALLBACK;
-				if (cont->cont && cont->cont->args) {
-					call_func_with_args(vm, call_id, cont->cont->args);
-				} else {
-					call_func(vm, call_id, 0, NULL);
-				}
-				break;
-			} else {
-				l2_word err = l2_vm_type_error(vm, call);
-				vm->stack[vm->sptr - 1] = cont->cont->callback(vm, err, cont_id);
-			}
-		}
-
+		after_func_return(vm);
 		return;
 	}
 
@@ -433,16 +452,18 @@ static void call_func(
 
 	l2_word args_id = alloc_val(vm);
 	struct l2_vm_value *args = &vm->values[args_id];
+	args->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO;
 	args->extra.arr_length = argc;
-	if (argc <= 2) {
-		args->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO;
-		memcpy(args->shortarray, argv, argc * sizeof(l2_word));
-	} else {
-		args->flags = L2_VAL_TYPE_ARRAY;
-		args->array = malloc(
-				sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
-		args->array->size = argc;
-		memcpy(args->array->data, argv, argc * sizeof(l2_word));
+	if (argc > 0) {
+		if (argc <= 2) {
+			memcpy(args->shortarray, argv, argc * sizeof(l2_word));
+		} else {
+			args->flags = L2_VAL_TYPE_ARRAY;
+			args->array = malloc(
+					sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
+			args->array->size = argc;
+			memcpy(args->array->data, argv, argc * sizeof(l2_word));
+		}
 	}
 
 	call_func_with_args(vm, func_id, args_id);
@@ -567,44 +588,9 @@ void l2_vm_step(struct l2_vm *vm) {
 			vm->fsptr -= 1;
 			vm->sptr = sptr;
 			vm->iptr = retptr;
+			vm->stack[vm->sptr++] = retval;
 
-			l2_word cont_id;
-			struct l2_vm_value *cont = NULL;
-			if (vm->sptr > 0) {
-				cont_id = vm->stack[vm->sptr - 1];
-				cont = &vm->values[cont_id];
-			}
-
-			int iscont =
-				cont != NULL && l2_value_get_type(cont) == L2_VAL_TYPE_CONTINUATION;
-			int nocallback =
-				!iscont || (cont->flags & L2_VAL_CONT_CALLBACK && cont->cont == NULL);
-			if (nocallback) {
-				if (iscont) {
-					vm->stack[vm->sptr - 1] = retval;
-				} else {
-					vm->stack[vm->sptr++] = retval;
-				}
-				break;
-			}
-
-			if (cont->flags & L2_VAL_CONT_CALLBACK) {
-				retval = cont->cont->callback(vm, retval, cont_id);
-				cont_id = retval;
-				cont = &vm->values[cont_id];
-
-				if (l2_value_get_type(cont) != L2_VAL_TYPE_CONTINUATION) {
-					vm->stack[vm->sptr - 1] = retval;
-					break;
-				}
-			}
-
-			cont->flags |= L2_VAL_CONT_CALLBACK;
-			if (cont->cont && cont->cont->args != 0) {
-				call_func_with_args(vm, cont->extra.cont_call, cont->cont->args);
-			} else {
-				call_func(vm, cont->extra.cont_call, 0, NULL);
-			}
+			after_func_return(vm);
 		}
 		break;
 
