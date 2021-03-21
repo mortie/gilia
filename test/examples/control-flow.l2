@@ -7,14 +7,14 @@ loop {
 }
 
 print "\nWith while this time"
-i = 0
+i := 0
 while {i < 10} {
 	print "Hallo Wrodl"
 	i = i + 1
 }
 
 print "\nAnd with the for loop"
-i = 0
+i := 0
 iter := {
 	j := i
 	i = i + 1
