@@ -49,10 +49,13 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 		gc_mark_namespace(vm, val);
 	} else if (typ == L2_VAL_TYPE_FUNCTION) {
 		gc_mark(vm, val->func.ns);
-	} else if (
-			typ == L2_VAL_TYPE_CONTINUATION &&
-			val->cont != NULL && val->cont->marker != NULL) {
-		val->cont->marker(vm, val->cont, gc_mark);
+	} else if (typ == L2_VAL_TYPE_CONTINUATION && val->cont != NULL) {
+		if (val->cont->marker != NULL) {
+			val->cont->marker(vm, val->cont, gc_mark);
+		}
+		if (val->cont->args != 0) {
+			gc_mark(vm, val->cont->args);
+		}
 	}
 }
 
@@ -103,7 +106,7 @@ static void gc_free(struct l2_vm *vm, l2_word id) {
 		free(val->ns);
 	} else if (typ == L2_VAL_TYPE_ERROR) {
 		free(val->error);
-	} else if (typ == L2_VAL_TYPE_CONTINUATION) {
+	} else if (typ == L2_VAL_TYPE_CONTINUATION && val->cont) {
 		free(val->cont);
 	}
 }
@@ -334,14 +337,29 @@ void l2_vm_run(struct l2_vm *vm) {
 	}
 }
 
+static void call_func_with_args(struct l2_vm *vm, l2_word func_id, l2_word args_id) {
+	l2_word stack_base = vm->sptr;
+	vm->stack[vm->sptr++] = args_id;
+
+	l2_word ns_id = alloc_val(vm);
+	struct l2_vm_value *func = &vm->values[func_id]; // func might be stale after alloc_val
+	vm->values[ns_id].extra.ns_parent = func->func.ns;
+	vm->values[ns_id].ns = NULL;
+	vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
+	vm->fstack[vm->fsptr].ns = ns_id;
+	vm->fstack[vm->fsptr].retptr = vm->iptr;
+	vm->fstack[vm->fsptr].sptr = stack_base;
+	vm->fsptr += 1;
+
+	vm->iptr = func->func.pos;
+}
+
 // The 'call_func' function assumes that all relevant values have been popped off
 // the stack, so that the return value can be pushed to the top of the stack
 // straight away
 static void call_func(
 		struct l2_vm *vm, l2_word func_id,
 		l2_word argc, l2_word *argv) {
-	l2_word stack_base = vm->sptr;
-
 	struct l2_vm_value *func = &vm->values[func_id];
 	enum l2_value_type typ = l2_value_get_type(func);
 
@@ -369,13 +387,34 @@ static void call_func(
 			struct l2_vm_value *call = &vm->values[call_id];
 
 			if (l2_value_get_type(call) == L2_VAL_TYPE_CFUNCTION) {
-				l2_word retval = call->cfunc(vm, 0, NULL);
+				int argc = 0;
+				l2_word *argv = NULL;
+				if (cont->cont && cont->cont->args != 0) {
+					struct l2_vm_value *args = &vm->values[cont->cont->args];
+					if (l2_value_get_type(args) != L2_VAL_TYPE_ARRAY) {
+						vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, args);
+						break;
+					}
+
+					argc = args->extra.arr_length;
+					if (args->flags & L2_VAL_SBO) {
+						argv = args->shortarray;
+					} else {
+						argv = args->array->data;
+					}
+				}
+
+				l2_word retval = call->cfunc(vm, argc, argv);
 				vm->stack[vm->sptr - 1] = cont->cont->callback(vm, retval, cont_id);
 			} else if (l2_value_get_type(call) == L2_VAL_TYPE_FUNCTION) {
 				// Leave the continuation on the stack,
 				// let the L2_OP_RET code deal with it
 				cont->flags |= L2_VAL_CONT_CALLBACK;
-				call_func(vm, call_id, 0, NULL);
+				if (cont->cont && cont->cont->args) {
+					call_func_with_args(vm, call_id, cont->cont->args);
+				} else {
+					call_func(vm, call_id, 0, NULL);
+				}
 				break;
 			} else {
 				l2_word err = l2_vm_type_error(vm, call);
@@ -392,33 +431,21 @@ static void call_func(
 		return;
 	}
 
-	l2_word arr_id = alloc_val(vm);
-	struct l2_vm_value *arr = &vm->values[arr_id];
-	arr->extra.arr_length = argc;
+	l2_word args_id = alloc_val(vm);
+	struct l2_vm_value *args = &vm->values[args_id];
+	args->extra.arr_length = argc;
 	if (argc <= 2) {
-		arr->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO;
-		memcpy(arr->shortarray, argv, argc * sizeof(l2_word));
+		args->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO;
+		memcpy(args->shortarray, argv, argc * sizeof(l2_word));
 	} else {
-		arr->flags = L2_VAL_TYPE_ARRAY;
-		arr->array = malloc(
+		args->flags = L2_VAL_TYPE_ARRAY;
+		args->array = malloc(
 				sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
-		arr->array->size = argc;
-		memcpy(arr->array->data, argv, argc * sizeof(l2_word));
+		args->array->size = argc;
+		memcpy(args->array->data, argv, argc * sizeof(l2_word));
 	}
 
-	vm->stack[vm->sptr++] = arr_id;
-
-	l2_word ns_id = alloc_val(vm);
-	func = &vm->values[func_id]; // func might be stale after alloc
-	vm->values[ns_id].extra.ns_parent = func->func.ns;
-	vm->values[ns_id].ns = NULL;
-	vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
-	vm->fstack[vm->fsptr].ns = ns_id;
-	vm->fstack[vm->fsptr].retptr = vm->iptr;
-	vm->fstack[vm->fsptr].sptr = stack_base;
-	vm->fsptr += 1;
-
-	vm->iptr = func->func.pos;
+	call_func_with_args(vm, func_id, args_id);
 }
 
 static l2_word read_u4le(struct l2_vm *vm) {
@@ -573,7 +600,11 @@ void l2_vm_step(struct l2_vm *vm) {
 			}
 
 			cont->flags |= L2_VAL_CONT_CALLBACK;
-			call_func(vm, cont->extra.cont_call, 0, NULL);
+			if (cont->cont && cont->cont->args != 0) {
+				call_func_with_args(vm, cont->extra.cont_call, cont->cont->args);
+			} else {
+				call_func(vm, cont->extra.cont_call, 0, NULL);
+			}
 		}
 		break;
 

@@ -29,4 +29,5 @@ XFUNCTION("len", l2_builtin_len)
 XFUNCTION("if", l2_builtin_if)
 XFUNCTION("loop", l2_builtin_loop)
 XFUNCTION("while", l2_builtin_while)
+XFUNCTION("for", l2_builtin_for)
 #endif

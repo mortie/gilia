@@ -53,15 +53,11 @@ void l2_vm_print_val(struct l2_vm_value *val) {
 
 	case L2_VAL_TYPE_ARRAY:
 		{
-			if (val->array == NULL) {
-				printf("ARRAY, empty\n");
-				return;
-			}
-
 			printf("ARRAY, len %u\n", val->extra.arr_length);
-			for (size_t i = 0; i < val->extra.arr_length; ++i) {
-				printf("    %zu: %u\n", i, val->array->data[i]);
-			}
+			l2_word *data = val->flags & L2_VAL_SBO ? val->shortarray : val->array->data;
+				for (size_t i = 0; i < val->extra.arr_length; ++i) {
+					printf("    %zu: %u\n", i, data[i]);
+				}
 		}
 		break;
 

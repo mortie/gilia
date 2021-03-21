@@ -39,6 +39,7 @@ enum l2_value_flags {
 struct l2_vm_contcontext {
 	l2_vm_contcallback callback;
 	l2_vm_gcmarker marker;
+	l2_word args;
 };
 
 // The smallest size an l2_vm_value can be is 16 bytes on common platforms.
