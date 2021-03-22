@@ -1,4 +1,12 @@
-print "Run loop 10 times"
+print "If"
+if 'true {print "true is true"} {print "true is not true"}
+if 'false {print "false is true"} {print "false is not true"}
+if 'true {print "true is true"}
+if 'false {print "false is true"} # This should output nothing
+print (if 'true {"If returns it true value"})
+print (if 'false {0} {"If returns its false value"})
+
+print "\nRun loop 10 times"
 i := 0
 loop {
 	print "Hello World"
@@ -20,7 +28,7 @@ iter := {
 	i = i + 1
 	if j < 10 {j} {'stop}
 }
-for iter { print "Hello with" $ }
+for iter {print "Hello with" $}
 
 print "\nArray iterator"
 array-iter := {
