@@ -72,6 +72,7 @@ static void step_through(struct l2_vm *vm) {
 		}
 
 		l2_vm_step(vm);
+		l2_vm_gc(vm);
 		l2_vm_print_state(vm);
 	}
 }
