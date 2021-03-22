@@ -299,7 +299,11 @@ struct loop_context {
 
 static l2_word loop_callback(struct l2_vm *vm, l2_word retval, l2_word cont) {
 	struct l2_vm_value *val = &vm->values[retval];
-	if (l2_value_get_type(val) == L2_VAL_TYPE_ATOM && val->atom == vm->values[vm->kstop].atom) {
+	if (l2_value_get_type(val) == L2_VAL_TYPE_ERROR) {
+		return retval;
+	} else if (
+			l2_value_get_type(val) == L2_VAL_TYPE_ATOM &&
+			val->atom == vm->values[vm->kstop].atom) {
 		return vm->knone;
 	} else {
 		return cont;
@@ -353,7 +357,7 @@ static l2_word while_callback(struct l2_vm *vm, l2_word retval, l2_word cont_id)
 			cont->extra.cont_call = ctx->body;
 			return cont_id;
 		} else {
-			return retval;
+			return vm->knone;
 		}
 	} else {
 		if (l2_value_get_type(ret) == L2_VAL_TYPE_ERROR) {
