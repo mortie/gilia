@@ -3,7 +3,7 @@ if 'true {print "true is true"} {print "true is not true"}
 if 'false {print "false is true"} {print "false is not true"}
 if 'true {print "true is true"}
 if 'false {print "false is true"} # This should output nothing
-print (if 'true {"If returns it true value"})
+print (if 'true {"If returns its true value"})
 print (if 'false {0} {"If returns its false value"})
 
 print "\nRun loop 10 times"
