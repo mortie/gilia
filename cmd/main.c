@@ -61,7 +61,12 @@ static void step_through(struct l2_vm *vm) {
 	while (!vm->halted) {
 		size_t iptr = vm->iptr;
 		printf("\n======\n\n(%d) Will run instr: ", vm->iptr);
-		l2_vm_print_op(vm->ops, vm->opslen, &iptr);
+		if (vm->need_check_retval) {
+			printf("(internal)\n");
+		} else {
+			l2_vm_print_op(vm->ops, vm->opslen, &iptr);
+		}
+
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			break;
 		}

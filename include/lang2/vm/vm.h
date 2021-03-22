@@ -105,7 +105,8 @@ int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *ns, l2_word ke
 
 struct l2_vm {
 	int halted;
-	int gc_scheduled;
+	int need_gc;
+	int need_check_retval;
 	unsigned char *ops;
 	size_t opslen;
 	l2_word iptr;

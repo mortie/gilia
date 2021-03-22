@@ -24,7 +24,7 @@ static l2_word alloc_val(struct l2_vm *vm) {
 
 			vm->values = realloc(vm->values, sizeof(*vm->values) * vm->valuessize);
 		} else {
-			vm->gc_scheduled = 1;
+			vm->need_gc = 1;
 		}
 	}
 
@@ -49,12 +49,15 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 		gc_mark_namespace(vm, val);
 	} else if (typ == L2_VAL_TYPE_FUNCTION) {
 		gc_mark(vm, val->func.ns);
-	} else if (typ == L2_VAL_TYPE_CONTINUATION && val->cont != NULL) {
-		if (val->cont->marker != NULL) {
-			val->cont->marker(vm, val->cont, gc_mark);
-		}
-		if (val->cont->args != 0) {
-			gc_mark(vm, val->cont->args);
+	} else if (typ == L2_VAL_TYPE_CONTINUATION) {
+		gc_mark(vm, val->extra.cont_call);
+		if (val->cont != NULL) {
+			if (val->cont->marker != NULL) {
+				val->cont->marker(vm, val->cont, gc_mark);
+			}
+			if (val->cont->args != 0) {
+				gc_mark(vm, val->cont->args);
+			}
 		}
 	}
 }
@@ -201,7 +204,8 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->std_error = &std_error.w;
 
 	vm->halted = 0;
-	vm->gc_scheduled = 0;
+	vm->need_gc = 0;
+	vm->need_check_retval = 0;
 	vm->ops = ops;
 	vm->opslen = opslen;
 	vm->iptr = 0;
@@ -353,9 +357,18 @@ static void call_func(
 		struct l2_vm *vm, l2_word func_id,
 		l2_word argc, l2_word *argv);
 
+static void after_cfunc_return(struct l2_vm *vm) {
+	if (
+			l2_value_get_type(&vm->values[vm->stack[vm->sptr - 1]]) ==
+				L2_VAL_TYPE_CONTINUATION ||
+			(vm->sptr >= 2 &&
+				l2_value_get_type(&vm->values[vm->stack[vm->sptr - 2]]) ==
+					L2_VAL_TYPE_CONTINUATION)) {
+		vm->need_check_retval = 1;
+	}
+}
+
 static void after_func_return(struct l2_vm *vm) {
-	// TODO: Rewrite parts of this into a loop. Currently, continuously calling
-	//       a C function with continuations will stack overflow.
 	struct l2_vm_value *ret = &vm->values[vm->stack[vm->sptr - 1]];
 
 	// If the function returns a continuation, we leave that continuation
@@ -437,10 +450,8 @@ static void call_func(
 
 	// C functions are called differently from language functions
 	if (typ == L2_VAL_TYPE_CFUNCTION) {
-		// Make this a while loop, because using call_func would
-		// make the call stack depth unbounded
 		vm->stack[vm->sptr++] = func->cfunc(vm, argc, argv);
-		after_func_return(vm);
+		after_cfunc_return(vm);
 		return;
 	}
 
@@ -503,6 +514,18 @@ static double read_d8le(struct l2_vm *vm) {
 }
 
 void l2_vm_step(struct l2_vm *vm) {
+	if (vm->need_check_retval) {
+		vm->need_check_retval = 0;
+		after_func_return(vm);
+
+		if (vm->need_gc) {
+			vm->need_gc = 0;
+			l2_vm_gc(vm);
+		}
+
+		return;
+	}
+
 	enum l2_opcode opcode = (enum l2_opcode)vm->ops[vm->iptr++];
 
 	l2_word word;
@@ -789,9 +812,9 @@ void l2_vm_step(struct l2_vm *vm) {
 		break;
 	}
 
-	if (vm->gc_scheduled) {
+	if (vm->need_gc) {
+		vm->need_gc = 0;
 		l2_vm_gc(vm);
-		vm->gc_scheduled = 0;
 	}
 }
 
