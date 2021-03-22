@@ -15,7 +15,7 @@ static l2_word alloc_val(struct l2_vm *vm) {
 	if (id + 16 >= vm->valuessize) {
 		if (id >= vm->valuessize) {
 			if (vm->valuessize == 0) {
-				vm->valuessize = 64;
+				vm->valuessize = 128;
 			}
 
 			while (id >= vm->valuessize) {
