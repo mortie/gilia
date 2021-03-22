@@ -57,12 +57,12 @@ print (<= 1 10 100 200)
 
 print "\nprint"
 print none
-print 'true 'false 'hello
+print 'true 'false
 print 100
 print 100.5
 print 0xff
 print "Hello World"
-print [none 'true 'false 'hello 100.1 "Nope" {} {0}]
+print [none 'true 'false 100.1 "Nope" {} {0}]
 print {} {a: 10}
 
 print "\nlen"
