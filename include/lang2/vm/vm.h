@@ -24,6 +24,7 @@ enum l2_value_type {
 	L2_VAL_TYPE_FUNCTION,
 	L2_VAL_TYPE_CFUNCTION,
 	L2_VAL_TYPE_CONTINUATION,
+	L2_VAL_TYPE_RETURN,
 	L2_VAL_TYPE_ERROR,
 };
 
@@ -71,6 +72,7 @@ struct l2_vm_value {
 		} func;
 		l2_vm_cfunction cfunc;
 		struct l2_vm_contcontext *cont;
+		l2_word ret;
 		char *error;
 	};
 };

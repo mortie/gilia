@@ -56,12 +56,16 @@ static void print_val(struct l2_vm *vm, struct l2_io_writer *out, struct l2_vm_v
 			l2_io_printf(out, "(function)");
 			break;
 
-		case L2_VAL_TYPE_ERROR:
-			l2_io_printf(out, "(error: %s)", val->error);
-			break;
-
 		case L2_VAL_TYPE_CONTINUATION:
 			l2_io_printf(out, "(continuation)");
+			break;
+
+		case L2_VAL_TYPE_RETURN:
+			l2_io_printf(out, "(return)");
+			break;
+
+		case L2_VAL_TYPE_ERROR:
+			l2_io_printf(out, "(error: %s)", val->error);
 			break;
 	}
 }
@@ -253,6 +257,7 @@ l2_word l2_builtin_len(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	case L2_VAL_TYPE_CFUNCTION:
 	case L2_VAL_TYPE_ERROR:
 	case L2_VAL_TYPE_CONTINUATION:
+	case L2_VAL_TYPE_RETURN:
 		break;
 
 	case L2_VAL_TYPE_BUFFER:
@@ -460,5 +465,58 @@ l2_word l2_builtin_for(struct l2_vm *vm, l2_word argc, l2_word *argv) {
 	struct l2_vm_value *cont = &vm->values[cont_id];
 	cont->extra.cont_call = ctx->iter;
 	cont->cont = &ctx->base;
+	return cont_id;
+}
+
+static l2_word guard_callback(struct l2_vm *vm, l2_word retval, l2_word cont_id) {
+	struct l2_vm_value *ret = &vm->values[cont_id];
+	free(ret->cont);
+	ret->flags = L2_VAL_TYPE_RETURN;
+	ret->ret = retval;
+	return cont_id;
+}
+
+l2_word l2_builtin_guard(struct l2_vm *vm, l2_word argc, l2_word *argv) {
+	if (argc != 1 && argc != 2) {
+		return l2_vm_error(vm, "Expected 1 or 2 arguments");
+	}
+
+	struct l2_vm_value *cond = &vm->values[argv[0]];
+	if (l2_value_get_type(cond) == L2_VAL_TYPE_ERROR) {
+		return argv[0];
+	}
+
+	if (argc == 1) {
+		if (!l2_vm_val_is_true(vm, cond)) {
+			return vm->knone;
+		}
+
+		l2_word ret_id = l2_vm_alloc(vm, L2_VAL_TYPE_RETURN, 0);
+		vm->values[ret_id].ret = vm->knone;
+		return ret_id;
+	}
+
+	struct l2_vm_value *body = &vm->values[argv[1]];
+	if (l2_value_get_type(body) == L2_VAL_TYPE_ERROR) {
+		return argv[1];
+	}
+
+	if (!l2_vm_val_is_true(vm, cond)) {
+		return vm->knone;
+	}
+
+	struct l2_vm_contcontext *ctx = malloc(sizeof(*ctx));
+	if (ctx == NULL) {
+		return l2_vm_error(vm, "Allocation failure");
+	}
+
+	ctx->callback = guard_callback;
+	ctx->marker = NULL;
+	ctx->args = vm->knone;
+
+	l2_word cont_id = l2_vm_alloc(vm, L2_VAL_TYPE_CONTINUATION, 0);
+	struct l2_vm_value *cont = &vm->values[cont_id];
+	cont->extra.cont_call = argv[1];
+	cont->cont = ctx;
 	return cont_id;
 }

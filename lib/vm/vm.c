@@ -150,8 +150,9 @@ const char *l2_value_type_name(enum l2_value_type typ) {
 	case L2_VAL_TYPE_NAMESPACE: return "NAMESPACE";
 	case L2_VAL_TYPE_FUNCTION: return "FUNCTION";
 	case L2_VAL_TYPE_CFUNCTION: return "CFUNCTION";
-	case L2_VAL_TYPE_ERROR: return "ERROR";
 	case L2_VAL_TYPE_CONTINUATION: return "CONTINUATION";
+	case L2_VAL_TYPE_RETURN: return "RETURN";
+	case L2_VAL_TYPE_ERROR: return "ERROR";
 	}
 
 	return "(unknown)";
@@ -237,7 +238,7 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->values[root].ns = NULL;
 	vm->values[root].flags = L2_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = root;
-	vm->fstack[vm->fsptr].retptr = 0;
+	vm->fstack[vm->fsptr].retptr = ~(l2_word)0;
 	vm->fstack[vm->fsptr].sptr = 0;
 	vm->fsptr += 1;
 
@@ -360,6 +361,8 @@ static void call_func(
 static void after_cfunc_return(struct l2_vm *vm) {
 	if (
 			l2_value_get_type(&vm->values[vm->stack[vm->sptr - 1]]) ==
+				L2_VAL_TYPE_RETURN ||
+			l2_value_get_type(&vm->values[vm->stack[vm->sptr - 1]]) ==
 				L2_VAL_TYPE_CONTINUATION ||
 			(vm->sptr >= 2 &&
 				l2_value_get_type(&vm->values[vm->stack[vm->sptr - 2]]) ==
@@ -370,6 +373,24 @@ static void after_cfunc_return(struct l2_vm *vm) {
 
 static void after_func_return(struct l2_vm *vm) {
 	struct l2_vm_value *ret = &vm->values[vm->stack[vm->sptr - 1]];
+
+	if (l2_value_get_type(ret) == L2_VAL_TYPE_RETURN) {
+		l2_word retval = ret->ret;
+		l2_word retptr = vm->fstack[vm->fsptr - 1].retptr;
+		l2_word sptr = vm->fstack[vm->fsptr - 1].sptr;
+		if (retptr == ~(l2_word)0) {
+			vm->halted = 1;
+			return;
+		}
+
+		vm->fsptr -= 1;
+		vm->sptr = sptr;
+		vm->iptr = retptr;
+		vm->stack[vm->sptr++] = retval;
+
+		after_func_return(vm);
+		return;
+	}
 
 	// If the function returns a continuation, we leave that continuation
 	// on the stack to be handled later, then call the function
