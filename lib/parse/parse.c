@@ -105,10 +105,6 @@ static int parse_function_literal_impl(
 	l2_trace_scope("function literal");
 	// '{' and EOL already skipped by parse_object_or_function_literal
 
-	// The arguments array will be at the top of the stack
-	char *ident = "$";
-	l2_gen_stack_frame_set_copy(gen, ident);
-
 	int first = 1;
 	while (1) {
 		if (l2_token_get_kind(l2_lexer_peek(lexer, 1)) == L2_TOK_CLOSE_BRACE) {
@@ -258,12 +254,17 @@ static int parse_arg_level_expression_base(
 		l2_trace_scope("ident");
 		l2_trace("ident '%s'", l2_token_get_str(tok));
 		struct l2_token_value ident = l2_token_extract_val(tok);
-		l2_lexer_consume(lexer); // ident
-
-		if (ident.flags & L2_TOK_SMALL) {
-			l2_gen_stack_frame_lookup_copy(gen, ident.strbuf);
+		if (strcmp(l2_token_get_str(tok), "$") == 0) {
+			l2_lexer_consume(lexer); // ident
+			l2_gen_stack_frame_get_args(gen);
 		} else {
-			l2_gen_stack_frame_lookup(gen, &ident.str);
+			l2_lexer_consume(lexer); // ident
+
+			if (ident.flags & L2_TOK_SMALL) {
+				l2_gen_stack_frame_lookup_copy(gen, ident.strbuf);
+			} else {
+				l2_gen_stack_frame_lookup(gen, &ident.str);
+			}
 		}
 	} else if (l2_token_get_kind(tok) == L2_TOK_NUMBER) {
 		l2_trace_scope("number literal");

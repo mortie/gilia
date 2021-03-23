@@ -99,6 +99,7 @@ struct l2_vm_stack_frame {
 	l2_word ns;
 	l2_word sptr;
 	l2_word retptr;
+	l2_word args;
 };
 
 l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key);

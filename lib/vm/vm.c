@@ -230,6 +230,7 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->fstack[vm->fsptr].ns = builtins;
 	vm->fstack[vm->fsptr].retptr = 0;
 	vm->fstack[vm->fsptr].sptr = 0;
+	vm->fstack[vm->fsptr].args = 0;
 	vm->fsptr += 1;
 
 	// Need to allocate a root namespace
@@ -240,6 +241,7 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->fstack[vm->fsptr].ns = root;
 	vm->fstack[vm->fsptr].retptr = ~(l2_word)0;
 	vm->fstack[vm->fsptr].sptr = 0;
+	vm->fstack[vm->fsptr].args = 0;
 	vm->fsptr += 1;
 
 	// None is always at 0
@@ -341,6 +343,7 @@ size_t l2_vm_gc(struct l2_vm *vm) {
 	// builtins live, and they aren't sweeped anyways
 	for (l2_word fsptr = 1; fsptr < vm->fsptr; ++fsptr) {
 		gc_mark(vm, vm->fstack[fsptr].ns);
+		gc_mark(vm, vm->fstack[fsptr].args);
 	}
 
 	return gc_sweep(vm);
@@ -444,9 +447,6 @@ static void after_func_return(struct l2_vm *vm) {
 }
 
 static void call_func_with_args(struct l2_vm *vm, l2_word func_id, l2_word args_id) {
-	l2_word stack_base = vm->sptr;
-	vm->stack[vm->sptr++] = args_id;
-
 	l2_word ns_id = alloc_val(vm);
 	struct l2_vm_value *func = &vm->values[func_id]; // func might be stale after alloc_val
 	vm->values[ns_id].extra.ns_parent = func->func.ns;
@@ -454,10 +454,17 @@ static void call_func_with_args(struct l2_vm *vm, l2_word func_id, l2_word args_
 	vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = ns_id;
 	vm->fstack[vm->fsptr].retptr = vm->iptr;
-	vm->fstack[vm->fsptr].sptr = stack_base;
+	vm->fstack[vm->fsptr].sptr = vm->sptr;
+	vm->fstack[vm->fsptr].args = args_id;
 	vm->fsptr += 1;
 
 	vm->iptr = func->func.pos;
+
+	// We need one value as a buffer between the previous stack frame and the new.
+	// This is mostly due to the way continuations are handled.
+	// This wouldn't be necessary if continuations were stored in the stack
+	// frame struct rather than as a value on the stack.
+	vm->stack[vm->sptr++] = vm->knone;
 }
 
 // The 'call_func' function assumes that all relevant values have been popped off
@@ -595,6 +602,10 @@ void l2_vm_step(struct l2_vm *vm) {
 	case L2_OP_RJMP_U4: { X(read_u4le); } break;
 	case L2_OP_RJMP_U1: { X(read_u1le); } break;
 #undef X
+
+	case L2_OP_STACK_FRAME_GET_ARGS:
+		vm->stack[vm->sptr++] = vm->fstack[vm->fsptr - 1].args;
+		break;
 
 #define X(read) \
 		l2_word key = read(vm); \

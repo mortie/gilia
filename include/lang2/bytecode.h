@@ -69,6 +69,11 @@ enum l2_opcode {
 	L2_OP_RJMP_U4,
 	L2_OP_RJMP_U1,
 
+	/* Get the arguments array from the stack frame
+	 * Push <arguments array>
+	 */
+	L2_OP_STACK_FRAME_GET_ARGS,
+
 	/*
 	 * Look up a value from the current stack frame; stack_frame_lookup <key>
 	 * Find <val> in stack frame using <key>

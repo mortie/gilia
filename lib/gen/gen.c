@@ -289,6 +289,10 @@ void l2_gen_dynamic_set(struct l2_generator *gen) {
 	put(gen, L2_OP_DYNAMIC_SET);
 }
 
+void l2_gen_stack_frame_get_args(struct l2_generator *gen) {
+	put(gen, L2_OP_STACK_FRAME_GET_ARGS);
+}
+
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident) {
 	size_t atom_id = l2_strset_put(&gen->atomset, ident);
 	if (atom_id <= 0xff) {

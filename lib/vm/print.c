@@ -145,8 +145,9 @@ void l2_vm_print_stack(struct l2_vm *vm) {
 
 void l2_vm_print_fstack(struct l2_vm *vm) {
 	for (l2_word i = 0; i < vm->fsptr; ++i) {
-		printf("  %i: %i, ret %i, stack base %u\n",
-				i, vm->fstack[i].ns, (int)vm->fstack[i].retptr, vm->fstack[i].sptr);
+		printf("  %i: %i, ret %i, stack base %u, args %u\n",
+				i, vm->fstack[i].ns, (int)vm->fstack[i].retptr,
+				vm->fstack[i].sptr, vm->fstack[i].args);
 	}
 }
 
@@ -190,6 +191,10 @@ void l2_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 		return;
 	case L2_OP_RJMP_U1:
 		printf("RJMP %u\n", read_u1le(ops, ptr));
+		return;
+
+	case L2_OP_STACK_FRAME_GET_ARGS:
+		printf("STACK_FRAME_GET_ARGS\n");
 		return;
 
 	case L2_OP_STACK_FRAME_LOOKUP_U4:

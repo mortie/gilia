@@ -45,6 +45,7 @@ void l2_gen_array_lookup(struct l2_generator *gen, int number);
 void l2_gen_array_set(struct l2_generator *gen, int number);
 void l2_gen_dynamic_lookup(struct l2_generator *gen);
 void l2_gen_dynamic_set(struct l2_generator *gen);
+void l2_gen_stack_frame_get_args(struct l2_generator *gen);
 void l2_gen_stack_frame_lookup(struct l2_generator *gen, char **ident);
 void l2_gen_stack_frame_lookup_copy(struct l2_generator *gen, char *ident);
 void l2_gen_stack_frame_set(struct l2_generator *gen, char **ident);
