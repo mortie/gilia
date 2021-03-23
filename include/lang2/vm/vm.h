@@ -95,16 +95,16 @@ struct l2_vm_namespace {
 	l2_word data[];
 };
 
+l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key);
+void l2_vm_namespace_set(struct l2_vm_value *ns, l2_word key, l2_word val);
+int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key, l2_word val);
+
 struct l2_vm_stack_frame {
 	l2_word ns;
 	l2_word sptr;
 	l2_word retptr;
 	l2_word args;
 };
-
-l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key);
-void l2_vm_namespace_set(struct l2_vm_value *ns, l2_word key, l2_word val);
-int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *ns, l2_word key, l2_word val);
 
 struct l2_vm {
 	int halted;
