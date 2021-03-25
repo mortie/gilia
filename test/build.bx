@@ -1,7 +1,0 @@
-files := src ../lib
-includes := snow ../include/gilia
-defines := SNOW_ENABLED
-sanitizers := address undefined
-cflags := -g -fprofile-arcs -ftest-coverage
-ldflags := --coverage
-ldlibs := gcov

@@ -1,4 +1,4 @@
 /.cache
-/bx-out
+/build
 /compile_commands.json
 /coverage
