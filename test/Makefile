@@ -1,6 +1,7 @@
 OUT ?= build
 
-CFLAGS += -g -I../include/gilia -Isnow -DSNOW_ENABLED
+CFLAGS += -g -I../include/gilia -Isnow -DSNOW_ENABLED \
+	-Wall -Wextra -Wno-unsed-parameter
 LDFLAGS +=
 LDLIBS +=
 
