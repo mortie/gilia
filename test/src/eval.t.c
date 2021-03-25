@@ -5,38 +5,38 @@
 #include <stdio.h>
 #include <snow/snow.h>
 
-static struct l2_lexer lex;
-static struct l2_io_mem_reader r;
-static struct l2_generator gen;
-static struct l2_io_mem_writer w;
-static struct l2_vm vm;
+static struct gil_lexer lex;
+static struct gil_io_mem_reader r;
+static struct gil_generator gen;
+static struct gil_io_mem_writer w;
+static struct gil_vm vm;
 
-static struct l2_vm_value *var_lookup(const char *name) {
-	l2_word atom_id = l2_strset_get(&gen.atomset, name);
-	l2_word id = l2_vm_namespace_get(&vm, &vm.values[vm.fstack[1].ns], atom_id);
+static struct gil_vm_value *var_lookup(const char *name) {
+	gil_word atom_id = gil_strset_get(&gen.atomset, name);
+	gil_word id = gil_vm_namespace_get(&vm, &vm.values[vm.fstack[1].ns], atom_id);
 	return &vm.values[id];
 }
 
-static int eval_impl(const char *str, struct l2_parse_error *err) {
-	r.r.read = l2_io_mem_read;
+static int eval_impl(const char *str, struct gil_parse_error *err) {
+	r.r.read = gil_io_mem_read;
 	r.idx = 0;
 	r.len = strlen(str);
 	r.mem = str;
-	l2_lexer_init(&lex, &r.r);
+	gil_lexer_init(&lex, &r.r);
 
-	w.w.write = l2_io_mem_write;
+	w.w.write = gil_io_mem_write;
 	w.len = 0;
 	w.size = 0;
 	w.mem = NULL;
-	l2_gen_init(&gen, (struct l2_io_writer *)&w);
+	gil_gen_init(&gen, (struct gil_io_writer *)&w);
 
-	if (l2_parse_program(&lex, &gen, err) < 0) {
+	if (gil_parse_program(&lex, &gen, err) < 0) {
 		free(w.mem);
 		return -1;
 	}
 
-	l2_vm_init(&vm, w.mem, w.len / sizeof(l2_word));
-	l2_vm_run(&vm);
+	gil_vm_init(&vm, w.mem, w.len / sizeof(gil_word));
+	gil_vm_run(&vm);
 
 	free(w.mem);
 	return 0;
@@ -44,7 +44,7 @@ static int eval_impl(const char *str, struct l2_parse_error *err) {
 
 #define eval(str) do { \
 	snow_fail_update(); \
-	struct l2_parse_error err; \
+	struct gil_parse_error err; \
 	if (eval_impl(str, &err) < 0) { \
 		snow_fail("Parsing failed: %i:%i: %s", err.line, err.ch, err.message); \
 	} \
@@ -53,31 +53,31 @@ static int eval_impl(const char *str, struct l2_parse_error *err) {
 describe(eval) {
 	test("assignment") {
 		eval("foo := 10");
-		defer(l2_vm_free(&vm));
-		defer(l2_gen_free(&gen));
+		defer(gil_vm_free(&vm));
+		defer(gil_gen_free(&gen));
 
-		asserteq(l2_value_get_type(var_lookup("foo")), L2_VAL_TYPE_REAL);
+		asserteq(gil_value_get_type(var_lookup("foo")), GIL_VAL_TYPE_REAL);
 		asserteq(var_lookup("foo")->real, 10);
 	}
 
 	test("var deref assignment") {
 		eval("foo := 10\nbar := foo");
-		defer(l2_vm_free(&vm));
-		defer(l2_gen_free(&gen));
+		defer(gil_vm_free(&vm));
+		defer(gil_gen_free(&gen));
 
-		asserteq(l2_value_get_type(var_lookup("foo")), L2_VAL_TYPE_REAL);
+		asserteq(gil_value_get_type(var_lookup("foo")), GIL_VAL_TYPE_REAL);
 		asserteq(var_lookup("foo")->real, 10);
-		asserteq(l2_value_get_type(var_lookup("bar")), L2_VAL_TYPE_REAL);
+		asserteq(gil_value_get_type(var_lookup("bar")), GIL_VAL_TYPE_REAL);
 		asserteq(var_lookup("bar")->real, 10);
 	}
 
 	test("string assignment") {
 		eval("foo := \"hello world\"");
-		defer(l2_vm_free(&vm));
-		defer(l2_gen_free(&gen));
+		defer(gil_vm_free(&vm));
+		defer(gil_gen_free(&gen));
 
-		asserteq(l2_value_get_type(var_lookup("foo")), L2_VAL_TYPE_BUFFER);
-		struct l2_vm_value *buf = var_lookup("foo");
+		asserteq(gil_value_get_type(var_lookup("foo")), GIL_VAL_TYPE_BUFFER);
+		struct gil_vm_value *buf = var_lookup("foo");
 		asserteq(buf->extra.buf_length, 11);
 		assert(strncmp(buf->buffer, "hello world", 11) == 0);
 	}

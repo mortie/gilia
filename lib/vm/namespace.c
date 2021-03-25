@@ -1,29 +1,29 @@
 #include "vm/vm.h"
 
-static const l2_word tombstone = ~(l2_word)0;
+static const gil_word tombstone = ~(gil_word)0;
 
-static struct l2_vm_namespace *set(struct l2_vm_namespace *ns, l2_word key, l2_word val);
+static struct gil_vm_namespace *set(struct gil_vm_namespace *ns, gil_word key, gil_word val);
 
-static struct l2_vm_namespace *alloc(size_t size, l2_word mask) {
-	struct l2_vm_namespace *ns = calloc(
-			1, sizeof(struct l2_vm_namespace) + sizeof(l2_word) * size * 2);
+static struct gil_vm_namespace *alloc(size_t size, gil_word mask) {
+	struct gil_vm_namespace *ns = calloc(
+			1, sizeof(struct gil_vm_namespace) + sizeof(gil_word) * size * 2);
 	ns->size = size;
 	ns->mask = mask;
 	return ns;
 }
 
-static struct l2_vm_namespace *grow(struct l2_vm_namespace *ns) {
-	struct l2_vm_namespace *newns = alloc(ns->size * 2, (ns->mask << 1) | ns->mask);
+static struct gil_vm_namespace *grow(struct gil_vm_namespace *ns) {
+	struct gil_vm_namespace *newns = alloc(ns->size * 2, (ns->mask << 1) | ns->mask);
 
 	for (size_t i = 0; i < ns->size; ++i) {
-		l2_word key = ns->data[i];
+		gil_word key = ns->data[i];
 		if (key == 0 || key == tombstone) {
 			continue;
 		}
 
-		l2_word val = ns->data[ns->size + i];
-		for (l2_word i = 0; ; ++i) {
-			l2_word hash = (key + i) & newns->mask;
+		gil_word val = ns->data[ns->size + i];
+		for (gil_word i = 0; ; ++i) {
+			gil_word hash = (key + i) & newns->mask;
 			if (newns->data[hash] == 0) {
 				newns->data[hash] = key;
 				newns->data[newns->size + hash] = val;
@@ -37,14 +37,14 @@ static struct l2_vm_namespace *grow(struct l2_vm_namespace *ns) {
 	return newns;
 }
 
-static void del(struct l2_vm_namespace *ns, l2_word key) {
+static void del(struct gil_vm_namespace *ns, gil_word key) {
 	if (ns == NULL) {
 		return;
 	}
 
-	for (l2_word i = 0; ; ++i) {
-		l2_word hash = (key + i) & ns->mask;
-		l2_word k = ns->data[hash];
+	for (gil_word i = 0; ; ++i) {
+		gil_word hash = (key + i) & ns->mask;
+		gil_word k = ns->data[hash];
 		if (k == 0) {
 			return;
 		} else if (k == key) {
@@ -54,16 +54,16 @@ static void del(struct l2_vm_namespace *ns, l2_word key) {
 	}
 }
 
-static struct l2_vm_namespace *set(struct l2_vm_namespace *ns, l2_word key, l2_word val) {
+static struct gil_vm_namespace *set(struct gil_vm_namespace *ns, gil_word key, gil_word val) {
 	if (ns == NULL) {
 		ns = alloc(16, 0x0f);
 	} else if (ns->len >= ns->size / 2) {
 		ns = grow(ns);
 	}
 
-	for (l2_word i = 0; ; ++i) {
-		l2_word hash = (key + i) & ns->mask;
-		l2_word k = ns->data[hash];
+	for (gil_word i = 0; ; ++i) {
+		gil_word hash = (key + i) & ns->mask;
+		gil_word k = ns->data[hash];
 		if (k == tombstone) {
 			ns->data[hash] = key;
 			ns->data[ns->size + hash] = val;
@@ -82,14 +82,14 @@ static struct l2_vm_namespace *set(struct l2_vm_namespace *ns, l2_word key, l2_w
 	return ns;
 }
 
-static l2_word get(struct l2_vm_namespace *ns, l2_word key) {
+static gil_word get(struct gil_vm_namespace *ns, gil_word key) {
 	if (ns == NULL) {
 		return 0;
 	}
 
-	for (l2_word i = 0; ; ++i) {
-		l2_word hash = (key + i) & ns->mask;
-		l2_word k = ns->data[hash];
+	for (gil_word i = 0; ; ++i) {
+		gil_word hash = (key + i) & ns->mask;
+		gil_word k = ns->data[hash];
 		if (k == 0 || k == tombstone) {
 			return 0;
 		} else if (k == key) {
@@ -98,16 +98,16 @@ static l2_word get(struct l2_vm_namespace *ns, l2_word key) {
 	}
 }
 
-l2_word l2_vm_namespace_get(struct l2_vm *vm, struct l2_vm_value *v, l2_word key) {
-	l2_word ret = get(v->ns, key);
+gil_word gil_vm_namespace_get(struct gil_vm *vm, struct gil_vm_value *v, gil_word key) {
+	gil_word ret = get(v->ns, key);
 	if (ret == 0 && v->extra.ns_parent != 0) {
-		return l2_vm_namespace_get(vm, &vm->values[v->extra.ns_parent], key);
+		return gil_vm_namespace_get(vm, &vm->values[v->extra.ns_parent], key);
 	}
 
 	return ret;
 }
 
-void l2_vm_namespace_set(struct l2_vm_value *v, l2_word key, l2_word val) {
+void gil_vm_namespace_set(struct gil_vm_value *v, gil_word key, gil_word val) {
 	if (val == 0) {
 		del(v->ns, key);
 	} else {
@@ -115,12 +115,12 @@ void l2_vm_namespace_set(struct l2_vm_value *v, l2_word key, l2_word val) {
 	}
 }
 
-int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *v, l2_word key, l2_word val) {
+int gil_vm_namespace_replace(struct gil_vm *vm, struct gil_vm_value *v, gil_word key, gil_word val) {
 	if (val == 0) {
 		del(v->ns, key);
 		return 0;
 	} else {
-		l2_word ret = get(v->ns, key);
+		gil_word ret = get(v->ns, key);
 		if (ret != 0) {
 			v->ns = set(v->ns, key, val);
 			return 0;
@@ -130,6 +130,6 @@ int l2_vm_namespace_replace(struct l2_vm *vm, struct l2_vm_value *v, l2_word key
 			return -1;
 		}
 
-		return l2_vm_namespace_replace(vm, &vm->values[v->extra.ns_parent], key, val);
+		return gil_vm_namespace_replace(vm, &vm->values[v->extra.ns_parent], key, val);
 	}
 }

@@ -1,5 +1,5 @@
 files := src ../lib
-includes := snow ../include/lang2
+includes := snow ../include/gilia
 defines := SNOW_ENABLED
 sanitizers := address undefined
 cflags := -g -fprofile-arcs -ftest-coverage

@@ -24,38 +24,38 @@ static int do_serialize_bytecode = 0;
 static int do_repl = 0;
 static char *input_filename = "-";
 
-static int parse_text(FILE *inf, struct l2_io_writer *w) {
+static int parse_text(FILE *inf, struct gil_io_writer *w) {
 	// Init lexer with its input reader
-	struct l2_io_file_reader r;
-	r.r.read = l2_io_file_read;
+	struct gil_io_file_reader r;
+	r.r.read = gil_io_file_read;
 	r.f = inf;
-	struct l2_lexer lexer;
-	l2_lexer_init(&lexer, &r.r);
+	struct gil_lexer lexer;
+	gil_lexer_init(&lexer, &r.r);
 	if (do_print_tokens) {
 		lexer.do_log_tokens = 1;
 	}
 
 	// Init gen with its output writer
-	struct l2_generator gen;
-	l2_gen_init(&gen, w);
+	struct gil_generator gen;
+	gil_gen_init(&gen, w);
 
-	struct l2_parse_error err;
-	if (l2_parse_program(&lexer, &gen, &err) < 0) {
+	struct gil_parse_error err;
+	if (gil_parse_program(&lexer, &gen, &err) < 0) {
 		fprintf(stderr, "Parse error: %s:%i:%i: %s\n",
 				input_filename, err.line, err.ch, err.message);
-		l2_parse_error_free(&err);
-		l2_gen_free(&gen);
+		gil_parse_error_free(&err);
+		gil_gen_free(&gen);
 		fclose(inf);
 		return -1;
 	}
 
-	l2_gen_free(&gen);
+	gil_gen_free(&gen);
 	return 0;
 }
 
-static void step_through(struct l2_vm *vm) {
+static void step_through(struct gil_vm *vm) {
 	printf("=====\n\nInitial state:\n");
-	l2_vm_print_state(vm);
+	gil_vm_print_state(vm);
 
 	char buf[16];
 	while (!vm->halted) {
@@ -64,35 +64,35 @@ static void step_through(struct l2_vm *vm) {
 		if (vm->need_check_retval) {
 			printf("(internal)\n");
 		} else {
-			l2_vm_print_op(vm->ops, vm->opslen, &iptr);
+			gil_vm_print_op(vm->ops, vm->opslen, &iptr);
 		}
 
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			break;
 		}
 
-		l2_vm_step(vm);
-		l2_vm_gc(vm);
-		l2_vm_print_state(vm);
+		gil_vm_step(vm);
+		gil_vm_gc(vm);
+		gil_vm_print_state(vm);
 	}
 }
 
 static void repl() {
-	struct l2_io_mem_writer w = {
-		.w.write = l2_io_mem_write,
+	struct gil_io_mem_writer w = {
+		.w.write = gil_io_mem_write,
 	};
 
-	struct l2_io_mem_reader r = {
-		.r.read = l2_io_mem_read,
+	struct gil_io_mem_reader r = {
+		.r.read = gil_io_mem_read,
 	};
 
-	struct l2_lexer lexer;
+	struct gil_lexer lexer;
 
-	struct l2_generator gen;
-	l2_gen_init(&gen, &w.w);
+	struct gil_generator gen;
+	gil_gen_init(&gen, &w.w);
 
-	struct l2_vm vm;
-	l2_vm_init(&vm, NULL, 0);
+	struct gil_vm vm;
+	gil_vm_init(&vm, NULL, 0);
 
 	while (1) {
 		char line[4096];
@@ -110,34 +110,34 @@ static void repl() {
 #endif
 
 		if (strncmp(rline, "\\state", strlen("\\state")) == 0) {
-			l2_vm_print_state(&vm);
+			gil_vm_print_state(&vm);
 			goto next;
 		}
 
 		r.idx = 0;
 		r.len = strlen(line);
 		r.mem = line;
-		l2_lexer_init(&lexer, &r.r);
+		gil_lexer_init(&lexer, &r.r);
 
-		struct l2_parse_error err;
-		if (l2_parse_program(&lexer, &gen, &err) < 0) {
+		struct gil_parse_error err;
+		if (gil_parse_program(&lexer, &gen, &err) < 0) {
 			fprintf(stderr, "Parse error: %s\n -- %s\n", err.message, line);
-			l2_parse_error_free(&err);
+			gil_parse_error_free(&err);
 
-			l2_vm_free(&vm);
-			l2_gen_free(&gen);
+			gil_vm_free(&vm);
+			gil_gen_free(&gen);
 			w.len = 0;
-			l2_gen_init(&gen, &w.w);
-			l2_vm_init(&vm, NULL, 0);
+			gil_gen_init(&gen, &w.w);
+			gil_vm_init(&vm, NULL, 0);
 		} else if (w.len > 0) {
 			vm.ops = w.mem;
 			vm.opslen = w.len;
 
 			while (vm.iptr < vm.opslen) {
-				l2_vm_step(&vm);
+				gil_vm_step(&vm);
 			}
 
-			l2_vm_gc(&vm);
+			gil_vm_gc(&vm);
 		}
 
 next:
@@ -147,8 +147,8 @@ next:
 	}
 
 out:
-	l2_gen_free(&gen);
-	l2_vm_free(&vm);
+	gil_gen_free(&gen);
+	gil_vm_free(&vm);
 }
 
 static void usage(const char *argv0) {
@@ -231,8 +231,8 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	struct l2_io_mem_writer bytecode_writer = {
-		.w.write = l2_io_mem_write,
+	struct gil_io_mem_writer bytecode_writer = {
+		.w.write = gil_io_mem_write,
 	};
 
 	int headerbyte = fgetc(inf);
@@ -249,7 +249,7 @@ int main(int argc, char **argv) {
 			fread(header, 1, 4, inf) >= 4 &&
 			header[0] == 0x1b && header[1] == 0x6c &&
 			header[2] == 0x32 && header[3] == 0x63) {
-		if (l2_bc_load(inf, &bytecode_writer.w) < 0) {
+		if (gil_bc_load(inf, &bytecode_writer.w) < 0) {
 			return 1;
 		}
 	} else if (headerbyte == 0x1b) {
@@ -266,11 +266,11 @@ int main(int argc, char **argv) {
 	fclose(inf);
 
 	if (do_print_bytecode) {
-		l2_vm_print_bytecode(bytecode_writer.mem, bytecode_writer.len);
+		gil_vm_print_bytecode(bytecode_writer.mem, bytecode_writer.len);
 	}
 
 	if (do_serialize_bytecode) {
-		l2_bc_serialize(outbc, bytecode_writer.mem, bytecode_writer.len);
+		gil_bc_serialize(outbc, bytecode_writer.mem, bytecode_writer.len);
 	}
 
 	if (do_print_bytecode || do_print_tokens || do_serialize_bytecode) {
@@ -278,15 +278,15 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	struct l2_vm vm;
-	l2_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len);
+	struct gil_vm vm;
+	gil_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len);
 
 	if (do_step) {
 		step_through(&vm);
 	} else {
-		l2_vm_run(&vm);
+		gil_vm_run(&vm);
 	}
 
-	l2_vm_free(&vm);
+	gil_vm_free(&vm);
 	free(bytecode_writer.mem);
 }

@@ -17,8 +17,8 @@ static size_t hash(const void *ptr) {
 	return h;
 }
 
-void grow(struct l2_strset *set) {
-	struct l2_strset old = *set;
+void grow(struct gil_strset *set) {
+	struct gil_strset old = *set;
 	set->len = 0;
 	set->size *= 2;
 	set->mask = (set->mask << 1) | set->mask;
@@ -50,7 +50,7 @@ void grow(struct l2_strset *set) {
 	free(old.vals);
 }
 
-void l2_strset_init(struct l2_strset *set) {
+void gil_strset_init(struct gil_strset *set) {
 	set->next = 1;
 	set->len = 0;
 	set->size = 16;
@@ -59,7 +59,7 @@ void l2_strset_init(struct l2_strset *set) {
 	set->vals = calloc(set->size, sizeof(*set->vals));
 }
 
-void l2_strset_free(struct l2_strset *set) {
+void gil_strset_free(struct gil_strset *set) {
 	for (size_t i = 0; i < set->size; ++i) {
 		free(set->keys[i]);
 	}
@@ -68,7 +68,7 @@ void l2_strset_free(struct l2_strset *set) {
 	free(set->vals);
 }
 
-size_t l2_strset_put(struct l2_strset *set, char **str) {
+size_t gil_strset_put(struct gil_strset *set, char **str) {
 	if (set->len >= set->size / 2) {
 		grow(set);
 	}
@@ -91,7 +91,7 @@ size_t l2_strset_put(struct l2_strset *set, char **str) {
 	}
 }
 
-size_t l2_strset_put_copy(struct l2_strset *set, const char *str) {
+size_t gil_strset_put_copy(struct gil_strset *set, const char *str) {
 	if (set->len >= set->size / 2) {
 		grow(set);
 	}
@@ -111,7 +111,7 @@ size_t l2_strset_put_copy(struct l2_strset *set, const char *str) {
 	}
 }
 
-size_t l2_strset_get(struct l2_strset *set, const char *str) {
+size_t gil_strset_get(struct gil_strset *set, const char *str) {
 	size_t h = hash(str);
 	for (size_t i = 0; ; ++i) {
 		size_t index = (h + i) & set->mask;

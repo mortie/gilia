@@ -7,11 +7,11 @@
 #include "vm/builtins.h"
 
 static int stdio_inited = 0;
-static struct l2_io_file_writer std_output;
-static struct l2_io_file_writer std_error;
+static struct gil_io_file_writer std_output;
+static struct gil_io_file_writer std_error;
 
-static l2_word alloc_val(struct l2_vm *vm) {
-	size_t id = l2_bitset_set_next(&vm->valueset);
+static gil_word alloc_val(struct gil_vm *vm) {
+	size_t id = gil_bitset_set_next(&vm->valueset);
 	if (id + 16 >= vm->valuessize) {
 		if (id >= vm->valuessize) {
 			if (vm->valuessize == 0) {
@@ -28,28 +28,28 @@ static l2_word alloc_val(struct l2_vm *vm) {
 		}
 	}
 
-	return (l2_word)id;
+	return (gil_word)id;
 }
 
-static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val);
-static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val);
+static void gc_mark_array(struct gil_vm *vm, struct gil_vm_value *val);
+static void gc_mark_namespace(struct gil_vm *vm, struct gil_vm_value *val);
 
-static void gc_mark(struct l2_vm *vm, l2_word id) {
-	struct l2_vm_value *val = &vm->values[id];
-	if (val->flags & L2_VAL_MARKED) {
+static void gc_mark(struct gil_vm *vm, gil_word id) {
+	struct gil_vm_value *val = &vm->values[id];
+	if (val->flags & GIL_VAL_MARKED) {
 		return;
 	}
 
-	val->flags |= L2_VAL_MARKED;
+	val->flags |= GIL_VAL_MARKED;
 
-	int typ = l2_value_get_type(val);
-	if (typ == L2_VAL_TYPE_ARRAY) {
+	int typ = gil_value_get_type(val);
+	if (typ == GIL_VAL_TYPE_ARRAY) {
 		gc_mark_array(vm, val);
-	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
+	} else if (typ == GIL_VAL_TYPE_NAMESPACE) {
 		gc_mark_namespace(vm, val);
-	} else if (typ == L2_VAL_TYPE_FUNCTION) {
+	} else if (typ == GIL_VAL_TYPE_FUNCTION) {
 		gc_mark(vm, val->func.ns);
-	} else if (typ == L2_VAL_TYPE_CONTINUATION) {
+	} else if (typ == GIL_VAL_TYPE_CONTINUATION) {
 		gc_mark(vm, val->extra.cont_call);
 		if (val->cont != NULL) {
 			if (val->cont->marker != NULL) {
@@ -62,9 +62,9 @@ static void gc_mark(struct l2_vm *vm, l2_word id) {
 	}
 }
 
-static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val) {
-	l2_word *data;
-	if (val->flags & L2_VAL_SBO) {
+static void gc_mark_array(struct gil_vm *vm, struct gil_vm_value *val) {
+	gil_word *data;
+	if (val->flags & GIL_VAL_SBO) {
 		data = val->shortarray;
 	} else {
 		data = val->array->data;
@@ -75,7 +75,7 @@ static void gc_mark_array(struct l2_vm *vm, struct l2_vm_value *val) {
 	}
 }
 
-static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
+static void gc_mark_namespace(struct gil_vm *vm, struct gil_vm_value *val) {
 	if (val->extra.ns_parent != 0) {
 		gc_mark(vm, val->extra.ns_parent);
 	}
@@ -85,8 +85,8 @@ static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
 	}
 
 	for (size_t i = 0; i < val->ns->size; ++i) {
-		l2_word key = val->ns->data[i];
-		if (key == 0 || key == ~(l2_word)0) {
+		gil_word key = val->ns->data[i];
+		if (key == 0 || key == ~(gil_word)0) {
 			continue;
 		}
 
@@ -94,72 +94,72 @@ static void gc_mark_namespace(struct l2_vm *vm, struct l2_vm_value *val) {
 	}
 }
 
-static void gc_free(struct l2_vm *vm, l2_word id) {
-	struct l2_vm_value *val = &vm->values[id];
-	l2_bitset_unset(&vm->valueset, id);
+static void gc_free(struct gil_vm *vm, gil_word id) {
+	struct gil_vm_value *val = &vm->values[id];
+	gil_bitset_unset(&vm->valueset, id);
 
 	// Don't need to do anything more; the next round of GC will free
 	// whichever values were only referenced by the array
-	int typ = l2_value_get_type(val);
-	if (typ == L2_VAL_TYPE_ARRAY && !(val->flags & L2_VAL_SBO)) {
+	int typ = gil_value_get_type(val);
+	if (typ == GIL_VAL_TYPE_ARRAY && !(val->flags & GIL_VAL_SBO)) {
 		free(val->array);
-	} else if (typ == L2_VAL_TYPE_BUFFER) {
+	} else if (typ == GIL_VAL_TYPE_BUFFER) {
 		free(val->buffer);
-	} else if (typ == L2_VAL_TYPE_NAMESPACE) {
+	} else if (typ == GIL_VAL_TYPE_NAMESPACE) {
 		free(val->ns);
-	} else if (typ == L2_VAL_TYPE_ERROR) {
+	} else if (typ == GIL_VAL_TYPE_ERROR) {
 		free(val->error);
-	} else if (typ == L2_VAL_TYPE_CONTINUATION && val->cont) {
+	} else if (typ == GIL_VAL_TYPE_CONTINUATION && val->cont) {
 		free(val->cont);
 	}
 }
 
-static size_t gc_sweep(struct l2_vm *vm) {
+static size_t gc_sweep(struct gil_vm *vm) {
 	size_t freed = 0;
 	for (size_t i = vm->gc_start; i < vm->valuessize; ++i) {
-		if (!l2_bitset_get(&vm->valueset, i)) {
+		if (!gil_bitset_get(&vm->valueset, i)) {
 			continue;
 		}
 
-		struct l2_vm_value *val = &vm->values[i];
-		if (!(val->flags & L2_VAL_MARKED)) {
-			l2_bitset_unset(&vm->valueset, i);
+		struct gil_vm_value *val = &vm->values[i];
+		if (!(val->flags & GIL_VAL_MARKED)) {
+			gil_bitset_unset(&vm->valueset, i);
 			gc_free(vm, i);
 			freed += 1;
 		} else {
-			val->flags &= ~L2_VAL_MARKED;
+			val->flags &= ~GIL_VAL_MARKED;
 		}
 	}
 
 	// Normal variables are unmarked by the above loop,
 	// but builtins don't go through that loop
 	for (size_t i = 0; i < vm->gc_start; ++i) {
-		vm->values[i].flags &= ~L2_VAL_MARKED;
+		vm->values[i].flags &= ~GIL_VAL_MARKED;
 	}
 
 	return freed;
 }
 
-const char *l2_value_type_name(enum l2_value_type typ) {
+const char *gil_value_type_name(enum gil_value_type typ) {
 	switch (typ) {
-	case L2_VAL_TYPE_NONE: return "NONE";
-	case L2_VAL_TYPE_ATOM: return "ATOM";
-	case L2_VAL_TYPE_REAL: return "REAL";
-	case L2_VAL_TYPE_BUFFER: return "BUFFER";
-	case L2_VAL_TYPE_ARRAY: return "ARRAY";
-	case L2_VAL_TYPE_NAMESPACE: return "NAMESPACE";
-	case L2_VAL_TYPE_FUNCTION: return "FUNCTION";
-	case L2_VAL_TYPE_CFUNCTION: return "CFUNCTION";
-	case L2_VAL_TYPE_CONTINUATION: return "CONTINUATION";
-	case L2_VAL_TYPE_RETURN: return "RETURN";
-	case L2_VAL_TYPE_ERROR: return "ERROR";
+	case GIL_VAL_TYPE_NONE: return "NONE";
+	case GIL_VAL_TYPE_ATOM: return "ATOM";
+	case GIL_VAL_TYPE_REAL: return "REAL";
+	case GIL_VAL_TYPE_BUFFER: return "BUFFER";
+	case GIL_VAL_TYPE_ARRAY: return "ARRAY";
+	case GIL_VAL_TYPE_NAMESPACE: return "NAMESPACE";
+	case GIL_VAL_TYPE_FUNCTION: return "FUNCTION";
+	case GIL_VAL_TYPE_CFUNCTION: return "CFUNCTION";
+	case GIL_VAL_TYPE_CONTINUATION: return "CONTINUATION";
+	case GIL_VAL_TYPE_RETURN: return "RETURN";
+	case GIL_VAL_TYPE_ERROR: return "ERROR";
 	}
 
 	return "(unknown)";
 }
 
-l2_word *l2_value_arr_data(struct l2_vm *vm, struct l2_vm_value *val) {
-	if (val->flags & L2_VAL_SBO) {
+gil_word *gil_value_arr_data(struct gil_vm *vm, struct gil_vm_value *val) {
+	if (val->flags & GIL_VAL_SBO) {
 		return val->shortarray;
 	} else if (val->array) {
 		return val->array->data;
@@ -168,35 +168,35 @@ l2_word *l2_value_arr_data(struct l2_vm *vm, struct l2_vm_value *val) {
 	}
 }
 
-l2_word l2_value_arr_get(struct l2_vm *vm, struct l2_vm_value *val, l2_word k) {
+gil_word gil_value_arr_get(struct gil_vm *vm, struct gil_vm_value *val, gil_word k) {
 	if (k >= val->extra.arr_length) {
 		return vm->knone;
 	}
 
-	if (val->flags & L2_VAL_SBO) {
+	if (val->flags & GIL_VAL_SBO) {
 		return val->shortarray[k];
 	}
 
 	return val->array->data[k];
 }
 
-l2_word l2_value_arr_set(struct l2_vm *vm, struct l2_vm_value *val, l2_word k, l2_word v) {
+gil_word gil_value_arr_set(struct gil_vm *vm, struct gil_vm_value *val, gil_word k, gil_word v) {
 	if (k >= val->extra.arr_length) {
-		return l2_vm_error(vm, "Array index out of bounds");
+		return gil_vm_error(vm, "Array index out of bounds");
 	}
 
-	if (val->flags & L2_VAL_SBO) {
+	if (val->flags & GIL_VAL_SBO) {
 		return val->shortarray[k] = v;
 	}
 
 	return val->array->data[k] = v;
 }
 
-void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
+void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen) {
 	if (!stdio_inited) {
-		std_output.w.write = l2_io_file_write;
+		std_output.w.write = gil_io_file_write;
 		std_output.f = stdout;
-		std_error.w.write = l2_io_file_write;
+		std_error.w.write = gil_io_file_write;
 		std_error.f = stderr;
 		stdio_inited = 1;
 	}
@@ -215,18 +215,18 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 
 	vm->values = NULL;
 	vm->valuessize = 0;
-	l2_bitset_init(&vm->valueset);
+	gil_bitset_init(&vm->valueset);
 
 	// It's wasteful to allocate new 'none' variables all the time,
 	// variable ID 0 should be the only 'none' variable in the system
-	l2_word none_id = alloc_val(vm);
-	vm->values[none_id].flags = L2_VAL_TYPE_NONE | L2_VAL_CONST;
+	gil_word none_id = alloc_val(vm);
+	vm->values[none_id].flags = GIL_VAL_TYPE_NONE | GIL_VAL_CONST;
 
 	// Need to allocate a builtins namespace
-	l2_word builtins = alloc_val(vm);
+	gil_word builtins = alloc_val(vm);
 	vm->values[builtins].extra.ns_parent = 0;
 	vm->values[builtins].ns = NULL; // Will be allocated on first insert
-	vm->values[builtins].flags = L2_VAL_TYPE_NAMESPACE;
+	vm->values[builtins].flags = GIL_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = builtins;
 	vm->fstack[vm->fsptr].retptr = 0;
 	vm->fstack[vm->fsptr].sptr = 0;
@@ -234,37 +234,37 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->fsptr += 1;
 
 	// Need to allocate a root namespace
-	l2_word root = alloc_val(vm);
+	gil_word root = alloc_val(vm);
 	vm->values[root].extra.ns_parent = builtins;
 	vm->values[root].ns = NULL;
-	vm->values[root].flags = L2_VAL_TYPE_NAMESPACE;
+	vm->values[root].flags = GIL_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = root;
-	vm->fstack[vm->fsptr].retptr = ~(l2_word)0;
+	vm->fstack[vm->fsptr].retptr = ~(gil_word)0;
 	vm->fstack[vm->fsptr].sptr = 0;
 	vm->fstack[vm->fsptr].args = 0;
 	vm->fsptr += 1;
 
 	// None is always at 0
 	vm->knone = 0;
-	vm->values[vm->knone].flags = L2_VAL_TYPE_NONE | L2_VAL_CONST;
+	vm->values[vm->knone].flags = GIL_VAL_TYPE_NONE | GIL_VAL_CONST;
 
 	// Define a C function variable for every builtin
-	l2_word id;
-	l2_word key = 1;
+	gil_word id;
+	gil_word key = 1;
 #define XNAME(name, k) \
-	l2_vm_namespace_set(&vm->values[builtins], key, vm->k); \
+	gil_vm_namespace_set(&vm->values[builtins], key, vm->k); \
 	key += 1;
 #define XATOM(name, k) \
 	id = alloc_val(vm); \
-	vm->values[id].flags = L2_VAL_TYPE_ATOM | L2_VAL_CONST; \
+	vm->values[id].flags = GIL_VAL_TYPE_ATOM | GIL_VAL_CONST; \
 	vm->values[id].atom = key; \
 	vm->k = id; \
 	key += 1;
 #define XFUNCTION(name, f) \
 	id = alloc_val(vm); \
-	vm->values[id].flags = L2_VAL_TYPE_CFUNCTION | L2_VAL_CONST; \
+	vm->values[id].flags = GIL_VAL_TYPE_CFUNCTION | GIL_VAL_CONST; \
 	vm->values[id].cfunc = f; \
-	l2_vm_namespace_set(&vm->values[builtins], key, id); \
+	gil_vm_namespace_set(&vm->values[builtins], key, id); \
 	key += 1;
 #include "builtins.x.h"
 #undef XNAME
@@ -274,17 +274,17 @@ void l2_vm_init(struct l2_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->gc_start = id + 1;
 }
 
-l2_word l2_vm_alloc(struct l2_vm *vm, enum l2_value_type typ, enum l2_value_flags flags) {
-	l2_word id = alloc_val(vm);
+gil_word gil_vm_alloc(struct gil_vm *vm, enum gil_value_type typ, enum gil_value_flags flags) {
+	gil_word id = alloc_val(vm);
 	memset(&vm->values[id], 0, sizeof(vm->values[id]));
 	vm->values[id].flags = typ | flags;
 	return id;
 }
 
-l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...) {
-	l2_word id = alloc_val(vm);
-	struct l2_vm_value *val = &vm->values[id];
-	val->flags = L2_VAL_CONST | L2_VAL_TYPE_ERROR;
+gil_word gil_vm_error(struct gil_vm *vm, const char *fmt, ...) {
+	gil_word id = alloc_val(vm);
+	struct gil_vm_value *val = &vm->values[id];
+	val->flags = GIL_VAL_CONST | GIL_VAL_TYPE_ERROR;
 
 	char buf[256];
 
@@ -311,19 +311,19 @@ l2_word l2_vm_error(struct l2_vm *vm, const char *fmt, ...) {
 	return id;
 }
 
-l2_word l2_vm_type_error(struct l2_vm *vm, struct l2_vm_value *val) {
-	enum l2_value_type typ = l2_value_get_type(val);
-	if (typ == L2_VAL_TYPE_ERROR) {
+gil_word gil_vm_type_error(struct gil_vm *vm, struct gil_vm_value *val) {
+	enum gil_value_type typ = gil_value_get_type(val);
+	if (typ == GIL_VAL_TYPE_ERROR) {
 		return val - vm->values;
 	}
 
-	return l2_vm_error(vm, "Unexpected type %s", l2_value_type_name(l2_value_get_type(val)));
+	return gil_vm_error(vm, "Unexpected type %s", gil_value_type_name(gil_value_get_type(val)));
 }
 
-void l2_vm_free(struct l2_vm *vm) {
+void gil_vm_free(struct gil_vm *vm) {
 	// Skip ID 0, because that's always NONE
 	for (size_t i = 1; i < vm->valuessize; ++i) {
-		if (!l2_bitset_get(&vm->valueset, i)) {
+		if (!gil_bitset_get(&vm->valueset, i)) {
 			continue;
 		}
 
@@ -331,17 +331,17 @@ void l2_vm_free(struct l2_vm *vm) {
 	}
 
 	free(vm->values);
-	l2_bitset_free(&vm->valueset);
+	gil_bitset_free(&vm->valueset);
 }
 
-size_t l2_vm_gc(struct l2_vm *vm) {
-	for (l2_word sptr = 0; sptr < vm->sptr; ++sptr) {
+size_t gil_vm_gc(struct gil_vm *vm) {
+	for (gil_word sptr = 0; sptr < vm->sptr; ++sptr) {
 		gc_mark(vm, vm->stack[sptr]);
 	}
 
 	// Don't need to mark the first stack frame, since that's where all the
 	// builtins live, and they aren't sweeped anyways
-	for (l2_word fsptr = 1; fsptr < vm->fsptr; ++fsptr) {
+	for (gil_word fsptr = 1; fsptr < vm->fsptr; ++fsptr) {
 		gc_mark(vm, vm->fstack[fsptr].ns);
 		gc_mark(vm, vm->fstack[fsptr].args);
 	}
@@ -349,39 +349,39 @@ size_t l2_vm_gc(struct l2_vm *vm) {
 	return gc_sweep(vm);
 }
 
-void l2_vm_run(struct l2_vm *vm) {
+void gil_vm_run(struct gil_vm *vm) {
 	while (!vm->halted) {
-		l2_vm_step(vm);
+		gil_vm_step(vm);
 	}
 }
 
 static void call_func_with_args(
-		struct l2_vm *vm, l2_word func_id, l2_word args_id);
+		struct gil_vm *vm, gil_word func_id, gil_word args_id);
 static void call_func(
-		struct l2_vm *vm, l2_word func_id,
-		l2_word argc, l2_word *argv);
+		struct gil_vm *vm, gil_word func_id,
+		gil_word argc, gil_word *argv);
 
-static void after_cfunc_return(struct l2_vm *vm) {
+static void after_cfunc_return(struct gil_vm *vm) {
 	if (
-			l2_value_get_type(&vm->values[vm->stack[vm->sptr - 1]]) ==
-				L2_VAL_TYPE_RETURN ||
-			l2_value_get_type(&vm->values[vm->stack[vm->sptr - 1]]) ==
-				L2_VAL_TYPE_CONTINUATION ||
+			gil_value_get_type(&vm->values[vm->stack[vm->sptr - 1]]) ==
+				GIL_VAL_TYPE_RETURN ||
+			gil_value_get_type(&vm->values[vm->stack[vm->sptr - 1]]) ==
+				GIL_VAL_TYPE_CONTINUATION ||
 			(vm->sptr >= 2 &&
-				l2_value_get_type(&vm->values[vm->stack[vm->sptr - 2]]) ==
-					L2_VAL_TYPE_CONTINUATION)) {
+				gil_value_get_type(&vm->values[vm->stack[vm->sptr - 2]]) ==
+					GIL_VAL_TYPE_CONTINUATION)) {
 		vm->need_check_retval = 1;
 	}
 }
 
-static void after_func_return(struct l2_vm *vm) {
-	struct l2_vm_value *ret = &vm->values[vm->stack[vm->sptr - 1]];
+static void after_func_return(struct gil_vm *vm) {
+	struct gil_vm_value *ret = &vm->values[vm->stack[vm->sptr - 1]];
 
-	if (l2_value_get_type(ret) == L2_VAL_TYPE_RETURN) {
-		l2_word retval = ret->ret;
-		l2_word retptr = vm->fstack[vm->fsptr - 1].retptr;
-		l2_word sptr = vm->fstack[vm->fsptr - 1].sptr;
-		if (retptr == ~(l2_word)0) {
+	if (gil_value_get_type(ret) == GIL_VAL_TYPE_RETURN) {
+		gil_word retval = ret->ret;
+		gil_word retptr = vm->fstack[vm->fsptr - 1].retptr;
+		gil_word sptr = vm->fstack[vm->fsptr - 1].sptr;
+		if (retptr == ~(gil_word)0) {
 			vm->halted = 1;
 			return;
 		}
@@ -397,19 +397,19 @@ static void after_func_return(struct l2_vm *vm) {
 
 	// If the function returns a continuation, we leave that continuation
 	// on the stack to be handled later, then call the function
-	if (l2_value_get_type(ret) == L2_VAL_TYPE_CONTINUATION) {
+	if (gil_value_get_type(ret) == GIL_VAL_TYPE_CONTINUATION) {
 		if (ret->cont && ret->cont->args != vm->knone) {
-			struct l2_vm_value *args = &vm->values[ret->cont->args];
-			struct l2_vm_value *func = &vm->values[ret->extra.cont_call];
+			struct gil_vm_value *args = &vm->values[ret->cont->args];
+			struct gil_vm_value *func = &vm->values[ret->extra.cont_call];
 
 			// We can optimize calling a non-C function by re-using the
 			// args array rather than allocating a new one
-			if (l2_value_get_type(func) == L2_VAL_TYPE_FUNCTION) {
+			if (gil_value_get_type(func) == GIL_VAL_TYPE_FUNCTION) {
 				call_func_with_args(vm, ret->extra.cont_call, ret->cont->args);
 			} else {
 				call_func(
 						vm, ret->extra.cont_call, args->extra.arr_length,
-						l2_value_arr_data(vm, args));
+						gil_value_arr_data(vm, args));
 			}
 		} else {
 			call_func(vm, ret->extra.cont_call, 0, NULL);
@@ -422,9 +422,9 @@ static void after_func_return(struct l2_vm *vm) {
 	// it's a continuation left on the stack to be handled later - i.e now
 	if (
 			vm->sptr >= 2 &&
-			l2_value_get_type(&vm->values[vm->stack[vm->sptr - 2]]) ==
-				L2_VAL_TYPE_CONTINUATION) {
-		struct l2_vm_value *cont = &vm->values[vm->stack[vm->sptr - 2]];
+			gil_value_get_type(&vm->values[vm->stack[vm->sptr - 2]]) ==
+				GIL_VAL_TYPE_CONTINUATION) {
+		struct gil_vm_value *cont = &vm->values[vm->stack[vm->sptr - 2]];
 
 		// If it's just a basic continuation, don't need to do anything
 		if (cont->cont == NULL || cont->cont->callback == NULL) {
@@ -436,7 +436,7 @@ static void after_func_return(struct l2_vm *vm) {
 
 		// After this, the original return value and the continuation
 		// are both replaced by whatever the callback returned
-		l2_word contret = cont->cont->callback(
+		gil_word contret = cont->cont->callback(
 				vm, vm->stack[vm->sptr - 1], vm->stack[vm->sptr - 2]);
 		vm->stack[vm->sptr - 2] = contret;
 		vm->sptr -= 1;
@@ -446,12 +446,12 @@ static void after_func_return(struct l2_vm *vm) {
 	}
 }
 
-static void call_func_with_args(struct l2_vm *vm, l2_word func_id, l2_word args_id) {
-	l2_word ns_id = alloc_val(vm);
-	struct l2_vm_value *func = &vm->values[func_id]; // func might be stale after alloc_val
+static void call_func_with_args(struct gil_vm *vm, gil_word func_id, gil_word args_id) {
+	gil_word ns_id = alloc_val(vm);
+	struct gil_vm_value *func = &vm->values[func_id]; // func might be stale after alloc_val
 	vm->values[ns_id].extra.ns_parent = func->func.ns;
 	vm->values[ns_id].ns = NULL;
-	vm->values[ns_id].flags = L2_VAL_TYPE_NAMESPACE;
+	vm->values[ns_id].flags = GIL_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = ns_id;
 	vm->fstack[vm->fsptr].retptr = vm->iptr;
 	vm->fstack[vm->fsptr].sptr = vm->sptr;
@@ -471,59 +471,59 @@ static void call_func_with_args(struct l2_vm *vm, l2_word func_id, l2_word args_
 // the stack, so that the return value can be pushed to the top of the stack
 // straight away
 static void call_func(
-		struct l2_vm *vm, l2_word func_id,
-		l2_word argc, l2_word *argv) {
-	struct l2_vm_value *func = &vm->values[func_id];
-	enum l2_value_type typ = l2_value_get_type(func);
+		struct gil_vm *vm, gil_word func_id,
+		gil_word argc, gil_word *argv) {
+	struct gil_vm_value *func = &vm->values[func_id];
+	enum gil_value_type typ = gil_value_get_type(func);
 
 	// C functions are called differently from language functions
-	if (typ == L2_VAL_TYPE_CFUNCTION) {
+	if (typ == GIL_VAL_TYPE_CFUNCTION) {
 		vm->stack[vm->sptr++] = func->cfunc(vm, argc, argv);
 		after_cfunc_return(vm);
 		return;
 	}
 
 	// Don't interpret a non-function as a function
-	if (typ != L2_VAL_TYPE_FUNCTION) {
-		vm->stack[vm->sptr++] = l2_vm_error(vm, "Attempt to call non-function");
+	if (typ != GIL_VAL_TYPE_FUNCTION) {
+		vm->stack[vm->sptr++] = gil_vm_error(vm, "Attempt to call non-function");
 		return;
 	}
 
-	l2_word args_id = alloc_val(vm);
-	struct l2_vm_value *args = &vm->values[args_id];
-	args->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO;
+	gil_word args_id = alloc_val(vm);
+	struct gil_vm_value *args = &vm->values[args_id];
+	args->flags = GIL_VAL_TYPE_ARRAY | GIL_VAL_SBO;
 	args->extra.arr_length = argc;
 	if (argc > 0) {
 		if (argc <= 2) {
-			memcpy(args->shortarray, argv, argc * sizeof(l2_word));
+			memcpy(args->shortarray, argv, argc * sizeof(gil_word));
 		} else {
-			args->flags = L2_VAL_TYPE_ARRAY;
+			args->flags = GIL_VAL_TYPE_ARRAY;
 			args->array = malloc(
-					sizeof(struct l2_vm_array) + sizeof(l2_word) * argc);
+					sizeof(struct gil_vm_array) + sizeof(gil_word) * argc);
 			args->array->size = argc;
-			memcpy(args->array->data, argv, argc * sizeof(l2_word));
+			memcpy(args->array->data, argv, argc * sizeof(gil_word));
 		}
 	}
 
 	call_func_with_args(vm, func_id, args_id);
 }
 
-static l2_word read_u4le(struct l2_vm *vm) {
+static gil_word read_u4le(struct gil_vm *vm) {
 	unsigned char *data = &vm->ops[vm->iptr];
-	l2_word ret =
-		(l2_word)data[0] |
-		(l2_word)data[1] << 8 |
-		(l2_word)data[2] << 16 |
-		(l2_word)data[3] << 24;
+	gil_word ret =
+		(gil_word)data[0] |
+		(gil_word)data[1] << 8 |
+		(gil_word)data[2] << 16 |
+		(gil_word)data[3] << 24;
 	vm->iptr += 4;
 	return ret;
 }
 
-static l2_word read_u1le(struct l2_vm *vm) {
+static gil_word read_u1le(struct gil_vm *vm) {
 	return vm->ops[vm->iptr++];
 }
 
-static double read_d8le(struct l2_vm *vm) {
+static double read_d8le(struct gil_vm *vm) {
 	unsigned char *data = &vm->ops[vm->iptr];
 	uint64_t integer = 0 |
 		(uint64_t)data[0] |
@@ -541,105 +541,105 @@ static double read_d8le(struct l2_vm *vm) {
 	return num;
 }
 
-void l2_vm_step(struct l2_vm *vm) {
+void gil_vm_step(struct gil_vm *vm) {
 	if (vm->need_check_retval) {
 		vm->need_check_retval = 0;
 		after_func_return(vm);
 
 		if (vm->need_gc) {
 			vm->need_gc = 0;
-			l2_vm_gc(vm);
+			gil_vm_gc(vm);
 		}
 
 		return;
 	}
 
-	enum l2_opcode opcode = (enum l2_opcode)vm->ops[vm->iptr++];
+	enum gil_opcode opcode = (enum gil_opcode)vm->ops[vm->iptr++];
 
-	l2_word word;
+	gil_word word;
 	switch (opcode) {
-	case L2_OP_NOP:
+	case GIL_OP_NOP:
 		break;
 
-	case L2_OP_DISCARD:
+	case GIL_OP_DISCARD:
 		vm->sptr -= 1;
-		if (l2_value_get_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
-			l2_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
+		if (gil_value_get_type(&vm->values[vm->stack[vm->sptr]]) == GIL_VAL_TYPE_ERROR) {
+			gil_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
 			vm->halted = 1;
 		}
 		break;
 
-	case L2_OP_SWAP_DISCARD:
+	case GIL_OP_SWAP_DISCARD:
 		vm->stack[vm->sptr - 2] = vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;
-		if (l2_value_get_type(&vm->values[vm->stack[vm->sptr]]) == L2_VAL_TYPE_ERROR) {
-			l2_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
+		if (gil_value_get_type(&vm->values[vm->stack[vm->sptr]]) == GIL_VAL_TYPE_ERROR) {
+			gil_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
 			vm->halted = 1;
 		}
 		break;
 
-	case L2_OP_DUP:
+	case GIL_OP_DUP:
 		vm->stack[vm->sptr] = vm->ops[vm->sptr - 1];
 		vm->sptr += 1;
 		break;
 
-	case L2_OP_ADD:
+	case GIL_OP_ADD:
 		vm->stack[vm->sptr - 2] += vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;
 		break;
 
 #define X(read) \
-		l2_word argc = read(vm); \
+		gil_word argc = read(vm); \
 		vm->sptr -= argc; \
-		l2_word *argv = vm->stack + vm->sptr; \
-		l2_word func_id = vm->stack[--vm->sptr]; \
+		gil_word *argv = vm->stack + vm->sptr; \
+		gil_word func_id = vm->stack[--vm->sptr]; \
 		call_func(vm, func_id, argc, argv)
-	case L2_OP_FUNC_CALL_U4: { X(read_u4le); } break;
-	case L2_OP_FUNC_CALL_U1: { X(read_u1le); } break;
+	case GIL_OP_FUNC_CALL_U4: { X(read_u4le); } break;
+	case GIL_OP_FUNC_CALL_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) word = read(vm); vm->iptr += word;
-	case L2_OP_RJMP_U4: { X(read_u4le); } break;
-	case L2_OP_RJMP_U1: { X(read_u1le); } break;
+	case GIL_OP_RJMP_U4: { X(read_u4le); } break;
+	case GIL_OP_RJMP_U1: { X(read_u1le); } break;
 #undef X
 
-	case L2_OP_STACK_FRAME_GET_ARGS:
+	case GIL_OP_STACK_FRAME_GET_ARGS:
 		vm->stack[vm->sptr++] = vm->fstack[vm->fsptr - 1].args;
 		break;
 
 #define X(read) \
-		l2_word key = read(vm); \
-		struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
-		vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, ns, key);
-	case L2_OP_STACK_FRAME_LOOKUP_U4: { X(read_u4le); } break;
-	case L2_OP_STACK_FRAME_LOOKUP_U1: { X(read_u1le); } break;
+		gil_word key = read(vm); \
+		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
+		vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, ns, key);
+	case GIL_OP_STACK_FRAME_LOOKUP_U4: { X(read_u4le); } break;
+	case GIL_OP_STACK_FRAME_LOOKUP_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) \
-		l2_word key = read(vm); \
-		l2_word val = vm->stack[vm->sptr - 1]; \
-		struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
-		l2_vm_namespace_set(ns, key, val);
-	case L2_OP_STACK_FRAME_SET_U4: { X(read_u4le); } break;
-	case L2_OP_STACK_FRAME_SET_U1: { X(read_u1le); } break;
+		gil_word key = read(vm); \
+		gil_word val = vm->stack[vm->sptr - 1]; \
+		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
+		gil_vm_namespace_set(ns, key, val);
+	case GIL_OP_STACK_FRAME_SET_U4: { X(read_u4le); } break;
+	case GIL_OP_STACK_FRAME_SET_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) \
-		l2_word key = read(vm); \
-		l2_word val = vm->stack[vm->sptr - 1]; \
-		struct l2_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
-		if (l2_vm_namespace_replace(vm, ns, key, val) < 0) { \
-			vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Variable not found"); \
+		gil_word key = read(vm); \
+		gil_word val = vm->stack[vm->sptr - 1]; \
+		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
+		if (gil_vm_namespace_replace(vm, ns, key, val) < 0) { \
+			vm->stack[vm->sptr - 1] = gil_vm_error(vm, "Variable not found"); \
 		}
-	case L2_OP_STACK_FRAME_REPLACE_U4: { X(read_u4le); } break;
-	case L2_OP_STACK_FRAME_REPLACE_U1: { X(read_u1le); } break;
+	case GIL_OP_STACK_FRAME_REPLACE_U4: { X(read_u4le); } break;
+	case GIL_OP_STACK_FRAME_REPLACE_U1: { X(read_u1le); } break;
 #undef X
 
-	case L2_OP_RET:
+	case GIL_OP_RET:
 		{
-			l2_word retval = vm->stack[--vm->sptr];
-			l2_word retptr = vm->fstack[vm->fsptr - 1].retptr;
-			l2_word sptr = vm->fstack[vm->fsptr - 1].sptr;
+			gil_word retval = vm->stack[--vm->sptr];
+			gil_word retptr = vm->fstack[vm->fsptr - 1].retptr;
+			gil_word sptr = vm->fstack[vm->fsptr - 1].sptr;
 			vm->fsptr -= 1;
 			vm->sptr = sptr;
 			vm->iptr = retptr;
@@ -649,23 +649,23 @@ void l2_vm_step(struct l2_vm *vm) {
 		}
 		break;
 
-	case L2_OP_ALLOC_NONE:
+	case GIL_OP_ALLOC_NONE:
 		vm->stack[vm->sptr++] = 0;
 		break;
 
 #define X(read) \
 		word = alloc_val(vm); \
-		vm->values[word].flags = L2_VAL_TYPE_ATOM; \
+		vm->values[word].flags = GIL_VAL_TYPE_ATOM; \
 		vm->values[word].atom = read(vm); \
 		vm->stack[vm->sptr++] = word;
-	case L2_OP_ALLOC_ATOM_U4: { X(read_u4le); } break;
-	case L2_OP_ALLOC_ATOM_U1: { X(read_u1le); } break;
+	case GIL_OP_ALLOC_ATOM_U4: { X(read_u4le); } break;
+	case GIL_OP_ALLOC_ATOM_U1: { X(read_u1le); } break;
 #undef X
 
-	case L2_OP_ALLOC_REAL_D8:
+	case GIL_OP_ALLOC_REAL_D8:
 		{
 			word = alloc_val(vm);
-			vm->values[word].flags = L2_VAL_TYPE_REAL;
+			vm->values[word].flags = GIL_VAL_TYPE_REAL;
 			vm->values[word].real = read_d8le(vm);
 			vm->stack[vm->sptr++] = word;
 		}
@@ -673,44 +673,44 @@ void l2_vm_step(struct l2_vm *vm) {
 
 #define X(read) \
 		word = alloc_val(vm); \
-		l2_word length = read(vm); \
-		l2_word offset = read(vm); \
-		vm->values[word].flags = L2_VAL_TYPE_BUFFER; \
+		gil_word length = read(vm); \
+		gil_word offset = read(vm); \
+		vm->values[word].flags = GIL_VAL_TYPE_BUFFER; \
 		vm->values[word].buffer = length > 0 ? malloc(length) : NULL; \
 		vm->values[word].extra.buf_length = length; \
 		memcpy(vm->values[word].buffer, vm->ops + offset, length); \
 		vm->stack[vm->sptr] = word; \
 		vm->sptr += 1;
-	case L2_OP_ALLOC_BUFFER_STATIC_U4: { X(read_u4le); } break;
-	case L2_OP_ALLOC_BUFFER_STATIC_U1: { X(read_u1le); } break;
+	case GIL_OP_ALLOC_BUFFER_STATIC_U4: { X(read_u4le); } break;
+	case GIL_OP_ALLOC_BUFFER_STATIC_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) \
-		l2_word count = read(vm); \
-		l2_word arr_id = alloc_val(vm); \
-		struct l2_vm_value *arr = &vm->values[arr_id]; \
+		gil_word count = read(vm); \
+		gil_word arr_id = alloc_val(vm); \
+		struct gil_vm_value *arr = &vm->values[arr_id]; \
 		arr->extra.arr_length = count; \
-		l2_word *data; \
+		gil_word *data; \
 		if (count <= 2) { \
-			arr->flags = L2_VAL_TYPE_ARRAY | L2_VAL_SBO; \
+			arr->flags = GIL_VAL_TYPE_ARRAY | GIL_VAL_SBO; \
 			data = arr->shortarray; \
 		} else { \
-			arr->flags = L2_VAL_TYPE_ARRAY; \
-			arr->array = malloc(sizeof(struct l2_vm_array) + count * sizeof(l2_word)); \
+			arr->flags = GIL_VAL_TYPE_ARRAY; \
+			arr->array = malloc(sizeof(struct gil_vm_array) + count * sizeof(gil_word)); \
 			arr->array->size = count; \
 			data = arr->array->data; \
 		} \
-		for (l2_word i = 0; i < count; ++i) { \
+		for (gil_word i = 0; i < count; ++i) { \
 			data[count - 1 - i] = vm->stack[--vm->sptr]; \
 		} \
 		vm->stack[vm->sptr++] = arr_id;
-	case L2_OP_ALLOC_ARRAY_U4: { X(read_u4le); } break;
-	case L2_OP_ALLOC_ARRAY_U1: { X(read_u1le); } break;
+	case GIL_OP_ALLOC_ARRAY_U4: { X(read_u4le); } break;
+	case GIL_OP_ALLOC_ARRAY_U1: { X(read_u1le); } break;
 #undef X
 
-	case L2_OP_ALLOC_NAMESPACE:
+	case GIL_OP_ALLOC_NAMESPACE:
 		word = alloc_val(vm);
-		vm->values[word].flags = L2_VAL_TYPE_NAMESPACE;
+		vm->values[word].flags = GIL_VAL_TYPE_NAMESPACE;
 		vm->values[word].extra.ns_parent = 0;
 		vm->values[word].ns = NULL; // Will be allocated on first insert
 		vm->stack[vm->sptr] = word;
@@ -719,138 +719,138 @@ void l2_vm_step(struct l2_vm *vm) {
 
 #define X(read) \
 		word = alloc_val(vm); \
-		vm->values[word].flags = L2_VAL_TYPE_FUNCTION; \
+		vm->values[word].flags = GIL_VAL_TYPE_FUNCTION; \
 		vm->values[word].func.pos = read(vm); \
 		vm->values[word].func.ns = vm->fstack[vm->fsptr - 1].ns; \
 		vm->stack[vm->sptr] = word; \
 		vm->sptr += 1;
-	case L2_OP_ALLOC_FUNCTION_U4: { X(read_u4le); } break;
-	case L2_OP_ALLOC_FUNCTION_U1: { X(read_u1le); } break;
+	case GIL_OP_ALLOC_FUNCTION_U4: { X(read_u4le); } break;
+	case GIL_OP_ALLOC_FUNCTION_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) \
-		l2_word key = read(vm); \
-		l2_word val = vm->stack[vm->sptr - 1]; \
-		l2_word ns = vm->stack[vm->sptr - 2]; \
-		l2_vm_namespace_set(&vm->values[ns], key, val);
-	case L2_OP_NAMESPACE_SET_U4: { X(read_u4le); } break;
-	case L2_OP_NAMESPACE_SET_U1: { X(read_u1le); } break;
+		gil_word key = read(vm); \
+		gil_word val = vm->stack[vm->sptr - 1]; \
+		gil_word ns = vm->stack[vm->sptr - 2]; \
+		gil_vm_namespace_set(&vm->values[ns], key, val);
+	case GIL_OP_NAMESPACE_SET_U4: { X(read_u4le); } break;
+	case GIL_OP_NAMESPACE_SET_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) \
-		l2_word key = read(vm); \
-		l2_word ns = vm->stack[--vm->sptr]; \
-		vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, &vm->values[ns], key);
-	case L2_OP_NAMESPACE_LOOKUP_U4: { X(read_u4le); } break;
-	case L2_OP_NAMESPACE_LOOKUP_U1: { X(read_u1le); } break;
+		gil_word key = read(vm); \
+		gil_word ns = vm->stack[--vm->sptr]; \
+		vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, &vm->values[ns], key);
+	case GIL_OP_NAMESPACE_LOOKUP_U4: { X(read_u4le); } break;
+	case GIL_OP_NAMESPACE_LOOKUP_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) \
-		l2_word key = read(vm); \
-		l2_word arr_id = vm->stack[--vm->sptr]; \
-		struct l2_vm_value *arr = &vm->values[arr_id]; \
-		if (l2_value_get_type(arr) != L2_VAL_TYPE_ARRAY) { \
-			vm->stack[vm->sptr++] = l2_vm_type_error(vm, arr); \
+		gil_word key = read(vm); \
+		gil_word arr_id = vm->stack[--vm->sptr]; \
+		struct gil_vm_value *arr = &vm->values[arr_id]; \
+		if (gil_value_get_type(arr) != GIL_VAL_TYPE_ARRAY) { \
+			vm->stack[vm->sptr++] = gil_vm_type_error(vm, arr); \
 		} else { \
-			vm->stack[vm->sptr++] = l2_value_arr_get(vm, arr, key); \
+			vm->stack[vm->sptr++] = gil_value_arr_get(vm, arr, key); \
 		}
-	case L2_OP_ARRAY_LOOKUP_U4: { X(read_u4le); } break;
-	case L2_OP_ARRAY_LOOKUP_U1: { X(read_u1le); } break;
+	case GIL_OP_ARRAY_LOOKUP_U4: { X(read_u4le); } break;
+	case GIL_OP_ARRAY_LOOKUP_U1: { X(read_u1le); } break;
 #undef X
 
 #define X(read) \
-		l2_word key = read(vm); \
-		l2_word val = vm->stack[vm->sptr - 1]; \
-		l2_word arr_id = vm->stack[vm->sptr - 2]; \
-		struct l2_vm_value *arr = &vm->values[arr_id]; \
-		if (l2_value_get_type(arr) != L2_VAL_TYPE_ARRAY) { \
-			vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, arr); \
+		gil_word key = read(vm); \
+		gil_word val = vm->stack[vm->sptr - 1]; \
+		gil_word arr_id = vm->stack[vm->sptr - 2]; \
+		struct gil_vm_value *arr = &vm->values[arr_id]; \
+		if (gil_value_get_type(arr) != GIL_VAL_TYPE_ARRAY) { \
+			vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, arr); \
 		} else { \
-			vm->stack[vm->sptr - 1] = l2_value_arr_set(vm, arr, key, val); \
+			vm->stack[vm->sptr - 1] = gil_value_arr_set(vm, arr, key, val); \
 		}
-	case L2_OP_ARRAY_SET_U4: { X(read_u4le); } break;
-	case L2_OP_ARRAY_SET_U1: { X(read_u1le); } break;
+	case GIL_OP_ARRAY_SET_U4: { X(read_u4le); } break;
+	case GIL_OP_ARRAY_SET_U1: { X(read_u1le); } break;
 
-	case L2_OP_DYNAMIC_LOOKUP:
+	case GIL_OP_DYNAMIC_LOOKUP:
 		{
-			l2_word key_id = vm->stack[--vm->sptr];
-			l2_word container_id = vm->stack[--vm->sptr];
+			gil_word key_id = vm->stack[--vm->sptr];
+			gil_word container_id = vm->stack[--vm->sptr];
 
-			struct l2_vm_value *key = &vm->values[key_id];
-			struct l2_vm_value *container = &vm->values[container_id];
-			if (l2_value_get_type(container) == L2_VAL_TYPE_ARRAY) {
-				if (l2_value_get_type(key) != L2_VAL_TYPE_REAL) {
-					vm->stack[vm->sptr++] = l2_vm_type_error(vm, key);
+			struct gil_vm_value *key = &vm->values[key_id];
+			struct gil_vm_value *container = &vm->values[container_id];
+			if (gil_value_get_type(container) == GIL_VAL_TYPE_ARRAY) {
+				if (gil_value_get_type(key) != GIL_VAL_TYPE_REAL) {
+					vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
 				} else if (key->real >= container->extra.arr_length) {
-					vm->stack[vm->sptr++] = l2_vm_error(vm, "Index out of range");
+					vm->stack[vm->sptr++] = gil_vm_error(vm, "Index out of range");
 				} else {
-					vm->stack[vm->sptr++] = container->array->data[(l2_word)key->real];
+					vm->stack[vm->sptr++] = container->array->data[(gil_word)key->real];
 				}
-			} else if (l2_value_get_type(container) == L2_VAL_TYPE_NAMESPACE) {
-				if (l2_value_get_type(key) != L2_VAL_TYPE_ATOM) {
-					vm->stack[vm->sptr++] = l2_vm_type_error(vm, key);
+			} else if (gil_value_get_type(container) == GIL_VAL_TYPE_NAMESPACE) {
+				if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
+					vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
 				} else {
-					vm->stack[vm->sptr++] = l2_vm_namespace_get(vm, container, key->atom);
+					vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, container, key->atom);
 				}
 			} else {
-				vm->stack[vm->sptr++] = l2_vm_type_error(vm, container);
+				vm->stack[vm->sptr++] = gil_vm_type_error(vm, container);
 			}
 		}
 		break;
 
-	case L2_OP_DYNAMIC_SET:
+	case GIL_OP_DYNAMIC_SET:
 		{
-			l2_word val = vm->stack[--vm->sptr];
-			l2_word key_id = vm->stack[--vm->sptr];
-			l2_word container_id = vm->stack[--vm->sptr];
+			gil_word val = vm->stack[--vm->sptr];
+			gil_word key_id = vm->stack[--vm->sptr];
+			gil_word container_id = vm->stack[--vm->sptr];
 			vm->stack[vm->sptr++] = val;
 
-			struct l2_vm_value *key = &vm->values[key_id];
-			struct l2_vm_value *container = &vm->values[container_id];
+			struct gil_vm_value *key = &vm->values[key_id];
+			struct gil_vm_value *container = &vm->values[container_id];
 
-			if (l2_value_get_type(container) == L2_VAL_TYPE_ARRAY) {
-				if (l2_value_get_type(key) != L2_VAL_TYPE_REAL) {
-					vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, key);
+			if (gil_value_get_type(container) == GIL_VAL_TYPE_ARRAY) {
+				if (gil_value_get_type(key) != GIL_VAL_TYPE_REAL) {
+					vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, key);
 				} else if (key->real >= container->extra.arr_length) {
-					vm->stack[vm->sptr - 1] = l2_vm_error(vm, "Index out of range");
+					vm->stack[vm->sptr - 1] = gil_vm_error(vm, "Index out of range");
 				} else {
 					container->array->data[(size_t)key->real] = val;
 				}
-			} else if (l2_value_get_type(container) == L2_VAL_TYPE_NAMESPACE) {
-				if (l2_value_get_type(key) != L2_VAL_TYPE_ATOM) {
-					vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, key);
+			} else if (gil_value_get_type(container) == GIL_VAL_TYPE_NAMESPACE) {
+				if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
+					vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, key);
 				} else {
-					l2_vm_namespace_set(container, key->atom, val);
+					gil_vm_namespace_set(container, key->atom, val);
 				}
 			} else {
-				vm->stack[vm->sptr - 1] = l2_vm_type_error(vm, container);
+				vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, container);
 			}
 		}
 		break;
 
-	case L2_OP_FUNC_CALL_INFIX:
+	case GIL_OP_FUNC_CALL_INFIX:
 		{
-			l2_word rhs = vm->stack[--vm->sptr];
-			l2_word func_id = vm->stack[--vm->sptr];
-			l2_word lhs = vm->stack[--vm->sptr];
+			gil_word rhs = vm->stack[--vm->sptr];
+			gil_word func_id = vm->stack[--vm->sptr];
+			gil_word lhs = vm->stack[--vm->sptr];
 
-			l2_word argv[] = {lhs, rhs};
+			gil_word argv[] = {lhs, rhs};
 			call_func(vm, func_id, 2, argv);
 		}
 		break;
 
-	case L2_OP_HALT:
+	case GIL_OP_HALT:
 		vm->halted = 1;
 		break;
 	}
 
 	if (vm->need_gc) {
 		vm->need_gc = 0;
-		l2_vm_gc(vm);
+		gil_vm_gc(vm);
 	}
 }
 
-int l2_vm_val_is_true(struct l2_vm *vm, struct l2_vm_value *val) {
-	l2_word true_atom = vm->values[vm->ktrue].atom;
-	return l2_value_get_type(val) == L2_VAL_TYPE_ATOM && val->atom == true_atom;
+int gil_vm_val_is_true(struct gil_vm *vm, struct gil_vm_value *val) {
+	gil_word true_atom = vm->values[vm->ktrue].atom;
+	return gil_value_get_type(val) == GIL_VAL_TYPE_ATOM && val->atom == true_atom;
 }

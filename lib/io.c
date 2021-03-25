@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-int l2_io_printf(struct l2_io_writer *w, const char *fmt, ...) {
+int gil_io_printf(struct gil_io_writer *w, const char *fmt, ...) {
 	char buf[256];
 
 	va_list va;
@@ -39,13 +39,13 @@ int l2_io_printf(struct l2_io_writer *w, const char *fmt, ...) {
 	return n;
 }
 
-void l2_bufio_reader_init(struct l2_bufio_reader *b, struct l2_io_reader *r) {
+void gil_bufio_reader_init(struct gil_bufio_reader *b, struct gil_io_reader *r) {
 	b->r = r;
 	b->len = 0;
 	b->idx = 0;
 }
 
-void l2_bufio_shift(struct l2_bufio_reader *b) {
+void gil_bufio_shift(struct gil_bufio_reader *b) {
 	if (b->idx > 0) {
 		b->len -= b->idx;
 		memmove(b->buf, b->buf + b->idx, b->len);
@@ -55,9 +55,9 @@ void l2_bufio_shift(struct l2_bufio_reader *b) {
 	b->idx = 0;
 }
 
-int l2_bufio_shift_peek(struct l2_bufio_reader *b, size_t count) {
+int gil_bufio_shift_peek(struct gil_bufio_reader *b, size_t count) {
 	size_t offset = count - 1;
-	l2_bufio_shift(b);
+	gil_bufio_shift(b);
 	if (b->len <= offset) {
 		return EOF;
 	}
@@ -65,8 +65,8 @@ int l2_bufio_shift_peek(struct l2_bufio_reader *b, size_t count) {
 	return b->buf[offset];
 }
 
-int l2_bufio_shift_get(struct l2_bufio_reader *b) {
-	l2_bufio_shift(b);
+int gil_bufio_shift_get(struct gil_bufio_reader *b) {
+	gil_bufio_shift(b);
 	if (b->len == 0) {
 		return EOF;
 	}
@@ -74,19 +74,19 @@ int l2_bufio_shift_get(struct l2_bufio_reader *b) {
 	return b->buf[b->idx++];
 }
 
-void l2_bufio_writer_init(struct l2_bufio_writer *b, struct l2_io_writer *w) {
+void gil_bufio_writer_init(struct gil_bufio_writer *b, struct gil_io_writer *w) {
 	b->w = w;
 	b->idx = 0;
 }
 
-void l2_bufio_flush(struct l2_bufio_writer *b) {
+void gil_bufio_flush(struct gil_bufio_writer *b) {
 	if (b->idx == 0) return;
 	b->w->write(b->w, b->buf, b->idx);
 	b->idx = 0;
 }
 
-size_t l2_io_mem_read(struct l2_io_reader *self, void *buf, size_t len) {
-	struct l2_io_mem_reader *r = (struct l2_io_mem_reader *)self;
+size_t gil_io_mem_read(struct gil_io_reader *self, void *buf, size_t len) {
+	struct gil_io_mem_reader *r = (struct gil_io_mem_reader *)self;
 	if (len >= r->len - r->idx) {
 		len = r->len - r->idx;
 	}
@@ -96,13 +96,13 @@ size_t l2_io_mem_read(struct l2_io_reader *self, void *buf, size_t len) {
 	return len;
 }
 
-size_t l2_io_file_read(struct l2_io_reader *self, void *buf, size_t len) {
-	struct l2_io_file_reader *r = (struct l2_io_file_reader *)self;
+size_t gil_io_file_read(struct gil_io_reader *self, void *buf, size_t len) {
+	struct gil_io_file_reader *r = (struct gil_io_file_reader *)self;
 	return fread(buf, 1, len, r->f);
 }
 
-void l2_io_mem_write(struct l2_io_writer *self, const void *buf, size_t len) {
-	struct l2_io_mem_writer *w = (struct l2_io_mem_writer *)self;
+void gil_io_mem_write(struct gil_io_writer *self, const void *buf, size_t len) {
+	struct gil_io_mem_writer *w = (struct gil_io_mem_writer *)self;
 	size_t idx = w->len;
 
 	if (w->len + len > w->size) {
@@ -115,7 +115,7 @@ void l2_io_mem_write(struct l2_io_writer *self, const void *buf, size_t len) {
 	memcpy((char *)w->mem + idx, buf, len);
 }
 
-void l2_io_file_write(struct l2_io_writer *self, const void *buf, size_t len) {
-	struct l2_io_file_writer *w = (struct l2_io_file_writer *)self;
+void gil_io_file_write(struct gil_io_writer *self, const void *buf, size_t len) {
+	struct gil_io_file_writer *w = (struct gil_io_file_writer *)self;
 	fwrite(buf, 1, len, w->f);
 }

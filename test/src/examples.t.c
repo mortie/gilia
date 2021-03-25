@@ -68,30 +68,30 @@ static void check_impl(const char *name) {
 		snow_fail("%s: %s", example_path, strerror(errno));
 	}
 
-	struct l2_io_file_reader input ={
-		.r.read = l2_io_file_read,
+	struct gil_io_file_reader input ={
+		.r.read = gil_io_file_read,
 		.f = inf,
 	};
 
-	struct l2_io_mem_writer bytecode = {
-		.w.write = l2_io_mem_write,
+	struct gil_io_mem_writer bytecode = {
+		.w.write = gil_io_mem_write,
 	};
 
-	struct l2_lexer lexer;
-	l2_lexer_init(&lexer, &input.r);
+	struct gil_lexer lexer;
+	gil_lexer_init(&lexer, &input.r);
 
-	struct l2_generator gen;
-	l2_gen_init(&gen, &bytecode.w);
+	struct gil_generator gen;
+	gil_gen_init(&gen, &bytecode.w);
 
-	struct l2_parse_error err;
-	if (l2_parse_program(&lexer, &gen, &err) < 0) {
+	struct gil_parse_error err;
+	if (gil_parse_program(&lexer, &gen, &err) < 0) {
 		free(bytecode.mem);
 		fclose(input.f);
 		error_message = err.message;
 		snow_fail("%s:%i:%i: %s", example_path, err.line, err.ch, err.message);
 	}
 
-	l2_gen_free(&gen);
+	gil_gen_free(&gen);
 	fclose(inf);
 
 	FILE *outf = fopen(example_actual_path, "w");
@@ -99,22 +99,22 @@ static void check_impl(const char *name) {
 		snow_fail("%s: %s", example_actual_path, strerror(errno));
 	}
 
-	struct l2_io_file_writer output = {
-		.w.write = l2_io_file_write,
+	struct gil_io_file_writer output = {
+		.w.write = gil_io_file_write,
 		.f = outf,
 	};
 
-	struct l2_vm vm;
-	l2_vm_init(&vm, bytecode.mem, bytecode.len / sizeof(l2_word));
+	struct gil_vm vm;
+	gil_vm_init(&vm, bytecode.mem, bytecode.len / sizeof(gil_word));
 	vm.std_output = &output.w;
 
 	// Run a GC after every instruction to uncover potential GC issues
 	while (!vm.halted) {
-		l2_vm_step(&vm);
-		l2_vm_gc(&vm);
+		gil_vm_step(&vm);
+		gil_vm_gc(&vm);
 	}
 
-	l2_vm_free(&vm);
+	gil_vm_free(&vm);
 	free(bytecode.mem);
 	fclose(output.f);
 
@@ -127,12 +127,12 @@ static void check_impl(const char *name) {
 } while (0)
 
 describe(exaples) {
-	check("namespaces.l2");
-	check("arrays.l2");
-	check("functions.l2");
-	check("dynamic-lookups.l2");
-	check("builtins.l2");
-	check("control-flow.l2");
+	check("namespaces.g");
+	check("arrays.g");
+	check("functions.g");
+	check("dynamic-lookups.g");
+	check("builtins.g");
+	check("control-flow.g");
 
 	if (error_message != NULL) {
 		free(error_message);

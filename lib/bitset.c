@@ -6,9 +6,9 @@
 
 #include <stdio.h>
 
-#define ENTSIZ (sizeof(l2_bitset_entry) * CHAR_BIT)
+#define ENTSIZ (sizeof(gil_bitset_entry) * CHAR_BIT)
 
-static l2_bitset_entry first_unset_bit(l2_bitset_entry n) {
+static gil_bitset_entry first_unset_bit(gil_bitset_entry n) {
 	return ~n & (n + 1);
 }
 
@@ -17,7 +17,7 @@ static l2_bitset_entry first_unset_bit(l2_bitset_entry n) {
 		_GNU_SOURCE)
 #define first_set ffsll
 #else
-static int first_set(l2_bitset_entry n) {
+static int first_set(gil_bitset_entry n) {
 	if (n == 0) {
 		return 0;
 	}
@@ -32,7 +32,7 @@ static int first_set(l2_bitset_entry n) {
 }
 #endif
 
-static void expand_tables(struct l2_bitset *bs) {
+static void expand_tables(struct gil_bitset *bs) {
 	while (bs->currtable >= bs->tableslen) {
 		bs->tables = realloc(bs->tables, bs->tableslen * 2 * sizeof(*bs->tables));
 		memset(bs->tables + bs->tableslen, 0, sizeof(*bs->tables) * bs->tableslen);
@@ -40,7 +40,7 @@ static void expand_tables(struct l2_bitset *bs) {
 	}
 }
 
-void l2_bitset_init(struct l2_bitset *bs) {
+void gil_bitset_init(struct gil_bitset *bs) {
 	bs->tableslen = 4;
 	bs->tables = calloc(bs->tableslen, sizeof(*bs->tables));
 	bs->currtable = 0;
@@ -49,38 +49,38 @@ void l2_bitset_init(struct l2_bitset *bs) {
 	bs->currdir = 0;
 }
 
-void l2_bitset_free(struct l2_bitset *bs) {
+void gil_bitset_free(struct gil_bitset *bs) {
 	free(bs->tables);
 	free(bs->dirs);
 }
 
-int l2_bitset_get(struct l2_bitset *bs, size_t id) {
+int gil_bitset_get(struct gil_bitset *bs, size_t id) {
 	size_t tblidx = id / ENTSIZ;
 	size_t tblbit = id % ENTSIZ;
 	if (tblidx >= bs->tableslen) {
 		return 0;
 	}
 
-	return !!(bs->tables[tblidx] & (l2_bitset_entry)1 << tblbit);
+	return !!(bs->tables[tblidx] & (gil_bitset_entry)1 << tblbit);
 }
 
-size_t l2_bitset_set_next(struct l2_bitset *bs) {
-	l2_bitset_entry *table = &bs->tables[bs->currtable];
-	l2_bitset_entry bit = first_unset_bit(*table);
+size_t gil_bitset_set_next(struct gil_bitset *bs) {
+	gil_bitset_entry *table = &bs->tables[bs->currtable];
+	gil_bitset_entry bit = first_unset_bit(*table);
 	*table |= bit;
 	size_t ret = bs->currtable * ENTSIZ + first_set(bit) - 1;
 
 	// Still free space?
-	if (*table != ~(l2_bitset_entry)0) {
+	if (*table != ~(gil_bitset_entry)0) {
 		return ret;
 	}
 
 	// Ok, this table is full then...
-	l2_bitset_entry *dir = &bs->dirs[bs->currdir];
-	*dir |= (l2_bitset_entry)1 << (bs->currtable % ENTSIZ);
+	gil_bitset_entry *dir = &bs->dirs[bs->currdir];
+	*dir |= (gil_bitset_entry)1 << (bs->currtable % ENTSIZ);
 
 	// Is there still space in this directory?
-	if (*dir != ~(l2_bitset_entry)0) {
+	if (*dir != ~(gil_bitset_entry)0) {
 		bs->currtable = bs->currdir * ENTSIZ + first_set(first_unset_bit(*dir)) - 1;
 		expand_tables(bs);
 		return ret;
@@ -89,7 +89,7 @@ size_t l2_bitset_set_next(struct l2_bitset *bs) {
 	// Is there a directory with free space?
 	for (size_t i = 0; i < bs->dirslen; ++i) {
 		dir = &bs->dirs[i];
-		if (*dir == ~(l2_bitset_entry)0) {
+		if (*dir == ~(gil_bitset_entry)0) {
 			continue;
 		}
 
@@ -110,7 +110,7 @@ size_t l2_bitset_set_next(struct l2_bitset *bs) {
 	return ret;
 }
 
-void l2_bitset_unset(struct l2_bitset *bs, size_t id) {
+void gil_bitset_unset(struct gil_bitset *bs, size_t id) {
 	size_t tblidx = id / ENTSIZ;
 	size_t tblbit = id % ENTSIZ;
 	size_t diridx = id / (ENTSIZ * ENTSIZ);
@@ -120,6 +120,6 @@ void l2_bitset_unset(struct l2_bitset *bs, size_t id) {
 		return;
 	}
 
-	bs->tables[tblidx] &= ~((l2_bitset_entry)1 << tblbit);
-	bs->dirs[diridx] &= ~((l2_bitset_entry)1 << dirbit);
+	bs->tables[tblidx] &= ~((gil_bitset_entry)1 << tblbit);
+	bs->dirs[diridx] &= ~((gil_bitset_entry)1 << dirbit);
 }

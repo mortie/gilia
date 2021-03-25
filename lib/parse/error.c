@@ -5,13 +5,13 @@
 
 #include "trace.h"
 
-void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *fmt, ...) {
+void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const char *fmt, ...) {
 	err->line = tok->line;
 	err->is_static = 0;
 	err->ch = tok->ch;
 
-	if (l2_token_get_kind(tok) == L2_TOK_ERROR) {
-		l2_trace("Error token: %s", tok->v.str);
+	if (gil_token_get_kind(tok) == GIL_TOK_ERROR) {
+		gil_trace("Error token: %s", tok->v.str);
 		err->message = tok->v.str;
 		err->is_static = 1;
 		return;
@@ -27,7 +27,7 @@ void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *
 		err->is_static = 1;
 
 		va_end(va);
-		l2_trace("Parse error: %s", err->message);
+		gil_trace("Parse error: %s", err->message);
 		return;
 	} else if ((size_t)n + 1 < sizeof(buf)) {
 		err->message = malloc(n + 1);
@@ -39,7 +39,7 @@ void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *
 		}
 
 		va_end(va);
-		l2_trace("Parse error: %s", err->message);
+		gil_trace("Parse error: %s", err->message);
 		return;
 	}
 
@@ -53,10 +53,10 @@ void l2_parse_err(struct l2_parse_error *err, struct l2_token *tok, const char *
 	}
 
 	va_end(va);
-	l2_trace("Parse error: %s", err->message);
+	gil_trace("Parse error: %s", err->message);
 }
 
-void l2_parse_error_free(struct l2_parse_error *err) {
+void gil_parse_error_free(struct gil_parse_error *err) {
 	if (!err->is_static) {
 		free(err->message);
 	}

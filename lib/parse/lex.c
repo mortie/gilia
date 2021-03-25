@@ -2,124 +2,124 @@
 
 #include <stdlib.h>
 
-static void log_token(struct l2_token *tok) {
-	switch (l2_token_get_kind(tok)) {
-	case L2_TOK_STRING:
-	case L2_TOK_IDENT:
-	case L2_TOK_ERROR:
-		if (l2_token_is_small(tok)) {
+static void log_token(struct gil_token *tok) {
+	switch (gil_token_get_kind(tok)) {
+	case GIL_TOK_STRING:
+	case GIL_TOK_IDENT:
+	case GIL_TOK_ERROR:
+		if (gil_token_is_small(tok)) {
 			printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
-					l2_token_get_name(tok), tok->v.strbuf);
+					gil_token_get_name(tok), tok->v.strbuf);
 		} else {
 			printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
-					l2_token_get_name(tok), tok->v.str);
+					gil_token_get_name(tok), tok->v.str);
 		}
 		break;
 
-	case L2_TOK_NUMBER:
+	case GIL_TOK_NUMBER:
 		printf("%i:%i\t%s '%g'\n", tok->line, tok->ch,
-				l2_token_get_name(tok), tok->v.num);
+				gil_token_get_name(tok), tok->v.num);
 		break;
 
 	default:
 		printf("%i:%i\t%s\n", tok->line, tok->ch,
-				l2_token_get_name(tok));
+				gil_token_get_name(tok));
 		break;
 	}
 }
 
-const char *l2_token_kind_name(enum l2_token_kind kind) {
+const char *gil_token_kind_name(enum gil_token_kind kind) {
 	switch (kind) {
-	case L2_TOK_OPEN_PAREN_NS:
+	case GIL_TOK_OPEN_PAREN_NS:
 		return "open-paren-no-space";
-	case L2_TOK_OPEN_PAREN:
+	case GIL_TOK_OPEN_PAREN:
 		return "open-paren";
-	case L2_TOK_CLOSE_PAREN:
+	case GIL_TOK_CLOSE_PAREN:
 		return "close-paren";
-	case L2_TOK_OPEN_BRACE:
+	case GIL_TOK_OPEN_BRACE:
 		return "open-brace";
-	case L2_TOK_CLOSE_BRACE:
+	case GIL_TOK_CLOSE_BRACE:
 		return "close-brace";
-	case L2_TOK_OPEN_BRACKET:
+	case GIL_TOK_OPEN_BRACKET:
 		return "open-bracket";
-	case L2_TOK_CLOSE_BRACKET:
+	case GIL_TOK_CLOSE_BRACKET:
 		return "close-bracket";
-	case L2_TOK_QUOT:
+	case GIL_TOK_QUOT:
 		return "single-quote";
-	case L2_TOK_COMMA:
+	case GIL_TOK_COMMA:
 		return "comma";
-	case L2_TOK_PERIOD:
+	case GIL_TOK_PERIOD:
 		return "period";
-	case L2_TOK_DOT_NUMBER:
+	case GIL_TOK_DOT_NUMBER:
 		return "dot-number";
-	case L2_TOK_COLON:
+	case GIL_TOK_COLON:
 		return "colon";
-	case L2_TOK_COLON_EQ:
+	case GIL_TOK_COLON_EQ:
 		return "colon-equals";
-	case L2_TOK_EQUALS:
+	case GIL_TOK_EQUALS:
 		return "equals";
-	case L2_TOK_EOL:
+	case GIL_TOK_EOL:
 		return "end-of-line";
-	case L2_TOK_EOF:
+	case GIL_TOK_EOF:
 		return "end-of-file";
-	case L2_TOK_NUMBER:
+	case GIL_TOK_NUMBER:
 		return "number";
-	case L2_TOK_STRING:
+	case GIL_TOK_STRING:
 		return "string";
-	case L2_TOK_IDENT:
+	case GIL_TOK_IDENT:
 		return "ident";
-	case L2_TOK_ERROR:
+	case GIL_TOK_ERROR:
 		return "error";
 	}
 
 	return "(unknown)";
 }
 
-void l2_token_free(struct l2_token *tok) {
-	enum l2_token_kind kind = l2_token_get_kind(tok);
+void gil_token_free(struct gil_token *tok) {
+	enum gil_token_kind kind = gil_token_get_kind(tok);
 	if (
-			(kind == L2_TOK_STRING || kind == L2_TOK_IDENT) &&
-			!l2_token_is_small(tok)) {
+			(kind == GIL_TOK_STRING || kind == GIL_TOK_IDENT) &&
+			!gil_token_is_small(tok)) {
 		free(tok->v.str);
 	}
 }
 
-struct l2_token_value l2_token_extract_val(struct l2_token *tok) {
-	struct l2_token_value v = tok->v;
+struct gil_token_value gil_token_extract_val(struct gil_token *tok) {
+	struct gil_token_value v = tok->v;
 	tok->v.str = NULL;
 	return v;
 }
 
-const char *l2_token_get_str(struct l2_token *tok) {
-	if (l2_token_is_small(tok)) {
+const char *gil_token_get_str(struct gil_token *tok) {
+	if (gil_token_is_small(tok)) {
 		return tok->v.strbuf;
 	} else {
 		return tok->v.str;
 	}
 }
 
-void l2_lexer_init(struct l2_lexer *lexer, struct l2_io_reader *r) {
-	lexer->toks[0].v.flags = L2_TOK_EOF,
+void gil_lexer_init(struct gil_lexer *lexer, struct gil_io_reader *r) {
+	lexer->toks[0].v.flags = GIL_TOK_EOF,
 	lexer->tokidx = 0;
 	lexer->line = 1;
 	lexer->ch = 1;
 	lexer->parens = 0;
 	lexer->do_log_tokens = 0;
-	l2_bufio_reader_init(&lexer->reader, r);
+	gil_bufio_reader_init(&lexer->reader, r);
 }
 
-static int peek_ch(struct l2_lexer *lexer) {
-	int ch = l2_bufio_peek(&lexer->reader, 1);
+static int peek_ch(struct gil_lexer *lexer) {
+	int ch = gil_bufio_peek(&lexer->reader, 1);
 	return ch;
 }
 
-static int peek_ch_n(struct l2_lexer *lexer, int n) {
-	int ch = l2_bufio_peek(&lexer->reader, n);
+static int peek_ch_n(struct gil_lexer *lexer, int n) {
+	int ch = gil_bufio_peek(&lexer->reader, n);
 	return ch;
 }
 
-static int read_ch(struct l2_lexer *lexer) {
-	int ch = l2_bufio_get(&lexer->reader);
+static int read_ch(struct gil_lexer *lexer) {
+	int ch = gil_bufio_get(&lexer->reader);
 	lexer->ch += 1;
 	if (ch == '\n') {
 		lexer->ch = 1;
@@ -147,7 +147,7 @@ static int is_ident(int ch) {
 		ch != ':' && ch != ';';
 }
 
-static void skip_whitespace(struct l2_lexer *lexer, int *nl, int *skipped) {
+static void skip_whitespace(struct gil_lexer *lexer, int *nl, int *skipped) {
 	while (1) {
 		if (is_whitespace(peek_ch(lexer))) {
 			*skipped = 1;
@@ -170,7 +170,7 @@ static void skip_whitespace(struct l2_lexer *lexer, int *nl, int *skipped) {
 	}
 }
 
-static int read_integer(struct l2_lexer *lexer, long long *num, long long *base, char **err) {
+static int read_integer(struct gil_lexer *lexer, long long *num, long long *base, char **err) {
 	unsigned char buffer[32]; // Should be enough
 	size_t len = 0;
 
@@ -266,8 +266,8 @@ static int read_integer(struct l2_lexer *lexer, long long *num, long long *base,
 	return 0;
 }
 
-static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
-	tok->v.flags = L2_TOK_NUMBER;
+static void read_number(struct gil_lexer *lexer, struct gil_token *tok) {
+	tok->v.flags = GIL_TOK_NUMBER;
 
 	float sign = 1;
 	if (peek_ch(lexer) == '-') {
@@ -276,7 +276,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	}
 
 	if (!is_numeric(peek_ch(lexer))) {
-		tok->v.flags = L2_TOK_ERROR;
+		tok->v.flags = GIL_TOK_ERROR;
 		tok->v.str = "No number in number literal";
 		return;
 	}
@@ -285,7 +285,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	long long base;
 	char *err;
 	if (read_integer(lexer, &integral, &base, &err) < 0) {
-		tok->v.flags = L2_TOK_ERROR;
+		tok->v.flags = GIL_TOK_ERROR;
 		tok->v.str = err;
 		return;
 	}
@@ -318,7 +318,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 		}
 
 		if (digit >= base) {
-			tok->v.flags = L2_TOK_ERROR;
+			tok->v.flags = GIL_TOK_ERROR;
 			tok->v.str = "Number with digits too big for the base";
 			return;
 		}
@@ -328,7 +328,7 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	}
 
 	if (fraction_len < 1) {
-		tok->v.flags = L2_TOK_ERROR;
+		tok->v.flags = GIL_TOK_ERROR;
 		tok->v.str = "Trailing dot in number literal";
 		return;
 	}
@@ -344,8 +344,8 @@ static void read_number(struct l2_lexer *lexer, struct l2_token *tok) {
 	tok->v.num = num * sign;
 }
 
-static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
-	tok->v.flags = L2_TOK_STRING | L2_TOK_SMALL;
+static void read_string(struct gil_lexer *lexer, struct gil_token *tok) {
+	tok->v.flags = GIL_TOK_STRING | GIL_TOK_SMALL;
 
 	char *dest = tok->v.strbuf;
 	size_t size = sizeof(tok->v.strbuf);
@@ -357,10 +357,10 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 			dest[idx] = '\0';
 			return;
 		} else if (ch == EOF) {
-			if (!l2_token_is_small(tok)) {
+			if (!gil_token_is_small(tok)) {
 				free(tok->v.str);
 			}
-			tok->v.flags = L2_TOK_ERROR;
+			tok->v.flags = GIL_TOK_ERROR;
 			tok->v.str = "Unexpected EOF";
 			return;
 		} else if (ch == '\\') {
@@ -379,10 +379,10 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 				break;
 
 			case EOF:
-				if (!l2_token_is_small(tok)) {
+				if (!gil_token_is_small(tok)) {
 					free(tok->v.str);
 				}
-				tok->v.flags = L2_TOK_ERROR;
+				tok->v.flags = GIL_TOK_ERROR;
 				tok->v.str = "Unexpected EOF";
 				return;
 
@@ -398,12 +398,12 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 		// the small-string optimization and malloc memory.
 		if (idx + 1 >= size) {
 			char *newbuf;
-			if (l2_token_is_small(tok)) {
-				tok->v.flags &= ~L2_TOK_SMALL;
+			if (gil_token_is_small(tok)) {
+				tok->v.flags &= ~GIL_TOK_SMALL;
 				size = 32;
 				newbuf = malloc(size);
 				if (newbuf == NULL) {
-					tok->v.flags = L2_TOK_ERROR;
+					tok->v.flags = GIL_TOK_ERROR;
 					tok->v.str = "Allocation failure";
 					return;
 				}
@@ -413,7 +413,7 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 				newbuf = realloc(tok->v.str, size);
 				if (newbuf == NULL) {
 					free(tok->v.str);
-					tok->v.flags = L2_TOK_ERROR;
+					tok->v.flags = GIL_TOK_ERROR;
 					tok->v.str = "Allocation failure";
 					return;
 				}
@@ -425,8 +425,8 @@ static void read_string(struct l2_lexer *lexer, struct l2_token *tok) {
 	}
 }
 
-static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
-	tok->v.flags = L2_TOK_IDENT | L2_TOK_SMALL;
+static void read_ident(struct gil_lexer *lexer, struct gil_token *tok) {
+	tok->v.flags = GIL_TOK_IDENT | GIL_TOK_SMALL;
 
 	char *dest = tok->v.strbuf;
 	size_t size = sizeof(tok->v.strbuf);
@@ -446,12 +446,12 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 		// the small-string optimization and malloc memory.
 		if (idx + 1 >= size) {
 			char *newbuf;
-			if (l2_token_is_small(tok)) {
-				tok->v.flags &= ~L2_TOK_SMALL;
+			if (gil_token_is_small(tok)) {
+				tok->v.flags &= ~GIL_TOK_SMALL;
 				size = 32;
 				newbuf = malloc(size);
 				if (newbuf == NULL) {
-					tok->v.flags = L2_TOK_ERROR;
+					tok->v.flags = GIL_TOK_ERROR;
 					tok->v.str = "Allocation failure";
 					return;
 				}
@@ -461,7 +461,7 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 				newbuf = realloc(tok->v.str, size);
 				if (newbuf == NULL) {
 					free(tok->v.str);
-					tok->v.flags = L2_TOK_ERROR;
+					tok->v.flags = GIL_TOK_ERROR;
 					tok->v.str = "Allocation failure";
 					return;
 				}
@@ -473,14 +473,14 @@ static void read_ident(struct l2_lexer *lexer, struct l2_token *tok) {
 	}
 }
 
-static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
+static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 	tok->line = lexer->line;
 	tok->ch = lexer->ch;
 	int nl = 0, skipped_whitespace = 0;
 	skip_whitespace(lexer, &nl, &skipped_whitespace);
 
 	if (nl && lexer->parens == 0) {
-		tok->v.flags = L2_TOK_EOL;
+		tok->v.flags = GIL_TOK_EOL;
 		return;
 	}
 
@@ -489,41 +489,41 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 	case '(':
 		read_ch(lexer);
 		if (skipped_whitespace) {
-			tok->v.flags = L2_TOK_OPEN_PAREN;
+			tok->v.flags = GIL_TOK_OPEN_PAREN;
 		} else {
-			tok->v.flags =L2_TOK_OPEN_PAREN_NS;
+			tok->v.flags =GIL_TOK_OPEN_PAREN_NS;
 		}
 		lexer->parens += 1;
 		break;
 
 	case ')':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_CLOSE_PAREN;
+		tok->v.flags = GIL_TOK_CLOSE_PAREN;
 		lexer->parens -= 1;
 		break;
 
 	case '{':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_OPEN_BRACE;
+		tok->v.flags = GIL_TOK_OPEN_BRACE;
 		break;
 
 	case '}':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_CLOSE_BRACE;
+		tok->v.flags = GIL_TOK_CLOSE_BRACE;
 		break;
 
 	case '[':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_OPEN_BRACKET;
+		tok->v.flags = GIL_TOK_OPEN_BRACKET;
 		break;
 
 	case ']':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_CLOSE_BRACKET;
+		tok->v.flags = GIL_TOK_CLOSE_BRACKET;
 		break;
 
 	case ';':
-		tok->v.flags = L2_TOK_EOL;
+		tok->v.flags = GIL_TOK_EOL;
 		do {
 			read_ch(lexer);
 			skip_whitespace(lexer, &nl, &skipped_whitespace);
@@ -532,28 +532,28 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 
 	case '\'':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_QUOT;
+		tok->v.flags = GIL_TOK_QUOT;
 		break;
 
 	case ',':
 		read_ch(lexer);
-		tok->v.flags = L2_TOK_COMMA;
+		tok->v.flags = GIL_TOK_COMMA;
 		break;
 
 	case '.':
 		read_ch(lexer);
 		if (is_numeric(peek_ch(lexer))) {
-			tok->v.flags = L2_TOK_DOT_NUMBER;
+			tok->v.flags = GIL_TOK_DOT_NUMBER;
 			long long num, base;
 			char *err;
 			if (read_integer(lexer, &num, &base, &err) < 0) {
-				tok->v.flags = L2_TOK_ERROR;
+				tok->v.flags = GIL_TOK_ERROR;
 				tok->v.str = err;
 			} else {
 				tok->v.integer = (int)num;
 			}
 		} else {
-			tok->v.flags = L2_TOK_PERIOD;
+			tok->v.flags = GIL_TOK_PERIOD;
 		}
 		break;
 
@@ -563,17 +563,17 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 		switch (ch) {
 		case '=':
 			read_ch(lexer);
-			tok->v.flags = L2_TOK_COLON_EQ;
+			tok->v.flags = GIL_TOK_COLON_EQ;
 			break;
 
 		default:
-			tok->v.flags = L2_TOK_COLON;
+			tok->v.flags = GIL_TOK_COLON;
 			break;
 		}
 		break;
 
 	case EOF:
-		tok->v.flags = L2_TOK_EOF;
+		tok->v.flags = GIL_TOK_EOF;
 		break;
 
 	case '"':
@@ -592,17 +592,17 @@ static void read_tok(struct l2_lexer *lexer, struct l2_token *tok) {
 				break;
 			}
 
-			tok->v.flags = L2_TOK_IDENT;
+			tok->v.flags = GIL_TOK_IDENT;
 			read_ident(lexer, tok);
 
-			if (l2_token_is_small(tok) && strcmp(tok->v.strbuf, "=") == 0) {
-				tok->v.flags = L2_TOK_EQUALS;
+			if (gil_token_is_small(tok) && strcmp(tok->v.strbuf, "=") == 0) {
+				tok->v.flags = GIL_TOK_EQUALS;
 			}
 		}
 	}
 }
 
-struct l2_token *l2_lexer_peek(struct l2_lexer *lexer, int count) {
+struct gil_token *gil_lexer_peek(struct gil_lexer *lexer, int count) {
 	int offset = count - 1;
 
 	while (offset >= lexer->tokidx) {
@@ -615,14 +615,14 @@ struct l2_token *l2_lexer_peek(struct l2_lexer *lexer, int count) {
 	return &lexer->toks[offset];
 }
 
-void l2_lexer_consume(struct l2_lexer *lexer) {
-	l2_token_free(&lexer->toks[0]);
+void gil_lexer_consume(struct gil_lexer *lexer) {
+	gil_token_free(&lexer->toks[0]);
 	lexer->tokidx -= 1;
 	memmove(lexer->toks, lexer->toks + 1, lexer->tokidx * sizeof(*lexer->toks));
 }
 
-void l2_lexer_skip_opt(struct l2_lexer *lexer, enum l2_token_kind kind) {
-	if (l2_token_get_kind(l2_lexer_peek(lexer, 1)) == kind) {
-		l2_lexer_consume(lexer);
+void gil_lexer_skip_opt(struct gil_lexer *lexer, enum gil_token_kind kind) {
+	if (gil_token_get_kind(gil_lexer_peek(lexer, 1)) == kind) {
+		gil_lexer_consume(lexer);
 	}
 }

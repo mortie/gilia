@@ -1,32 +1,32 @@
 #include "trace.h"
 
-#if L2_ENABLE_TRACE
+#if GIL_ENABLE_TRACE
 
 #include <stdio.h>
 #include <stdarg.h>
 
-int l2_trace_depth = 0;
+int gil_trace_depth = 0;
 
-void l2_trace_push(const char *name) {
-	for (int i = 0; i < l2_trace_depth; ++i) {
+void gil_trace_push(const char *name) {
+	for (int i = 0; i < gil_trace_depth; ++i) {
 		fprintf(stderr, "    ");
 	}
 
 	fprintf(stderr, "%s {\n", name);
-	l2_trace_depth += 1;
+	gil_trace_depth += 1;
 }
 
-void l2_trace_pop() {
-	l2_trace_depth -= 1;
-	for (int i = 0; i < l2_trace_depth; ++i) {
+void gil_trace_pop() {
+	gil_trace_depth -= 1;
+	for (int i = 0; i < gil_trace_depth; ++i) {
 		fprintf(stderr, "    ");
 	}
 
 	fprintf(stderr, "}\n");
 }
 
-void l2_trace(const char *fmt, ...) {
-	for (int i = 0; i < l2_trace_depth; ++i) {
+void gil_trace(const char *fmt, ...) {
+	for (int i = 0; i < gil_trace_depth; ++i) {
 		fprintf(stderr, "    ");
 	}
 
@@ -36,8 +36,8 @@ void l2_trace(const char *fmt, ...) {
 	fprintf(stderr, "\n");
 }
 
-void l2_trace_cleanup(void *unused) {
-	l2_trace_pop();
+void gil_trace_cleanup(void *unused) {
+	gil_trace_pop();
 }
 
 #endif

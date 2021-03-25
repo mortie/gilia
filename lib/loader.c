@@ -2,14 +2,14 @@
 
 #include <stdint.h>
 
-int l2_bc_serialize(FILE *outf, unsigned char *data, size_t len) {
+int gil_bc_serialize(FILE *outf, unsigned char *data, size_t len) {
 	char header[4] = { 0x1b, 0x6c, 0x32, 0x63 };
 	if (fwrite(header, 1, 4, outf) < 4) {
 		fprintf(stderr, "Write error\n");
 		return -1;
 	}
 
-	uint32_t version = l2_bytecode_version;
+	uint32_t version = gil_bytecode_version;
 
 	unsigned char version_buf[4] = {
 		(version >> 0) & 0xff,
@@ -30,7 +30,7 @@ int l2_bc_serialize(FILE *outf, unsigned char *data, size_t len) {
 	return 0;
 }
 
-int l2_bc_load(FILE *inf, struct l2_io_writer *w) {
+int gil_bc_load(FILE *inf, struct gil_io_writer *w) {
 	// Header is already read by main
 
 	unsigned char version_buf[4];
@@ -44,11 +44,11 @@ int l2_bc_load(FILE *inf, struct l2_io_writer *w) {
 		((uint32_t)version_buf[1]) << 8 |
 		((uint32_t)version_buf[2]) << 16 |
 		((uint32_t)version_buf[3]) << 24;
-	if (version != l2_bytecode_version) {
+	if (version != gil_bytecode_version) {
 		fprintf(stderr,
 				"Version mismatch! Bytecode file uses bytecode version %i"
-				", but your build of lang2 uses bytecode version %i\n",
-				version, l2_bytecode_version);
+				", but your build of Gilia uses bytecode version %i\n",
+				version, gil_bytecode_version);
 		return -1;
 	}
 

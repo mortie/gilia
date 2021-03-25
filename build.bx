@@ -1,4 +1,4 @@
-includes := include/lang2
+includes := include/gilia
 files := lib cmd
 warnings := all extra no-unused-parameter pedantic
 cflags := -g -O3
