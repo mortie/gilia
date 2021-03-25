@@ -18,7 +18,7 @@ Clone this repo:
 
 Build:
 
-	make -j 10
+	make -j
 
 Run the REPL:
 
@@ -27,7 +27,7 @@ Run the REPL:
 Run tests:
 
 	git submodule update --init
-	make -j 10 -C test check
+	make -j -C test check
 
 ## About
 
