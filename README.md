@@ -20,8 +20,13 @@ Build:
 
 	make -j 10
 
+Run the REPL:
+
+	./build/gilia
+
 Run tests:
 
+	git submodule update --init
 	make -j 10 -C test check
 
 ## About
