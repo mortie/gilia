@@ -84,7 +84,8 @@ static void check_impl(const char *name) {
 	gil_gen_init(&gen, &bytecode.w);
 
 	struct gil_parse_error err;
-	if (gil_parse_program(&lexer, &gen, &err) < 0) {
+	struct gil_parse_context ctx = {&lexer, &gen, &err};
+	if (gil_parse_program(&ctx) < 0) {
 		free(bytecode.mem);
 		fclose(input.f);
 		error_message = err.message;

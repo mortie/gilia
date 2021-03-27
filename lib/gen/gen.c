@@ -3,6 +3,8 @@
 #include <string.h>
 
 #include "bytecode.h"
+#include "parse/lex.h"
+#include "parse/parse.h"
 
 static void put(struct gil_generator *gen, unsigned char ch) {
 	gil_bufio_put(&gen->writer, ch);

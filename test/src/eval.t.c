@@ -30,7 +30,8 @@ static int eval_impl(const char *str, struct gil_parse_error *err) {
 	w.mem = NULL;
 	gil_gen_init(&gen, (struct gil_io_writer *)&w);
 
-	if (gil_parse_program(&lex, &gen, err) < 0) {
+	struct gil_parse_context ctx = {&lex, &gen, err};
+	if (gil_parse_program(&ctx) < 0) {
 		free(w.mem);
 		return -1;
 	}

@@ -40,7 +40,8 @@ static int parse_text(FILE *inf, struct gil_io_writer *w) {
 	gil_gen_init(&gen, w);
 
 	struct gil_parse_error err;
-	if (gil_parse_program(&lexer, &gen, &err) < 0) {
+	struct gil_parse_context ctx = {&lexer, &gen, &err};
+	if (gil_parse_program(&ctx) < 0) {
 		fprintf(stderr, "Parse error: %s:%i:%i: %s\n",
 				input_filename, err.line, err.ch, err.message);
 		gil_parse_error_free(&err);
@@ -120,7 +121,8 @@ static void repl() {
 		gil_lexer_init(&lexer, &r.r);
 
 		struct gil_parse_error err;
-		if (gil_parse_program(&lexer, &gen, &err) < 0) {
+		struct gil_parse_context ctx = {&lexer, &gen, &err};
+		if (gil_parse_program(&ctx) < 0) {
 			fprintf(stderr, "Parse error: %s\n -- %s\n", err.message, line);
 			gil_parse_error_free(&err);
 
