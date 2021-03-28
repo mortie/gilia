@@ -244,13 +244,13 @@ int main(int argc, char **argv) {
 	}
 
 	// Detect whether input is compiled bytecode or not
-	// (compile bytecode starts with (ESC) 'l' '2' 'c')
+	// (compile bytecode starts with (ESC) 'g' 'l' 'c')
 	unsigned char header[4];
 	if (
 			headerbyte == 0x1b &&
 			fread(header, 1, 4, inf) >= 4 &&
-			header[0] == 0x1b && header[1] == 0x6c &&
-			header[2] == 0x32 && header[3] == 0x63) {
+			header[0] == 0x1b && header[1] == 0x67 &&
+			header[2] == 0x6c && header[3] == 0x63) {
 		if (gil_bc_load(inf, &bytecode_writer.w) < 0) {
 			return 1;
 		}
