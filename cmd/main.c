@@ -6,6 +6,7 @@
 #include "bitset.h"
 #include "bytecode.h"
 #include "loader.h"
+#include "modules/fs.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +27,9 @@ static int do_serialize_bytecode = 0;
 static int do_repl = 0;
 static char *input_filename = "-";
 
+static struct gil_module **modules;
+static size_t moduleslen;
+
 static int parse_text(FILE *inf, struct gil_io_writer *w) {
 	// Init lexer with its input reader
 	struct gil_io_file_reader r;
@@ -40,6 +44,10 @@ static int parse_text(FILE *inf, struct gil_io_writer *w) {
 	// Init gen with its output writer
 	struct gil_generator gen;
 	gil_gen_init(&gen, w);
+
+	for (size_t i = 0; i < moduleslen; ++i) {
+		gil_gen_register_module(&gen, modules[i]);
+	}
 
 	struct gil_parse_error err;
 	struct gil_parse_context ctx = {&lexer, &gen, &err};
@@ -267,6 +275,12 @@ skip_args:;
 		return 1;
 	}
 
+	struct gil_module *mods[] = {
+		gil_mod_fs(),
+	};
+	modules = mods;
+	moduleslen = sizeof(mods) / sizeof(*mods); // NOLINT(bugprone-sizeof-expression)
+
 	// Detect whether input is compiled bytecode or not
 	// (compile bytecode starts with (ESC) 'g' 'l' 'c')
 	unsigned char header[4];
@@ -308,6 +322,10 @@ skip_args:;
 
 	struct gil_vm vm;
 	gil_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len);
+
+	for (size_t i = 0; i < moduleslen; ++i) {
+		gil_vm_register_module(&vm, modules[i]);
+	}
 
 	if (do_step) {
 		step_through(&vm);

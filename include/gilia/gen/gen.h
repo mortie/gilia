@@ -16,11 +16,25 @@ struct gil_generator {
 	struct gil_generator_string *strings;
 	gil_word pos;
 	struct gil_bufio_writer writer;
+
+	gil_word *modules;
+	size_t moduleslen;
+	size_t modulessize;
 };
 
+struct gil_module;
+
 void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w);
+void gil_gen_register_module(struct gil_generator *gen, struct gil_module *mod);
 void gil_gen_flush(struct gil_generator *gen);
 void gil_gen_free(struct gil_generator *gen);
+
+int gil_gen_import(
+		struct gil_generator *gen, char **str,
+		int (*callback)(void *data), void *data);
+int gil_gen_import_copy(
+		struct gil_generator *gen, const char *str,
+		int (*callback)(void *data), void *data);
 
 void gil_gen_halt(struct gil_generator *gen);
 void gil_gen_rjmp(struct gil_generator *gen, gil_word len);

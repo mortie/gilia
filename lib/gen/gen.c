@@ -5,6 +5,7 @@
 #include "bytecode.h"
 #include "parse/lex.h"
 #include "parse/parse.h"
+#include "module.h"
 
 static void put(struct gil_generator *gen, unsigned char ch) {
 	gil_bufio_put(&gen->writer, ch);
@@ -77,6 +78,28 @@ void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w) {
 #undef XFUNCTION
 }
 
+static gil_word alloc_name(void *ptr, const char *name) {
+	struct gil_generator *gen = ptr;
+	return gil_strset_put_copy(&gen->atomset, name);
+}
+
+void gil_gen_register_module(struct gil_generator *gen, struct gil_module *mod) {
+	gil_word id = gil_strset_put_copy(&gen->atomset, mod->name);
+	mod->init(mod, alloc_name, gen);
+
+	if (gen->moduleslen + 1 >= gen->modulessize) {
+		if (gen->modulessize == 0) {
+			gen->modulessize = 16;
+		} else do {
+			gen->modulessize *= 2;
+		} while (gen->moduleslen + 1 >= gen->modulessize);
+
+		gen->modules = realloc(gen->modules, gen->modulessize * sizeof(*gen->modules));
+	}
+
+	gen->modules[gen->moduleslen++] = id;
+}
+
 void gil_gen_flush(struct gil_generator *gen) {
 	gil_bufio_flush(&gen->writer);
 }
@@ -85,6 +108,55 @@ void gil_gen_free(struct gil_generator *gen) {
 	gil_strset_free(&gen->atomset);
 	gil_strset_free(&gen->stringset);
 	free(gen->strings);
+}
+
+static int gen_cmodule(struct gil_generator *gen, const char *str) {
+	gil_word id = gil_strset_get(&gen->atomset, str);
+	if (!id) {
+		return 0;
+	}
+
+	int found = 0;
+	for (size_t i = 0; i < gen->moduleslen; ++i) {
+		if (gen->modules[i] == id) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		return 0;
+	}
+
+
+}
+
+int gil_gen_import(
+		struct gil_generator *gen, char **str,
+		int (*callback)(void *data), void *data) {
+	int ret = gen_cmodule(gen, *str);
+	if (ret != 0) {
+		free(*str);
+		*str = NULL;
+		if (ret < 0) {
+			return -1;
+		} else {
+			return 0;
+		}
+	}
+}
+
+int gil_gen_import_copy(
+		struct gil_generator *gen, const char *str,
+		int (*callback)(void *data), void *data) {
+	int ret = gen_cmodule(gen, str);
+	if (ret != 0) {
+		if (ret < 0) {
+			return -1;
+		} else {
+			return 0;
+		}
+	}
 }
 
 void gil_gen_halt(struct gil_generator *gen) {
