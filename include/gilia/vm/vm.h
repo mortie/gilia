@@ -165,7 +165,10 @@ struct gil_vm {
 	gil_word gc_start;
 };
 
+struct gil_module;
+
 void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen);
+void gil_vm_register_module(struct gil_vm *vm, struct gil_module *mod);
 gil_word gil_vm_alloc(struct gil_vm *vm, enum gil_value_type typ, enum gil_value_flags flags);
 gil_word gil_vm_error(struct gil_vm *vm, const char *fmt, ...);
 gil_word gil_vm_type_error(struct gil_vm *vm, struct gil_vm_value *val);
