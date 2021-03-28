@@ -1,5 +1,5 @@
 OUT ?= build
-CFLAGS += -Iinclude/gilia -fPIC -g -O2\
+CFLAGS += -Iinclude/gilia -fPIC -g -O2 \
 	-Wall -Wextra -Wno-unused-parameter
 LDLIBS += -lreadline
 

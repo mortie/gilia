@@ -11,16 +11,31 @@ static void put(struct gil_generator *gen, unsigned char ch) {
 	gen->pos += 1;
 }
 
-static void put_u4le(struct gil_generator *gen, gil_word word) {
-	char data[4] = {
-		(word >> 0) & 0xff,
-		(word >> 8) & 0xff,
-		(word >> 16) & 0xff,
-		(word >> 24) & 0xff,
-	};
+static int encode_uint(gil_word word, unsigned char out[5]) {
+	unsigned char bytes[4];
 
-	gil_bufio_put_n(&gen->writer, data, 4);
-	gen->pos += 4;
+	int count = 0;
+	while (word >= 0x80) {
+		bytes[count++] = word & 0x7f;
+		word >>= 7;
+	}
+	bytes[count++] = word;
+
+	int dest = 0;
+	for (int i = count - 1; i > 0; --i) {
+		out[dest++] = bytes[i] | 0x80;
+	}
+
+	out[dest++] = bytes[0];
+
+	return count;
+}
+
+static void put_uint(struct gil_generator *gen, gil_word word) {
+	unsigned char bytes[5];
+	int count = encode_uint(word, bytes);
+	gil_bufio_put_n(&gen->writer, bytes, count);
+	gen->pos += count;
 }
 
 static void put_d8le(struct gil_generator *gen, double num) {
@@ -77,18 +92,16 @@ void gil_gen_halt(struct gil_generator *gen) {
 }
 
 void gil_gen_rjmp(struct gil_generator *gen, gil_word len) {
-	if (len <= 0xff) {
-		put(gen, GIL_OP_RJMP_U1);
-		put(gen, len);
-	} else {
-		put(gen, GIL_OP_RJMP_U4);
-		put_u4le(gen, len);
-	}
+	put(gen, GIL_OP_RJMP);
+	put_uint(gen, len);
 }
 
 void gil_gen_rjmp_placeholder(struct gil_generator *gen) {
 	put(gen, GIL_OP_RJMP_U4);
-	put_u4le(gen, 0);
+	put(gen, 0);
+	put(gen, 0);
+	put(gen, 0);
+	put(gen, 0);
 }
 
 void gil_gen_discard(struct gil_generator *gen) {
@@ -110,30 +123,20 @@ void gil_gen_none(struct gil_generator *gen) {
 void gil_gen_number(struct gil_generator *gen, double num) {
 	uint64_t n;
 	memcpy(&n, &num, sizeof(num));
-	put(gen, GIL_OP_ALLOC_REAL_D8);
+	put(gen, GIL_OP_ALLOC_REAL);
 	put_d8le(gen, num);
 }
 
 void gil_gen_atom(struct gil_generator *gen, char **str) {
 	size_t id = gil_strset_put(&gen->atomset, str);
-	if (id <= 0xff) { 
-		put(gen, GIL_OP_ALLOC_ATOM_U1);
-		put(gen, id);
-	} else {
-		put(gen, GIL_OP_ALLOC_ATOM_U4);
-		put_u4le(gen, id);
-	}
+	put(gen, GIL_OP_ALLOC_ATOM);
+	put_uint(gen, id);
 }
 
 void gil_gen_atom_copy(struct gil_generator *gen, char *str) {
 	size_t id = gil_strset_put_copy(&gen->atomset, str);
-	if (id <= 0xff) {
-		put(gen, GIL_OP_ALLOC_ATOM_U1);
-		put(gen, id);
-	} else {
-		put(gen, GIL_OP_ALLOC_ATOM_U4);
-		put_u4le(gen, id);
-	}
+	put(gen, GIL_OP_ALLOC_ATOM);
+	put_uint(gen, id);
 }
 
 void gil_gen_string(struct gil_generator *gen, char **str) {
@@ -152,27 +155,15 @@ void gil_gen_string(struct gil_generator *gen, char **str) {
 		gen->strings[id - 1].length = len;
 		gen->strings[id - 1].pos = pos;
 
-		if (len <= 0xff && pos <= 0xff) {
-			put(gen, GIL_OP_ALLOC_BUFFER_STATIC_U1);
-			put(gen, len);
-			put(gen, pos);
-		} else {
-			put(gen, GIL_OP_ALLOC_BUFFER_STATIC_U4);
-			put_u4le(gen, len);
-			put_u4le(gen, pos);
-		}
+		put(gen, GIL_OP_ALLOC_BUFFER_STATIC);
+		put_uint(gen, len);
+		put_uint(gen, pos);
 	} else {
 		free(*str);
 		struct gil_generator_string *s = &gen->strings[id - 1];
-		if (s->length <= 0xff && s->pos <= 0xff) {
-			put(gen, GIL_OP_ALLOC_BUFFER_STATIC_U1);
-			put(gen, s->length);
-			put(gen, s->pos);
-		} else {
-			put(gen, GIL_OP_ALLOC_BUFFER_STATIC_U4);
-			put_u4le(gen, s->length);
-			put_u4le(gen, s->pos);
-		}
+		put(gen, GIL_OP_ALLOC_BUFFER_STATIC);
+		put_uint(gen, s->length);
+		put_uint(gen, s->pos);
 	}
 }
 
@@ -183,36 +174,20 @@ void gil_gen_string_copy(struct gil_generator *gen, char *str) {
 		gil_gen_string(gen, &s);
 	} else {
 		struct gil_generator_string *s = &gen->strings[id - 1];
-		if (s->length <= 0xff && s->pos <= 0xff) {
-			put(gen, GIL_OP_ALLOC_BUFFER_STATIC_U1);
-			put(gen, s->length);
-			put(gen, s->pos);
-		} else {
-			put(gen, GIL_OP_ALLOC_BUFFER_STATIC_U4);
-			put_u4le(gen, s->length);
-			put_u4le(gen, s->pos);
-		}
+		put(gen, GIL_OP_ALLOC_BUFFER_STATIC);
+		put_uint(gen, s->length);
+		put_uint(gen, s->pos);
 	}
 }
 
 void gil_gen_function(struct gil_generator *gen, gil_word pos) {
-	if (pos <= 0xff) {
-		put(gen, GIL_OP_ALLOC_FUNCTION_U1);
-		put(gen, pos);
-	} else {
-		put(gen, GIL_OP_ALLOC_FUNCTION_U4);
-		put_u4le(gen, pos);
-	}
+	put(gen, GIL_OP_ALLOC_FUNCTION);
+	put_uint(gen, pos);
 }
 
 void gil_gen_array(struct gil_generator *gen, gil_word count) {
-	if (count <= 0xff) {
-		put(gen, GIL_OP_ALLOC_ARRAY_U1);
-		put(gen, count);
-	} else {
-		put(gen, GIL_OP_ALLOC_ARRAY_U4);
-		put_u4le(gen, count);
-	}
+	put(gen, GIL_OP_ALLOC_ARRAY);
+	put_uint(gen, count);
 }
 
 void gil_gen_namespace(struct gil_generator *gen) {
@@ -221,66 +196,36 @@ void gil_gen_namespace(struct gil_generator *gen) {
 
 void gil_gen_namespace_set(struct gil_generator *gen, char **ident) {
 	size_t atom_id = gil_strset_put(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_NAMESPACE_SET_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_NAMESPACE_SET_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_NAMESPACE_SET);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_namespace_set_copy(struct gil_generator *gen, char *ident) {
 	size_t atom_id = gil_strset_put_copy(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_NAMESPACE_SET_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_NAMESPACE_SET_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_NAMESPACE_SET);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_namespace_lookup(struct gil_generator *gen, char **ident) {
 	size_t atom_id = gil_strset_put(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_NAMESPACE_LOOKUP_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_NAMESPACE_LOOKUP_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_NAMESPACE_LOOKUP);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_namespace_lookup_copy(struct gil_generator *gen, char *ident) {
 	size_t atom_id = gil_strset_put_copy(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_NAMESPACE_LOOKUP_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_NAMESPACE_LOOKUP_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_NAMESPACE_LOOKUP);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_array_lookup(struct gil_generator *gen, int number) {
-	if (number <= 0xff) {
-		put(gen, GIL_OP_ARRAY_LOOKUP_U1);
-		put(gen, number);
-	} else {
-		put(gen, GIL_OP_ARRAY_LOOKUP_U4);
-		put_u4le(gen, number);
-	}
+	put(gen, GIL_OP_ARRAY_LOOKUP);
+	put_uint(gen, number);
 }
 
 void gil_gen_array_set(struct gil_generator *gen, int number) {
-	if (number <= 0xff) {
-		put(gen, GIL_OP_ARRAY_SET_U1);
-		put(gen, number);
-	} else {
-		put(gen, GIL_OP_ARRAY_SET_U4);
-		put_u4le(gen, number);
-	}
+	put(gen, GIL_OP_ARRAY_SET);
+	put_uint(gen, number);
 }
 
 void gil_gen_dynamic_lookup(struct gil_generator *gen) {
@@ -297,78 +242,43 @@ void gil_gen_stack_frame_get_args(struct gil_generator *gen) {
 
 void gil_gen_stack_frame_lookup(struct gil_generator *gen, char **ident) {
 	size_t atom_id = gil_strset_put(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_STACK_FRAME_LOOKUP_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_STACK_FRAME_LOOKUP_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_STACK_FRAME_LOOKUP);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_stack_frame_lookup_copy(struct gil_generator *gen, char *ident) {
 	size_t atom_id = gil_strset_put_copy(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_STACK_FRAME_LOOKUP_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_STACK_FRAME_LOOKUP_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_STACK_FRAME_LOOKUP);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_stack_frame_set(struct gil_generator *gen, char **ident) {
 	size_t atom_id = gil_strset_put(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_STACK_FRAME_SET_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_STACK_FRAME_SET_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_STACK_FRAME_SET);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_stack_frame_set_copy(struct gil_generator *gen, char *ident) {
 	size_t atom_id = gil_strset_put_copy(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_STACK_FRAME_SET_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_STACK_FRAME_SET_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_STACK_FRAME_SET);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_stack_frame_replace(struct gil_generator *gen, char **ident) {
 	size_t atom_id = gil_strset_put(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_STACK_FRAME_REPLACE_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_STACK_FRAME_REPLACE_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_STACK_FRAME_REPLACE);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_stack_frame_replace_copy(struct gil_generator *gen, char *ident) {
 	size_t atom_id = gil_strset_put_copy(&gen->atomset, ident);
-	if (atom_id <= 0xff) {
-		put(gen, GIL_OP_STACK_FRAME_REPLACE_U1);
-		put(gen, atom_id);
-	} else {
-		put(gen, GIL_OP_STACK_FRAME_REPLACE_U4);
-		put_u4le(gen, atom_id);
-	}
+	put(gen, GIL_OP_STACK_FRAME_REPLACE);
+	put_uint(gen, atom_id);
 }
 
 void gil_gen_func_call(struct gil_generator *gen, gil_word argc) {
-	if (argc <= 0xff) {
-		put(gen, GIL_OP_FUNC_CALL_U1);
-		put(gen, argc);
-	} else {
-		put(gen, GIL_OP_FUNC_CALL_U4);
-		put_u4le(gen, argc);
-	}
+	put(gen, GIL_OP_FUNC_CALL);
+	put_uint(gen, argc);
 }
 
 void gil_gen_func_call_infix(struct gil_generator *gen) {

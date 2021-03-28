@@ -28,20 +28,6 @@ enum gil_opcode {
 	GIL_OP_SWAP_DISCARD,
 
 	/*
-	 * Duplicate the top element on the stack.
-	 * Push <word at <sptr> - 1>
-	 */
-	GIL_OP_DUP,
-
-	/*
-	 * Add two words.
-	 * Pop <word1>
-	 * Pop <word2>
-	 * Push <word1> + <word2>
-	 */
-	GIL_OP_ADD,
-
-	/*
 	 * Call a function; func_call <argc>
 	 * Pop <argc> times
 	 * Pop <func>
@@ -49,8 +35,7 @@ enum gil_opcode {
 	 * Call <func>
 	 * (Before returning, the function will push a return value onto the stack)
 	 */
-	GIL_OP_FUNC_CALL_U4,
-	GIL_OP_FUNC_CALL_U1,
+	GIL_OP_FUNC_CALL,
 
 	/*
 	 * Call an infix function
@@ -66,8 +51,14 @@ enum gil_opcode {
 	 * Jump relative; rjmp <count>
 	 * Jump <count> words forwards
 	 */
+	GIL_OP_RJMP,
+
+	/* 
+	 * Jump relative; rjmp <count:u4>
+	 * Jump <count> words forwards
+	 * (Like GIL_OP_RJMP, but takes a u4 rather than a variable length number)
+	 */
 	GIL_OP_RJMP_U4,
-	GIL_OP_RJMP_U1,
 
 	/* Get the arguments array from the stack frame
 	 * Push <arguments array>
@@ -79,24 +70,21 @@ enum gil_opcode {
 	 * Find <val> in stack frame using <key>
 	 * Push <val>
 	 */
-	GIL_OP_STACK_FRAME_LOOKUP_U4,
-	GIL_OP_STACK_FRAME_LOOKUP_U1,
+	GIL_OP_STACK_FRAME_LOOKUP,
 
 	/*
 	 * Set a value in the current stack frame; stack_frame_set <key>
 	 * Read <val>
 	 * Assign <val> to stack frame at <key>
 	 */
-	GIL_OP_STACK_FRAME_SET_U4,
-	GIL_OP_STACK_FRAME_SET_U1,
+	GIL_OP_STACK_FRAME_SET,
 
 	/*
 	 * Replace a value on the stack; stack_frame_replace <key>
 	 * Read <val>
 	 * Assign <val> to stack frame at <key>
 	 */
-	GIL_OP_STACK_FRAME_REPLACE_U4,
-	GIL_OP_STACK_FRAME_REPLACE_U1,
+	GIL_OP_STACK_FRAME_REPLACE,
 
 	/*
 	 * Return from a function.
@@ -119,23 +107,21 @@ enum gil_opcode {
 	 * Alloc atom <var> from <word>
 	 * Push <var>
 	 */
-	GIL_OP_ALLOC_ATOM_U4,
-	GIL_OP_ALLOC_ATOM_U1,
+	GIL_OP_ALLOC_ATOM,
 
 	/*
 	 * Allocate a real from two words; alloc_real <double:u8>
 	 * Alloc real <var> from <double>
 	 * Push <var>
 	 */
-	GIL_OP_ALLOC_REAL_D8,
+	GIL_OP_ALLOC_REAL,
 
 	/*
 	 * Allocate a buffer from static data; alloc_buffer_static <length> <offset>
 	 * Alloc buffer <var> with <length> and <offset>
 	 * Push <var>
 	 */
-	GIL_OP_ALLOC_BUFFER_STATIC_U4,
-	GIL_OP_ALLOC_BUFFER_STATIC_U1,
+	GIL_OP_ALLOC_BUFFER_STATIC,
 
 	/*
 	 * Allocate an array; <count:u4>
@@ -143,8 +129,7 @@ enum gil_opcode {
 	 * Alloc array <var>
 	 * Push <var>
 	 */
-	GIL_OP_ALLOC_ARRAY_U4,
-	GIL_OP_ALLOC_ARRAY_U1,
+	GIL_OP_ALLOC_ARRAY,
 
 	/*
 	 * Allocate an integer->value map.
@@ -158,33 +143,29 @@ enum gil_opcode {
 	 * Alloc function <var> pointing to location <word>
 	 * Push <var>
 	 */
-	GIL_OP_ALLOC_FUNCTION_U4,
-	GIL_OP_ALLOC_FUNCTION_U1,
+	GIL_OP_ALLOC_FUNCTION,
 
 	/*
-	 * Set a namespace's name to a value; namespace_set <key:u4>
+	 * Set a namespace's name to a value; namespace_set <key>
 	 * Read <val>
 	 * Read <ns>
 	 * Assign <val> to <ns[<key>]>
 	 */
-	GIL_OP_NAMESPACE_SET_U4,
-	GIL_OP_NAMESPACE_SET_U1,
+	GIL_OP_NAMESPACE_SET,
 
 	/*
-	 * Lookup a value from a namespace; namespace_lookup <key:u4>
+	 * Lookup a value from a namespace; namespace_lookup <key>
 	 * Pop <ns>
 	 * Push <ns[<key>]>
 	 */
-	GIL_OP_NAMESPACE_LOOKUP_U4,
-	GIL_OP_NAMESPACE_LOOKUP_U1,
+	GIL_OP_NAMESPACE_LOOKUP,
 
 	/*
-	 * Look up a value from an array; array_lookup <key:u4>
+	 * Look up a value from an array; array_lookup <key>
 	 * Pop <arr>
 	 * Push <arr[<key>]>
 	 */
-	GIL_OP_ARRAY_LOOKUP_U4,
-	GIL_OP_ARRAY_LOOKUP_U1,
+	GIL_OP_ARRAY_LOOKUP,
 
 	/*
 	 * Set a value in an array; array_set <key>
@@ -192,8 +173,7 @@ enum gil_opcode {
 	 * Read <arr>
 	 * Assign <val> to <arr[<key>]>
 	 */
-	GIL_OP_ARRAY_SET_U4,
-	GIL_OP_ARRAY_SET_U1,
+	GIL_OP_ARRAY_SET,
 
 	/*
 	 * Look up a runtime value in an array or object.

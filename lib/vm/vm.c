@@ -508,19 +508,27 @@ static void call_func(
 	call_func_with_args(vm, func_id, args_id);
 }
 
-static gil_word read_u4le(struct gil_vm *vm) {
-	unsigned char *data = &vm->ops[vm->iptr];
-	gil_word ret =
-		(gil_word)data[0] |
-		(gil_word)data[1] << 8 |
-		(gil_word)data[2] << 16 |
-		(gil_word)data[3] << 24;
-	vm->iptr += 4;
-	return ret;
+static gil_word read_uint(struct gil_vm *vm) {
+	gil_word word = 0;
+	while (vm->ops[vm->iptr] >= 0x80) {
+		word |= vm->ops[vm->iptr++] & 0x7f;
+		word <<= 7;
+	}
+
+	word |= vm->ops[vm->iptr++];
+	return word;
 }
 
-static gil_word read_u1le(struct gil_vm *vm) {
-	return vm->ops[vm->iptr++];
+static gil_word read_u4le(struct gil_vm *vm) {
+	unsigned char *data = &vm->ops[vm->iptr];
+	gil_word integer = 0 |
+		(uint64_t)data[0] |
+		(uint64_t)data[1] << 8 |
+		(uint64_t)data[2] << 16 |
+		(uint64_t)data[3] << 24;
+
+	vm->iptr += 4;
+	return integer;
 }
 
 static double read_d8le(struct gil_vm *vm) {
@@ -578,135 +586,121 @@ void gil_vm_step(struct gil_vm *vm) {
 		}
 		break;
 
-	case GIL_OP_DUP:
-		vm->stack[vm->sptr] = vm->ops[vm->sptr - 1];
-		vm->sptr += 1;
+	case GIL_OP_FUNC_CALL: {
+		gil_word argc = read_uint(vm);
+		vm->sptr -= argc;
+		gil_word *argv = vm->stack + vm->sptr;
+		gil_word func_id = vm->stack[--vm->sptr];
+		call_func(vm, func_id, argc, argv);
+	}
 		break;
 
-	case GIL_OP_ADD:
-		vm->stack[vm->sptr - 2] += vm->stack[vm->sptr - 1];
-		vm->sptr -= 1;
+	case GIL_OP_RJMP:
+		word = read_uint(vm);
+		vm->iptr += word;
 		break;
 
-#define X(read) \
-		gil_word argc = read(vm); \
-		vm->sptr -= argc; \
-		gil_word *argv = vm->stack + vm->sptr; \
-		gil_word func_id = vm->stack[--vm->sptr]; \
-		call_func(vm, func_id, argc, argv)
-	case GIL_OP_FUNC_CALL_U4: { X(read_u4le); } break;
-	case GIL_OP_FUNC_CALL_U1: { X(read_u1le); } break;
-#undef X
-
-#define X(read) word = read(vm); vm->iptr += word;
-	case GIL_OP_RJMP_U4: { X(read_u4le); } break;
-	case GIL_OP_RJMP_U1: { X(read_u1le); } break;
-#undef X
+	case GIL_OP_RJMP_U4:
+		word = read_u4le(vm);
+		vm->iptr += word;
+		break;
 
 	case GIL_OP_STACK_FRAME_GET_ARGS:
 		vm->stack[vm->sptr++] = vm->fstack[vm->fsptr - 1].args;
 		break;
 
-#define X(read) \
-		gil_word key = read(vm); \
-		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
+	case GIL_OP_STACK_FRAME_LOOKUP: {
+		gil_word key = read_uint(vm);
+		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
 		vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, ns, key);
-	case GIL_OP_STACK_FRAME_LOOKUP_U4: { X(read_u4le); } break;
-	case GIL_OP_STACK_FRAME_LOOKUP_U1: { X(read_u1le); } break;
-#undef X
+	}
+		break;
 
-#define X(read) \
-		gil_word key = read(vm); \
+	case GIL_OP_STACK_FRAME_SET: {
+		gil_word key = read_uint(vm); \
 		gil_word val = vm->stack[vm->sptr - 1]; \
 		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
 		gil_vm_namespace_set(ns, key, val);
-	case GIL_OP_STACK_FRAME_SET_U4: { X(read_u4le); } break;
-	case GIL_OP_STACK_FRAME_SET_U1: { X(read_u1le); } break;
-#undef X
+	}
+		break;
 
-#define X(read) \
-		gil_word key = read(vm); \
-		gil_word val = vm->stack[vm->sptr - 1]; \
-		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns]; \
-		if (gil_vm_namespace_replace(vm, ns, key, val) < 0) { \
-			vm->stack[vm->sptr - 1] = gil_vm_error(vm, "Variable not found"); \
+	case GIL_OP_STACK_FRAME_REPLACE: {
+		gil_word key = read_uint(vm);
+		gil_word val = vm->stack[vm->sptr - 1];
+		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
+		if (gil_vm_namespace_replace(vm, ns, key, val) < 0) {
+			vm->stack[vm->sptr - 1] = gil_vm_error(vm, "Variable not found");
 		}
-	case GIL_OP_STACK_FRAME_REPLACE_U4: { X(read_u4le); } break;
-	case GIL_OP_STACK_FRAME_REPLACE_U1: { X(read_u1le); } break;
-#undef X
+	}
+		break;
 
-	case GIL_OP_RET:
-		{
-			gil_word retval = vm->stack[--vm->sptr];
-			gil_word retptr = vm->fstack[vm->fsptr - 1].retptr;
-			gil_word sptr = vm->fstack[vm->fsptr - 1].sptr;
-			vm->fsptr -= 1;
-			vm->sptr = sptr;
-			vm->iptr = retptr;
-			vm->stack[vm->sptr++] = retval;
+	case GIL_OP_RET: {
+		gil_word retval = vm->stack[--vm->sptr];
+		gil_word retptr = vm->fstack[vm->fsptr - 1].retptr;
+		gil_word sptr = vm->fstack[vm->fsptr - 1].sptr;
+		vm->fsptr -= 1;
+		vm->sptr = sptr;
+		vm->iptr = retptr;
+		vm->stack[vm->sptr++] = retval;
 
-			after_func_return(vm);
-		}
+		after_func_return(vm);
+	}
 		break;
 
 	case GIL_OP_ALLOC_NONE:
 		vm->stack[vm->sptr++] = 0;
 		break;
 
-#define X(read) \
-		word = alloc_val(vm); \
-		vm->values[word].flags = GIL_VAL_TYPE_ATOM; \
-		vm->values[word].atom = read(vm); \
+	case GIL_OP_ALLOC_ATOM: {
+		word = alloc_val(vm);
+		vm->values[word].flags = GIL_VAL_TYPE_ATOM;
+		vm->values[word].atom = read_uint(vm);
 		vm->stack[vm->sptr++] = word;
-	case GIL_OP_ALLOC_ATOM_U4: { X(read_u4le); } break;
-	case GIL_OP_ALLOC_ATOM_U1: { X(read_u1le); } break;
-#undef X
-
-	case GIL_OP_ALLOC_REAL_D8:
-		{
-			word = alloc_val(vm);
-			vm->values[word].flags = GIL_VAL_TYPE_REAL;
-			vm->values[word].real = read_d8le(vm);
-			vm->stack[vm->sptr++] = word;
-		}
+	}
 		break;
 
-#define X(read) \
-		word = alloc_val(vm); \
-		gil_word length = read(vm); \
-		gil_word offset = read(vm); \
-		vm->values[word].flags = GIL_VAL_TYPE_BUFFER; \
-		vm->values[word].buffer = length > 0 ? malloc(length) : NULL; \
-		vm->values[word].extra.buf_length = length; \
-		memcpy(vm->values[word].buffer, vm->ops + offset, length); \
-		vm->stack[vm->sptr] = word; \
-		vm->sptr += 1;
-	case GIL_OP_ALLOC_BUFFER_STATIC_U4: { X(read_u4le); } break;
-	case GIL_OP_ALLOC_BUFFER_STATIC_U1: { X(read_u1le); } break;
-#undef X
+	case GIL_OP_ALLOC_REAL: {
+		word = alloc_val(vm);
+		vm->values[word].flags = GIL_VAL_TYPE_REAL;
+		vm->values[word].real = read_d8le(vm);
+		vm->stack[vm->sptr++] = word;
+	}
+		break;
 
-#define X(read) \
-		gil_word count = read(vm); \
-		gil_word arr_id = alloc_val(vm); \
-		struct gil_vm_value *arr = &vm->values[arr_id]; \
-		arr->extra.arr_length = count; \
-		gil_word *data; \
-		if (count <= 2) { \
-			arr->flags = GIL_VAL_TYPE_ARRAY | GIL_VAL_SBO; \
-			data = arr->shortarray; \
-		} else { \
-			arr->flags = GIL_VAL_TYPE_ARRAY; \
-			arr->array = malloc(sizeof(struct gil_vm_array) + count * sizeof(gil_word)); \
-			arr->array->size = count; \
-			data = arr->array->data; \
-		} \
-		for (gil_word i = 0; i < count; ++i) { \
-			data[count - 1 - i] = vm->stack[--vm->sptr]; \
-		} \
+	case GIL_OP_ALLOC_BUFFER_STATIC: {
+		word = alloc_val(vm);
+		gil_word length = read_uint(vm);
+		gil_word offset = read_uint(vm);
+		vm->values[word].flags = GIL_VAL_TYPE_BUFFER;
+		vm->values[word].buffer = length > 0 ? malloc(length) : NULL;
+		vm->values[word].extra.buf_length = length;
+		memcpy(vm->values[word].buffer, vm->ops + offset, length);
+		vm->stack[vm->sptr] = word;
+		vm->sptr += 1;
+	}
+		break;
+
+	case GIL_OP_ALLOC_ARRAY: {
+		gil_word count = read_uint(vm);
+		gil_word arr_id = alloc_val(vm);
+		struct gil_vm_value *arr = &vm->values[arr_id];
+		arr->extra.arr_length = count;
+		gil_word *data;
+		if (count <= 2) {
+			arr->flags = GIL_VAL_TYPE_ARRAY | GIL_VAL_SBO;
+			data = arr->shortarray;
+		} else {
+			arr->flags = GIL_VAL_TYPE_ARRAY;
+			arr->array = malloc(sizeof(struct gil_vm_array) + count * sizeof(gil_word));
+			arr->array->size = count;
+			data = arr->array->data;
+		}
+		for (gil_word i = 0; i < count; ++i) {
+			data[count - 1 - i] = vm->stack[--vm->sptr];
+		}
 		vm->stack[vm->sptr++] = arr_id;
-	case GIL_OP_ALLOC_ARRAY_U4: { X(read_u4le); } break;
-	case GIL_OP_ALLOC_ARRAY_U1: { X(read_u1le); } break;
-#undef X
+	}
+		break;
 
 	case GIL_OP_ALLOC_NAMESPACE:
 		word = alloc_val(vm);
@@ -717,36 +711,32 @@ void gil_vm_step(struct gil_vm *vm) {
 		vm->sptr += 1;
 		break;
 
-#define X(read) \
-		word = alloc_val(vm); \
-		vm->values[word].flags = GIL_VAL_TYPE_FUNCTION; \
-		vm->values[word].func.pos = read(vm); \
-		vm->values[word].func.ns = vm->fstack[vm->fsptr - 1].ns; \
-		vm->stack[vm->sptr] = word; \
+	case GIL_OP_ALLOC_FUNCTION:
+		word = alloc_val(vm);
+		vm->values[word].flags = GIL_VAL_TYPE_FUNCTION;
+		vm->values[word].func.pos = read_uint(vm);
+		vm->values[word].func.ns = vm->fstack[vm->fsptr - 1].ns;
+		vm->stack[vm->sptr] = word;
 		vm->sptr += 1;
-	case GIL_OP_ALLOC_FUNCTION_U4: { X(read_u4le); } break;
-	case GIL_OP_ALLOC_FUNCTION_U1: { X(read_u1le); } break;
-#undef X
+		break;
 
-#define X(read) \
-		gil_word key = read(vm); \
-		gil_word val = vm->stack[vm->sptr - 1]; \
-		gil_word ns = vm->stack[vm->sptr - 2]; \
+	case GIL_OP_NAMESPACE_SET: {
+		gil_word key = read_uint(vm);
+		gil_word val = vm->stack[vm->sptr - 1];
+		gil_word ns = vm->stack[vm->sptr - 2];
 		gil_vm_namespace_set(&vm->values[ns], key, val);
-	case GIL_OP_NAMESPACE_SET_U4: { X(read_u4le); } break;
-	case GIL_OP_NAMESPACE_SET_U1: { X(read_u1le); } break;
-#undef X
+	}
+		break;
 
-#define X(read) \
-		gil_word key = read(vm); \
-		gil_word ns = vm->stack[--vm->sptr]; \
+	case GIL_OP_NAMESPACE_LOOKUP: {
+		gil_word key = read_uint(vm);
+		gil_word ns = vm->stack[--vm->sptr];
 		vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, &vm->values[ns], key);
-	case GIL_OP_NAMESPACE_LOOKUP_U4: { X(read_u4le); } break;
-	case GIL_OP_NAMESPACE_LOOKUP_U1: { X(read_u1le); } break;
-#undef X
+	}
+		break;
 
-#define X(read) \
-		gil_word key = read(vm); \
+	case GIL_OP_ARRAY_LOOKUP: {
+		gil_word key = read_uint(vm); \
 		gil_word arr_id = vm->stack[--vm->sptr]; \
 		struct gil_vm_value *arr = &vm->values[arr_id]; \
 		if (gil_value_get_type(arr) != GIL_VAL_TYPE_ARRAY) { \
@@ -754,89 +744,85 @@ void gil_vm_step(struct gil_vm *vm) {
 		} else { \
 			vm->stack[vm->sptr++] = gil_value_arr_get(vm, arr, key); \
 		}
-	case GIL_OP_ARRAY_LOOKUP_U4: { X(read_u4le); } break;
-	case GIL_OP_ARRAY_LOOKUP_U1: { X(read_u1le); } break;
-#undef X
-
-#define X(read) \
-		gil_word key = read(vm); \
-		gil_word val = vm->stack[vm->sptr - 1]; \
-		gil_word arr_id = vm->stack[vm->sptr - 2]; \
-		struct gil_vm_value *arr = &vm->values[arr_id]; \
-		if (gil_value_get_type(arr) != GIL_VAL_TYPE_ARRAY) { \
-			vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, arr); \
-		} else { \
-			vm->stack[vm->sptr - 1] = gil_value_arr_set(vm, arr, key, val); \
-		}
-	case GIL_OP_ARRAY_SET_U4: { X(read_u4le); } break;
-	case GIL_OP_ARRAY_SET_U1: { X(read_u1le); } break;
-
-	case GIL_OP_DYNAMIC_LOOKUP:
-		{
-			gil_word key_id = vm->stack[--vm->sptr];
-			gil_word container_id = vm->stack[--vm->sptr];
-
-			struct gil_vm_value *key = &vm->values[key_id];
-			struct gil_vm_value *container = &vm->values[container_id];
-			if (gil_value_get_type(container) == GIL_VAL_TYPE_ARRAY) {
-				if (gil_value_get_type(key) != GIL_VAL_TYPE_REAL) {
-					vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
-				} else if (key->real >= container->extra.arr_length) {
-					vm->stack[vm->sptr++] = gil_vm_error(vm, "Index out of range");
-				} else {
-					vm->stack[vm->sptr++] = container->array->data[(gil_word)key->real];
-				}
-			} else if (gil_value_get_type(container) == GIL_VAL_TYPE_NAMESPACE) {
-				if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
-					vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
-				} else {
-					vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, container, key->atom);
-				}
-			} else {
-				vm->stack[vm->sptr++] = gil_vm_type_error(vm, container);
-			}
-		}
+	}
 		break;
 
-	case GIL_OP_DYNAMIC_SET:
-		{
-			gil_word val = vm->stack[--vm->sptr];
-			gil_word key_id = vm->stack[--vm->sptr];
-			gil_word container_id = vm->stack[--vm->sptr];
-			vm->stack[vm->sptr++] = val;
-
-			struct gil_vm_value *key = &vm->values[key_id];
-			struct gil_vm_value *container = &vm->values[container_id];
-
-			if (gil_value_get_type(container) == GIL_VAL_TYPE_ARRAY) {
-				if (gil_value_get_type(key) != GIL_VAL_TYPE_REAL) {
-					vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, key);
-				} else if (key->real >= container->extra.arr_length) {
-					vm->stack[vm->sptr - 1] = gil_vm_error(vm, "Index out of range");
-				} else {
-					container->array->data[(size_t)key->real] = val;
-				}
-			} else if (gil_value_get_type(container) == GIL_VAL_TYPE_NAMESPACE) {
-				if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
-					vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, key);
-				} else {
-					gil_vm_namespace_set(container, key->atom, val);
-				}
-			} else {
-				vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, container);
-			}
+	case GIL_OP_ARRAY_SET: {
+		gil_word key = read_uint(vm);
+		gil_word val = vm->stack[vm->sptr - 1];
+		gil_word arr_id = vm->stack[vm->sptr - 2];
+		struct gil_vm_value *arr = &vm->values[arr_id];
+		if (gil_value_get_type(arr) != GIL_VAL_TYPE_ARRAY) {
+			vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, arr);
+		} else {
+			vm->stack[vm->sptr - 1] = gil_value_arr_set(vm, arr, key, val);
 		}
+	}
 		break;
 
-	case GIL_OP_FUNC_CALL_INFIX:
-		{
-			gil_word rhs = vm->stack[--vm->sptr];
-			gil_word func_id = vm->stack[--vm->sptr];
-			gil_word lhs = vm->stack[--vm->sptr];
+	case GIL_OP_DYNAMIC_LOOKUP: {
+		gil_word key_id = vm->stack[--vm->sptr];
+		gil_word container_id = vm->stack[--vm->sptr];
 
-			gil_word argv[] = {lhs, rhs};
-			call_func(vm, func_id, 2, argv);
+		struct gil_vm_value *key = &vm->values[key_id];
+		struct gil_vm_value *container = &vm->values[container_id];
+		if (gil_value_get_type(container) == GIL_VAL_TYPE_ARRAY) {
+			if (gil_value_get_type(key) != GIL_VAL_TYPE_REAL) {
+				vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
+			} else if (key->real >= container->extra.arr_length) {
+				vm->stack[vm->sptr++] = gil_vm_error(vm, "Index out of range");
+			} else {
+				vm->stack[vm->sptr++] = container->array->data[(gil_word)key->real];
+			}
+		} else if (gil_value_get_type(container) == GIL_VAL_TYPE_NAMESPACE) {
+			if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
+				vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
+			} else {
+				vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, container, key->atom);
+			}
+		} else {
+			vm->stack[vm->sptr++] = gil_vm_type_error(vm, container);
 		}
+	}
+		break;
+
+	case GIL_OP_DYNAMIC_SET: {
+		gil_word val = vm->stack[--vm->sptr];
+		gil_word key_id = vm->stack[--vm->sptr];
+		gil_word container_id = vm->stack[--vm->sptr];
+		vm->stack[vm->sptr++] = val;
+
+		struct gil_vm_value *key = &vm->values[key_id];
+		struct gil_vm_value *container = &vm->values[container_id];
+
+		if (gil_value_get_type(container) == GIL_VAL_TYPE_ARRAY) {
+			if (gil_value_get_type(key) != GIL_VAL_TYPE_REAL) {
+				vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, key);
+			} else if (key->real >= container->extra.arr_length) {
+				vm->stack[vm->sptr - 1] = gil_vm_error(vm, "Index out of range");
+			} else {
+				container->array->data[(size_t)key->real] = val;
+			}
+		} else if (gil_value_get_type(container) == GIL_VAL_TYPE_NAMESPACE) {
+			if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
+				vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, key);
+			} else {
+				gil_vm_namespace_set(container, key->atom, val);
+			}
+		} else {
+			vm->stack[vm->sptr - 1] = gil_vm_type_error(vm, container);
+		}
+	}
+		break;
+
+	case GIL_OP_FUNC_CALL_INFIX: {
+		gil_word rhs = vm->stack[--vm->sptr];
+		gil_word func_id = vm->stack[--vm->sptr];
+		gil_word lhs = vm->stack[--vm->sptr];
+
+		gil_word argv[] = {lhs, rhs};
+		call_func(vm, func_id, 2, argv);
+	}
 		break;
 
 	case GIL_OP_HALT:
