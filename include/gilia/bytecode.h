@@ -193,6 +193,11 @@ enum gil_opcode {
 	GIL_OP_DYNAMIC_SET,
 
 	/*
+	 * Load a C module; load_cmodule <id>
+	 */
+	GIL_OP_LOAD_CMODULE,
+
+	/*
 	 * Halt execution.
 	 */
 	GIL_OP_HALT,

@@ -263,6 +263,10 @@ void gil_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 		printf("DYNAMIC_SET\n");
 		return;
 
+	case GIL_OP_LOAD_CMODULE:
+		printf("LOAD_CMODULE %u\n", read_uint(ops, ptr));
+		return;
+
 	case GIL_OP_HALT:
 		printf("HALT\n");
 		return;

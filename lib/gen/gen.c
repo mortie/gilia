@@ -87,17 +87,9 @@ void gil_gen_register_module(struct gil_generator *gen, struct gil_module *mod) 
 	gil_word id = gil_strset_put_copy(&gen->atomset, mod->name);
 	mod->init(mod, alloc_name, gen);
 
-	if (gen->moduleslen + 1 >= gen->modulessize) {
-		if (gen->modulessize == 0) {
-			gen->modulessize = 16;
-		} else do {
-			gen->modulessize *= 2;
-		} while (gen->moduleslen + 1 >= gen->modulessize);
-
-		gen->modules = realloc(gen->modules, gen->modulessize * sizeof(*gen->modules));
-	}
-
-	gen->modules[gen->moduleslen++] = id;
+	gen->moduleslen += 1;
+	gen->modules = realloc(gen->modules, gen->moduleslen * sizeof(*gen->modules));
+	gen->modules[gen->moduleslen - 1] = id;
 }
 
 void gil_gen_flush(struct gil_generator *gen) {
@@ -116,19 +108,15 @@ static int gen_cmodule(struct gil_generator *gen, const char *str) {
 		return 0;
 	}
 
-	int found = 0;
 	for (size_t i = 0; i < gen->moduleslen; ++i) {
 		if (gen->modules[i] == id) {
-			found = 1;
-			break;
+			put(gen, GIL_OP_LOAD_CMODULE);
+			put_uint(gen, id);
+			return 1;
 		}
 	}
 
-	if (!found) {
-		return 0;
-	}
-
-
+	return 0;
 }
 
 int gil_gen_import(

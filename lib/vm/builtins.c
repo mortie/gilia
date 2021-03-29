@@ -255,9 +255,9 @@ gil_word gil_builtin_len(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	case GIL_VAL_TYPE_REAL:
 	case GIL_VAL_TYPE_FUNCTION:
 	case GIL_VAL_TYPE_CFUNCTION:
-	case GIL_VAL_TYPE_ERROR:
 	case GIL_VAL_TYPE_CONTINUATION:
 	case GIL_VAL_TYPE_RETURN:
+	case GIL_VAL_TYPE_ERROR:
 		break;
 
 	case GIL_VAL_TYPE_BUFFER:
@@ -272,6 +272,7 @@ gil_word gil_builtin_len(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 		if (val->ns) {
 			ret->real = val->ns->len;
 		}
+		break;
 	}
 
 	return ret_id;
