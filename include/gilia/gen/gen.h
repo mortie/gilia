@@ -19,7 +19,6 @@ struct gil_generator {
 
 	gil_word *modules;
 	size_t moduleslen;
-	size_t modulessize;
 };
 
 struct gil_module;
