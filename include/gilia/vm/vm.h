@@ -6,6 +6,7 @@
 #include "../bytecode.h"
 #include "../bitset.h"
 #include "../io.h"
+#include "../strset.h"
 
 struct gil_vm;
 struct gil_vm_array;
@@ -140,6 +141,13 @@ struct gil_vm_stack_frame {
 	gil_word args;
 };
 
+struct gil_module;
+
+struct gil_vm_cmodule {
+	gil_word id;
+	struct gil_module *mod;
+};
+
 struct gil_vm {
 	int halted;
 	int need_gc;
@@ -163,9 +171,11 @@ struct gil_vm {
 
 	gil_word knone, ktrue, kfalse, kstop;
 	gil_word gc_start;
-};
 
-struct gil_module;
+	struct gil_strset atomset;
+	struct gil_vm_cmodule *modules;
+	size_t moduleslen;
+};
 
 void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen);
 void gil_vm_register_module(struct gil_vm *vm, struct gil_module *mod);
