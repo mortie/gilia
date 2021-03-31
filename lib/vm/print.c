@@ -106,6 +106,11 @@ void gil_vm_print_val(struct gil_vm_value *val) {
 		printf("C FUNCTION, %8jx\n", (uintmax_t)val->cfunc);
 		break;
 
+	case GIL_VAL_TYPE_CVAL:
+		// ISO C doesn't let you cast a function pointer to void*.
+		printf("C VALUE (%u)\n", val->extra.cval_type);
+		break;
+
 	case GIL_VAL_TYPE_CONTINUATION:
 		printf("CONTINUATION, call %u, cont %08jx\n",
 				val->extra.cont_call, (uintmax_t)val->cont);
