@@ -22,6 +22,6 @@ if addr is None:
 with open(sys.argv[1], "r+b") as f:
     f.seek(0, io.SEEK_END)
     size = f.tell()
-    print(f"Write {hex(size)} to addr {hex(addr)}")
+    print(f"Write {size} to addr {hex(addr)}")
     f.seek(addr)
     f.write(struct.pack("i", size))
