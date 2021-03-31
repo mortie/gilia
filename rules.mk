@@ -5,6 +5,14 @@ $(OUT)/%.c.o: %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
+$(OUT)/%.s.o: %.s
+	@mkdir -p $(@D)
+	$(CC) -o $@ -c $<
+
 $(OUT)/%.c.d: %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -MT $(call objify,$<) -o $@ -MM $<
+
+$(OUT)/%.s.d: %.s
+	@mkdir -p $(@D)
+	touch $@

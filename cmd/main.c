@@ -17,6 +17,8 @@
 #include <readline/history.h>
 #endif
 
+extern int gil_binary_size;
+
 static int do_print_bytecode = 0;
 static int do_print_tokens = 0;
 static int do_step = 0;
@@ -170,6 +172,27 @@ int main(int argc, char **argv) {
 	FILE *inf = stdin;
 	FILE *outbc = NULL;
 
+#ifdef __linux__
+	if (gil_binary_size > 0) {
+		FILE *self = fopen("/proc/self/exe", "rb");
+		if (self != NULL) {
+			fseek(self, 0, SEEK_END);
+			long size = ftell(self);
+
+			if (size < gil_binary_size) {
+				fprintf(stderr,
+						"WARNING: Binary smaller than expected (%li vs %i). "
+						"Was the binary stripped?\n",
+						size, gil_binary_size);
+			} else if (size > gil_binary_size)  {
+				fseek(self, gil_binary_size, SEEK_SET);
+				inf = self;
+				goto skip_args;
+			}
+		}
+	}
+#endif
+
 #ifdef __unix__
 	do_repl = isatty(0);
 #endif
@@ -233,6 +256,7 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
+skip_args:;
 	struct gil_io_mem_writer bytecode_writer = {
 		.w.write = gil_io_mem_write,
 	};
@@ -272,7 +296,9 @@ int main(int argc, char **argv) {
 	}
 
 	if (do_serialize_bytecode) {
-		gil_bc_serialize(outbc, bytecode_writer.mem, bytecode_writer.len);
+		if (gil_bc_serialize(outbc, bytecode_writer.mem, bytecode_writer.len) < 0) {
+			return 1;
+		}
 	}
 
 	if (do_print_bytecode || do_print_tokens || do_serialize_bytecode) {
