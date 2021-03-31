@@ -335,4 +335,8 @@ skip_args:;
 
 	gil_vm_free(&vm);
 	free(bytecode_writer.mem);
+
+	for (size_t i = 0; i < moduleslen; ++i) {
+		free(modules[i]);
+	}
 }

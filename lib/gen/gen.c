@@ -65,6 +65,9 @@ void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w) {
 	gen->pos = 0;
 	gil_bufio_writer_init(&gen->writer, w);
 
+	gen->modules = NULL;
+	gen->moduleslen = 0;
+
 	// Register atoms for all builtins
 #define XNAME(name, k) \
 	gil_strset_put_copy(&gen->atomset, name);
@@ -100,6 +103,7 @@ void gil_gen_free(struct gil_generator *gen) {
 	gil_strset_free(&gen->atomset);
 	gil_strset_free(&gen->stringset);
 	free(gen->strings);
+	free(gen->modules);
 }
 
 static int gen_cmodule(struct gil_generator *gen, const char *str) {

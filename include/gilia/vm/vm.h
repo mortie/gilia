@@ -10,8 +10,10 @@
 
 struct gil_vm;
 struct gil_vm_array;
-typedef gil_word (*gil_vm_cfunction)(struct gil_vm *vm, gil_word argc, gil_word *argv);
-typedef gil_word (*gil_vm_contcallback)(struct gil_vm *vm, gil_word retval, gil_word cont);
+typedef gil_word (*gil_vm_cfunction)(
+		struct gil_vm *vm, gil_word mid, gil_word argc, gil_word *argv);
+typedef gil_word (*gil_vm_contcallback)(
+		struct gil_vm *vm, gil_word retval, gil_word cont);
 typedef void (*gil_vm_gcmarker)(
 		struct gil_vm *vm, void *data, void (*mark)(struct gil_vm *vm, gil_word id));
 
@@ -24,6 +26,7 @@ enum gil_value_type {
 	GIL_VAL_TYPE_NAMESPACE,
 	GIL_VAL_TYPE_FUNCTION,
 	GIL_VAL_TYPE_CFUNCTION,
+	GIL_VAL_TYPE_CVAL,
 	GIL_VAL_TYPE_CONTINUATION,
 	GIL_VAL_TYPE_RETURN,
 	GIL_VAL_TYPE_ERROR,
@@ -91,8 +94,15 @@ struct gil_vm_value {
 
 		struct {
 			uint8_t padding;
+			gil_word mod;
 			gil_vm_cfunction func;
 		} cfunc;
+
+		struct {
+			uint8_t padding;
+			gil_word ctype;
+			void *cval;
+		} cval;
 
 		struct {
 			uint8_t padding;
@@ -172,6 +182,8 @@ struct gil_vm {
 	gil_word knone, ktrue, kfalse, kstop;
 	gil_word gc_start;
 
+	gil_word next_ctype;
+
 	struct gil_strset atomset;
 	struct gil_vm_cmodule *modules;
 	size_t moduleslen;
@@ -180,6 +192,7 @@ struct gil_vm {
 void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen);
 void gil_vm_register_module(struct gil_vm *vm, struct gil_module *mod);
 gil_word gil_vm_alloc(struct gil_vm *vm, enum gil_value_type typ, enum gil_value_flags flags);
+gil_word gil_vm_alloc_ctype(struct gil_vm *vm);
 gil_word gil_vm_error(struct gil_vm *vm, const char *fmt, ...);
 gil_word gil_vm_type_error(struct gil_vm *vm, struct gil_vm_value *val);
 void gil_vm_free(struct gil_vm *vm);
@@ -187,5 +200,11 @@ void gil_vm_step(struct gil_vm *vm);
 void gil_vm_run(struct gil_vm *vm);
 size_t gil_vm_gc(struct gil_vm *vm);
 int gil_vm_val_is_true(struct gil_vm *vm, struct gil_vm_value *val);
+
+gil_word gil_vm_make_atom(struct gil_vm *vm, gil_word val);
+gil_word gil_vm_make_real(struct gil_vm *vm, double val);
+gil_word gil_vm_make_buffer(struct gil_vm *vm, char *data, size_t len);
+gil_word gil_vm_make_cfunction(struct gil_vm *vm, gil_vm_cfunction val, gil_word mod);
+gil_word gil_vm_make_cval(struct gil_vm *vm, gil_word ctype, void *val);
 
 #endif
