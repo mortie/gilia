@@ -4,6 +4,7 @@ CFLAGS += -Iinclude/gilia -fPIC -g -O2 \
 LDLIBS += -lreadline
 
 OBJCOPY ?= objcopy
+STRIP ?= strip
 
 all: $(OUT)/gilia
 
@@ -18,6 +19,11 @@ $(OUT)/gilia.so: $(call objify,$(LIB_SRCS))
 	$(CC) $(LDFLAGS) -shared -o $@ $^
 
 include $(call depify,$(LIB_SRCS) $(CMD_SRCS))
+
+.PHONY: strip
+strip: $(OUT)/gilia
+	$(STRIP) --keep-symbol=gil_binary_size $(OUT)/gilia
+	./add-size-value.py $(OUT)/gilia
 
 .PHONY: clean
 clean:
