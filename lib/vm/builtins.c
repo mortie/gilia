@@ -56,10 +56,6 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 			gil_io_printf(out, "(function)");
 			break;
 
-		case GIL_VAL_TYPE_CVAL:
-			gil_io_printf(out, "(C value)");
-			break;
-
 		case GIL_VAL_TYPE_CONTINUATION:
 			gil_io_printf(out, "(continuation)");
 			break;
@@ -75,7 +71,7 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 }
 
 #define X(name, identity, op) \
-gil_word name(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) { \
+gil_word name(struct gil_vm *vm, gil_word argc, gil_word *argv) { \
 	if (argc == 0) { \
 		gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_REAL, 0); \
 		vm->values[id].real = identity; \
@@ -108,7 +104,7 @@ X(gil_builtin_mul, 1, *)
 X(gil_builtin_div, 1, /)
 #undef X
 
-gil_word gil_builtin_eq(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_eq(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (argc < 2) {
 		return vm->ktrue;
 	}
@@ -151,8 +147,8 @@ gil_word gil_builtin_eq(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *
 	return vm->ktrue;
 }
 
-gil_word gil_builtin_neq(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
-	gil_word ret_id = gil_builtin_eq(vm, 0, argc, argv);
+gil_word gil_builtin_neq(struct gil_vm *vm, gil_word argc, gil_word *argv) {
+	gil_word ret_id = gil_builtin_eq(vm, argc, argv);
 	if (ret_id == vm->ktrue) {
 		return vm->kfalse;
 	} else if (ret_id == vm->kfalse) {
@@ -163,7 +159,7 @@ gil_word gil_builtin_neq(struct gil_vm *vm, gil_word _, gil_word argc, gil_word 
 }
 
 #define X(name, op) \
-gil_word name(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) { \
+gil_word name(struct gil_vm *vm, gil_word argc, gil_word *argv) { \
 	if (argc < 2) { \
 		return vm->ktrue; \
 	} \
@@ -189,7 +185,7 @@ X(gil_builtin_gt, >)
 X(gil_builtin_gteq, >=)
 #undef X
 
-gil_word gil_builtin_land(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_land(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	for (gil_word i = 0; i < argc; ++i) {
 		struct gil_vm_value *val = &vm->values[argv[i]];
 		if (gil_value_get_type(val) == GIL_VAL_TYPE_ERROR) {
@@ -204,7 +200,7 @@ gil_word gil_builtin_land(struct gil_vm *vm, gil_word _, gil_word argc, gil_word
 	return vm->ktrue;
 }
 
-gil_word gil_builtin_lor(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_lor(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	for (gil_word i = 0; i < argc; ++i) {
 		struct gil_vm_value *val = &vm->values[argv[i]];
 		if (gil_value_get_type(val) == GIL_VAL_TYPE_ERROR) {
@@ -219,7 +215,7 @@ gil_word gil_builtin_lor(struct gil_vm *vm, gil_word _, gil_word argc, gil_word 
 	return vm->kfalse;
 }
 
-gil_word gil_builtin_first(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_first(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	for (gil_word i = 0; i < argc; ++i) {
 		if (gil_value_get_type(&vm->values[argv[i]]) != GIL_VAL_TYPE_NONE) {
 			return argv[i];
@@ -229,7 +225,7 @@ gil_word gil_builtin_first(struct gil_vm *vm, gil_word _, gil_word argc, gil_wor
 	return vm->knone;
 }
 
-gil_word gil_builtin_print(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_print(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	for (size_t i = 0; i < argc; ++i) {
 		if (i != 0) {
 			vm->std_output->write(vm->std_output, " ", 1);
@@ -240,19 +236,10 @@ gil_word gil_builtin_print(struct gil_vm *vm, gil_word _, gil_word argc, gil_wor
 	}
 
 	vm->std_output->write(vm->std_output, "\n", 1);
-	return vm->knone;
+	return 0;
 }
 
-gil_word gil_builtin_write(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
-	for (size_t i = 0; i < argc; ++i) {
-		struct gil_vm_value *val = &vm->values[argv[i]];
-		print_val(vm, vm->std_output, val);
-	}
-
-	return vm->knone;
-}
-
-gil_word gil_builtin_len(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_len(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (argc != 1) {
 		return gil_vm_error(vm, "Expected 1 argument");
 	}
@@ -268,10 +255,9 @@ gil_word gil_builtin_len(struct gil_vm *vm, gil_word _, gil_word argc, gil_word 
 	case GIL_VAL_TYPE_REAL:
 	case GIL_VAL_TYPE_FUNCTION:
 	case GIL_VAL_TYPE_CFUNCTION:
-	case GIL_VAL_TYPE_CVAL:
+	case GIL_VAL_TYPE_ERROR:
 	case GIL_VAL_TYPE_CONTINUATION:
 	case GIL_VAL_TYPE_RETURN:
-	case GIL_VAL_TYPE_ERROR:
 		break;
 
 	case GIL_VAL_TYPE_BUFFER:
@@ -286,13 +272,12 @@ gil_word gil_builtin_len(struct gil_vm *vm, gil_word _, gil_word argc, gil_word 
 		if (val->ns) {
 			ret->real = val->ns->len;
 		}
-		break;
 	}
 
 	return ret_id;
 }
 
-gil_word gil_builtin_if(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_if(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (argc != 2 && argc != 3) {
 		return gil_vm_error(vm, "Expected 2 or 3 arguments");
 	}
@@ -336,7 +321,7 @@ static void loop_marker(
 	mark(vm, ctx->func);
 }
 
-gil_word gil_builtin_loop(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_loop(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (argc != 1) {
 		return gil_vm_error(vm, "Expected 1 argument");
 	}
@@ -396,7 +381,7 @@ static void while_marker(
 	mark(vm, ctx->body);
 }
 
-gil_word gil_builtin_while(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_while(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (argc != 2) {
 		return gil_vm_error(vm, "Expected 2 arguments");
 	}
@@ -460,7 +445,7 @@ static void for_marker(
 	mark(vm, ctx->func);
 }
 
-gil_word gil_builtin_for(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_for(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (argc != 2) {
 		return gil_vm_error(vm, "Expected 2 arguments");
 	}
@@ -491,7 +476,7 @@ static gil_word guard_callback(struct gil_vm *vm, gil_word retval, gil_word cont
 	return cont_id;
 }
 
-gil_word gil_builtin_guard(struct gil_vm *vm, gil_word _, gil_word argc, gil_word *argv) {
+gil_word gil_builtin_guard(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (argc != 1 && argc != 2) {
 		return gil_vm_error(vm, "Expected 1 or 2 arguments");
 	}

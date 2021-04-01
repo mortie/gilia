@@ -36,38 +36,6 @@ static int parse_expression(struct gil_parse_context *ctx);
 static int parse_expression(struct gil_parse_context *ctx);
 static int parse_arg_level_expression(struct gil_parse_context *ctx);
 
-static int import_callback(void *ptr) {
-	return gil_parse_program(ptr);
-}
-
-static int parse_import(struct gil_parse_context *ctx) {
-	gil_trace_scope("import");
-
-	gil_lexer_consume(ctx->lexer); // ident 'import'
-
-	struct gil_token *tok = gil_lexer_peek(ctx->lexer, 1);
-	if (gil_token_get_kind(tok) != GIL_TOK_STRING) {
-		gil_parse_err(ctx->err, tok, "In import: Expected string, got %s",
-				gil_token_get_name(tok));
-		return -1;
-	}
-
-	struct gil_token_value val = gil_token_extract_val(tok);
-	gil_lexer_consume(ctx->lexer);
-
-	if (val.flags & GIL_TOK_SMALL) {
-		if (gil_gen_import_copy(ctx->gen, val.strbuf, import_callback, ctx) < 0) {
-			return -1;
-		}
-	} else {
-		if (gil_gen_import(ctx->gen, &val.str, import_callback, ctx) < 0) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 static int parse_object_literal(struct gil_parse_context *ctx) {
 	gil_trace_scope("object literal");
 	// '{' and EOL already skipped by parse_object_or_function_literal
@@ -529,10 +497,6 @@ static int parse_expression(struct gil_parse_context *ctx) {
 	struct gil_token *tok2 = gil_lexer_peek(ctx->lexer, 2);
 
 	if (
-			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
-			strcmp(gil_token_get_str(tok), "import") == 0) {
-		parse_import(ctx);
-	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_COLON_EQ) {
 		gil_trace_scope("assign expression");
