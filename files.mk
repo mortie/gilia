@@ -1,5 +1,6 @@
 LIB_SRCS := \
 	lib/gen/gen.c \
+	lib/modules/fs.c \
 	lib/parse/lex.c \
 	lib/parse/error.c \
 	lib/parse/parse.c \
