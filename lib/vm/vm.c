@@ -572,7 +572,9 @@ void gil_vm_step(struct gil_vm *vm) {
 	case GIL_OP_DISCARD:
 		vm->sptr -= 1;
 		if (gil_value_get_type(&vm->values[vm->stack[vm->sptr]]) == GIL_VAL_TYPE_ERROR) {
-			gil_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
+			gil_io_printf(
+					vm->std_error, "Error: %s\n",
+					vm->values[vm->stack[vm->sptr]].error.error);
 			vm->halted = 1;
 		}
 		break;
@@ -581,7 +583,9 @@ void gil_vm_step(struct gil_vm *vm) {
 		vm->stack[vm->sptr - 2] = vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;
 		if (gil_value_get_type(&vm->values[vm->stack[vm->sptr]]) == GIL_VAL_TYPE_ERROR) {
-			gil_io_printf(vm->std_error, "Error: %s\n", vm->values[vm->stack[vm->sptr]].error);
+			gil_io_printf(
+					vm->std_error, "Error: %s\n",
+					vm->values[vm->stack[vm->sptr]].error.error);
 			vm->halted = 1;
 		}
 		break;
