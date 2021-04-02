@@ -9,12 +9,12 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 			break;
 
 		case GIL_VAL_TYPE_ATOM:
-			if (val->atom == vm->values[vm->ktrue].atom) {
+			if (val->atom.atom == vm->values[vm->ktrue].atom.atom) {
 				gil_io_printf(out, "(true)");
-			} else if (val->atom == vm->values[vm->kfalse].atom) {
+			} else if (val->atom.atom == vm->values[vm->kfalse].atom.atom) {
 				gil_io_printf(out, "(false)");
 			} else {
-				gil_io_printf(out, "(atom %u)", val->atom);
+				gil_io_printf(out, "(atom %u)", val->atom.atom);
 			}
 			break;
 
@@ -23,8 +23,8 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 			break;
 
 		case GIL_VAL_TYPE_BUFFER:
-			if (val->buffer != NULL) {
-				out->write(out, val->buffer, val->extra.buf_length);
+			if (val->buffer.buffer != NULL) {
+				out->write(out, val->buffer.buffer, val->buffer.length);
 			}
 			break;
 
@@ -32,12 +32,12 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 			out->write(out, "[", 1);
 			gil_word *data;
 			if (val->flags & GIL_VAL_SBO) {
-				data = val->shortarray;
+				data = val->array.shortarray;
 			} else {
-				data = val->array->data;
+				data = val->array.array->data;
 			}
 
-			for (size_t i = 0; i < val->extra.arr_length; ++i) {
+			for (size_t i = 0; i < val->array.length; ++i) {
 				if (i != 0) {
 					out->write(out, " ", 1);
 				}
@@ -74,7 +74,7 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 gil_word name(struct gil_vm *vm, gil_word argc, gil_word *argv) { \
 	if (argc == 0) { \
 		gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_REAL, 0); \
-		vm->values[id].real = identity; \
+		vm->values[id].real.real = identity; \
 		return id; \
 	} \
 	struct gil_vm_value *first = &vm->values[argv[0]]; \
@@ -83,19 +83,19 @@ gil_word name(struct gil_vm *vm, gil_word argc, gil_word *argv) { \
 	} \
 	if (argc == 1) { \
 		gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_REAL, 0); \
-		vm->values[id].real = identity op first->real; \
+		vm->values[id].real.real = identity op first->real.real; \
 		return id; \
 	} \
-	double sum = first->real; \
+	double sum = first->real.real; \
 	for (gil_word i = 1; i < argc; ++i) { \
 		struct gil_vm_value *val = &vm->values[argv[i]]; \
 		if (gil_value_get_type(val) != GIL_VAL_TYPE_REAL) { \
 			return gil_vm_type_error(vm, val); \
 		} \
-		sum = sum op val->real; \
+		sum = sum op val->real.real; \
 	} \
 	gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_REAL, 0); \
-	vm->values[id].real = sum; \
+	vm->values[id].real.real = sum; \
 	return id; \
 }
 X(gil_builtin_add, 0, +)
@@ -119,24 +119,24 @@ gil_word gil_builtin_eq(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 
 		enum gil_value_type typ = gil_value_get_type(a);
 		if (typ == GIL_VAL_TYPE_ATOM) {
-			if (a->atom != b->atom) {
+			if (a->atom.atom != b->atom.atom) {
 				return vm->kfalse;
 			}
 		} else if (typ == GIL_VAL_TYPE_REAL) {
-			if (a->real != b->real) {
+			if (a->real.real != b->real.real) {
 				return vm->kfalse;
 			}
 		} else if (typ == GIL_VAL_TYPE_BUFFER) {
-			if (a->buffer == NULL && b->buffer == NULL) continue;
-			if (a->buffer == NULL || b->buffer == NULL) {
+			if (a->buffer.buffer == NULL && b->buffer.buffer == NULL) continue;
+			if (a->buffer.buffer == NULL || b->buffer.buffer == NULL) {
 				return vm->kfalse;
 			}
 
-			if (a->extra.buf_length != b->extra.buf_length) {
+			if (a->buffer.length != b->buffer.length) {
 				return vm->kfalse;
 			}
 
-			if (memcmp(a->buffer, b->buffer, a->extra.buf_length) != 0) {
+			if (memcmp(a->buffer.buffer, b->buffer.buffer, a->buffer.length) != 0) {
 				return vm->kfalse;
 			}
 		} else {
@@ -172,7 +172,7 @@ gil_word name(struct gil_vm *vm, gil_word argc, gil_word *argv) { \
 		if (gil_value_get_type(rhs) != GIL_VAL_TYPE_REAL) { \
 			return gil_vm_type_error(vm, rhs); \
 		} \
-		if (!(lhs->real op rhs->real)) { \
+		if (!(lhs->real.real op rhs->real.real)) { \
 			return vm->kfalse; \
 		} \
 		lhs = rhs; \
@@ -246,7 +246,7 @@ gil_word gil_builtin_len(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 
 	gil_word ret_id = gil_vm_alloc(vm, GIL_VAL_TYPE_REAL, 0);
 	struct gil_vm_value *ret = &vm->values[ret_id];
-	ret->real = 0;
+	ret->real.real = 0;
 
 	struct gil_vm_value *val = &vm->values[argv[0]];
 	switch (gil_value_get_type(val)) {
@@ -261,16 +261,16 @@ gil_word gil_builtin_len(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 		break;
 
 	case GIL_VAL_TYPE_BUFFER:
-		ret->real = val->extra.buf_length;
+		ret->real.real = val->buffer.length;
 		break;
 
 	case GIL_VAL_TYPE_ARRAY:
-		ret->real = val->extra.arr_length;
+		ret->real.real = val->array.length;
 		break;
 
 	case GIL_VAL_TYPE_NAMESPACE:
-		if (val->ns) {
-			ret->real = val->ns->len;
+		if (val->ns.ns) {
+			ret->real.real = val->ns.ns->len;
 		}
 	}
 
@@ -285,12 +285,12 @@ gil_word gil_builtin_if(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 	if (gil_vm_val_is_true(vm, &vm->values[argv[0]])) {
 		gil_word ret_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
 		struct gil_vm_value *ret = &vm->values[ret_id];
-		ret->extra.cont_call = argv[1];
+		ret->cont.call = argv[1];
 		return ret_id;
 	} else if (argc == 3) {
 		gil_word ret_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
 		struct gil_vm_value *ret = &vm->values[ret_id];
-		ret->extra.cont_call = argv[2];
+		ret->cont.call = argv[2];
 		return ret_id;
 	} else {
 		return 0;
@@ -308,7 +308,7 @@ static gil_word loop_callback(struct gil_vm *vm, gil_word retval, gil_word cont)
 		return retval;
 	} else if (
 			gil_value_get_type(val) == GIL_VAL_TYPE_ATOM &&
-			val->atom == vm->values[vm->kstop].atom) {
+			val->atom.atom == vm->values[vm->kstop].atom.atom) {
 		return vm->knone;
 	} else {
 		return cont;
@@ -338,8 +338,8 @@ gil_word gil_builtin_loop(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 
 	gil_word cont_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
 	struct gil_vm_value *cont = &vm->values[cont_id];
-	cont->extra.cont_call = ctx->func;
-	cont->cont = &ctx->base;
+	cont->cont.call = ctx->func;
+	cont->cont.cont = &ctx->base;
 	return cont_id;
 }
 
@@ -350,16 +350,16 @@ struct while_context {
 
 static gil_word while_callback(struct gil_vm *vm, gil_word retval, gil_word cont_id) {
 	struct gil_vm_value *cont = &vm->values[cont_id];
-	struct while_context *ctx = (struct while_context *)cont->cont;
+	struct while_context *ctx = (struct while_context *)cont->cont.cont;
 	struct gil_vm_value *ret = &vm->values[retval];
 
 	if (gil_value_get_type(ret) == GIL_VAL_TYPE_ERROR) {
 		return retval;
 	}
 
-	if (cont->extra.cont_call == ctx->cond) {
+	if (cont->cont.call == ctx->cond) {
 		if (gil_vm_val_is_true(vm, ret)) {
-			cont->extra.cont_call = ctx->body;
+			cont->cont.call = ctx->body;
 			return cont_id;
 		} else {
 			return vm->knone;
@@ -368,7 +368,7 @@ static gil_word while_callback(struct gil_vm *vm, gil_word retval, gil_word cont
 		if (gil_value_get_type(ret) == GIL_VAL_TYPE_ERROR) {
 			return retval;
 		} else {
-			cont->extra.cont_call = ctx->cond;
+			cont->cont.call = ctx->cond;
 			return cont_id;
 		}
 	}
@@ -399,8 +399,8 @@ gil_word gil_builtin_while(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 
 	gil_word cont_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
 	struct gil_vm_value *cont = &vm->values[cont_id];
-	cont->extra.cont_call = ctx->cond;
-	cont->cont = &ctx->base;
+	cont->cont.call = ctx->cond;
+	cont->cont.cont = &ctx->base;
 	return cont_id;
 }
 
@@ -412,28 +412,28 @@ struct for_context {
 
 static gil_word for_callback(struct gil_vm *vm, gil_word retval, gil_word cont_id) {
 	struct gil_vm_value *cont = &vm->values[cont_id];
-	struct for_context *ctx = (struct for_context *)cont->cont;
+	struct for_context *ctx = (struct for_context *)cont->cont.cont;
 	struct gil_vm_value *ret = &vm->values[retval];
 
 	if (gil_value_get_type(ret) == GIL_VAL_TYPE_ERROR) {
 		return retval;
 	}
 
-	struct gil_vm_value *args = &vm->values[cont->cont->args];
-	if (cont->extra.cont_call == ctx->iter) {
+	struct gil_vm_value *args = &vm->values[cont->cont.cont->args];
+	if (cont->cont.call == ctx->iter) {
 		if (
 				gil_value_get_type(ret) == GIL_VAL_TYPE_ATOM &&
-				ret->atom == vm->values[vm->kstop].atom) {
+				ret->atom.atom == vm->values[vm->kstop].atom.atom) {
 			return vm->knone;
 		} else {
-			cont->extra.cont_call = ctx->func;
-			args->extra.arr_length = 1;
-			args->shortarray[0] = retval;
+			cont->cont.call = ctx->func;
+			args->array.length = 1;
+			args->array.shortarray[0] = retval;
 			return cont_id;
 		}
 	} else {
-		cont->extra.cont_call = ctx->iter;
-		args->extra.arr_length = 0;
+		cont->cont.call = ctx->iter;
+		args->array.length = 0;
 		return cont_id;
 	}
 }
@@ -452,7 +452,7 @@ gil_word gil_builtin_for(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 
 	gil_word args_id = gil_vm_alloc(vm, GIL_VAL_TYPE_ARRAY, GIL_VAL_SBO);
 	struct gil_vm_value *args = &vm->values[args_id];
-	args->extra.arr_length = 0;
+	args->array.length = 0;
 
 	struct for_context *ctx = malloc(sizeof(*ctx));
 	ctx->base.callback = for_callback;
@@ -463,16 +463,16 @@ gil_word gil_builtin_for(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 
 	gil_word cont_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
 	struct gil_vm_value *cont = &vm->values[cont_id];
-	cont->extra.cont_call = ctx->iter;
-	cont->cont = &ctx->base;
+	cont->cont.call = ctx->iter;
+	cont->cont.cont = &ctx->base;
 	return cont_id;
 }
 
 static gil_word guard_callback(struct gil_vm *vm, gil_word retval, gil_word cont_id) {
 	struct gil_vm_value *ret = &vm->values[cont_id];
-	free(ret->cont);
+	free(ret->cont.cont);
 	ret->flags = GIL_VAL_TYPE_RETURN;
-	ret->ret = retval;
+	ret->ret.ret = retval;
 	return cont_id;
 }
 
@@ -492,7 +492,7 @@ gil_word gil_builtin_guard(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 		}
 
 		gil_word ret_id = gil_vm_alloc(vm, GIL_VAL_TYPE_RETURN, 0);
-		vm->values[ret_id].ret = vm->knone;
+		vm->values[ret_id].ret.ret = vm->knone;
 		return ret_id;
 	}
 
@@ -516,7 +516,7 @@ gil_word gil_builtin_guard(struct gil_vm *vm, gil_word argc, gil_word *argv) {
 
 	gil_word cont_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
 	struct gil_vm_value *cont = &vm->values[cont_id];
-	cont->extra.cont_call = argv[1];
-	cont->cont = ctx;
+	cont->cont.call = argv[1];
+	cont->cont.cont = ctx;
 	return cont_id;
 }

@@ -58,7 +58,7 @@ describe(eval) {
 		defer(gil_gen_free(&gen));
 
 		asserteq(gil_value_get_type(var_lookup("foo")), GIL_VAL_TYPE_REAL);
-		asserteq(var_lookup("foo")->real, 10);
+		asserteq(var_lookup("foo")->real.real, 10);
 	}
 
 	test("var deref assignment") {
@@ -67,9 +67,9 @@ describe(eval) {
 		defer(gil_gen_free(&gen));
 
 		asserteq(gil_value_get_type(var_lookup("foo")), GIL_VAL_TYPE_REAL);
-		asserteq(var_lookup("foo")->real, 10);
+		asserteq(var_lookup("foo")->real.real, 10);
 		asserteq(gil_value_get_type(var_lookup("bar")), GIL_VAL_TYPE_REAL);
-		asserteq(var_lookup("bar")->real, 10);
+		asserteq(var_lookup("bar")->real.real, 10);
 	}
 
 	test("string assignment") {
@@ -79,7 +79,7 @@ describe(eval) {
 
 		asserteq(gil_value_get_type(var_lookup("foo")), GIL_VAL_TYPE_BUFFER);
 		struct gil_vm_value *buf = var_lookup("foo");
-		asserteq(buf->extra.buf_length, 11);
-		assert(strncmp(buf->buffer, "hello world", 11) == 0);
+		asserteq(buf->buffer.length, 11);
+		assert(strncmp(buf->buffer.buffer, "hello world", 11) == 0);
 	}
 }

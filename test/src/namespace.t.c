@@ -8,8 +8,8 @@ describe(gil_vm_namespace) {
 	struct gil_vm_value val = {0};
 
 	after_each() {
-		free(val.ns);
-		val.ns = NULL;
+		free(val.ns.ns);
+		val.ns.ns = NULL;
 	}
 
 	test("basic functionality") {

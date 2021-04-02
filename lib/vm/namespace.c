@@ -99,9 +99,9 @@ static gil_word get(struct gil_vm_namespace *ns, gil_word key) {
 }
 
 gil_word gil_vm_namespace_get(struct gil_vm *vm, struct gil_vm_value *v, gil_word key) {
-	gil_word ret = get(v->ns, key);
-	if (ret == 0 && v->extra.ns_parent != 0) {
-		return gil_vm_namespace_get(vm, &vm->values[v->extra.ns_parent], key);
+	gil_word ret = get(v->ns.ns, key);
+	if (ret == 0 && v->ns.parent != 0) {
+		return gil_vm_namespace_get(vm, &vm->values[v->ns.parent], key);
 	}
 
 	return ret;
@@ -109,27 +109,27 @@ gil_word gil_vm_namespace_get(struct gil_vm *vm, struct gil_vm_value *v, gil_wor
 
 void gil_vm_namespace_set(struct gil_vm_value *v, gil_word key, gil_word val) {
 	if (val == 0) {
-		del(v->ns, key);
+		del(v->ns.ns, key);
 	} else {
-		v->ns = set(v->ns, key, val);
+		v->ns.ns = set(v->ns.ns, key, val);
 	}
 }
 
 int gil_vm_namespace_replace(struct gil_vm *vm, struct gil_vm_value *v, gil_word key, gil_word val) {
 	if (val == 0) {
-		del(v->ns, key);
+		del(v->ns.ns, key);
 		return 0;
 	} else {
-		gil_word ret = get(v->ns, key);
+		gil_word ret = get(v->ns.ns, key);
 		if (ret != 0) {
-			v->ns = set(v->ns, key, val);
+			v->ns.ns = set(v->ns.ns, key, val);
 			return 0;
 		}
 
-		if (v->extra.ns_parent == 0) {
+		if (v->ns.parent == 0) {
 			return -1;
 		}
 
-		return gil_vm_namespace_replace(vm, &vm->values[v->extra.ns_parent], key, val);
+		return gil_vm_namespace_replace(vm, &vm->values[v->ns.parent], key, val);
 	}
 }

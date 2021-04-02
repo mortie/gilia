@@ -52,45 +52,50 @@ void gil_vm_print_val(struct gil_vm_value *val) {
 		break;
 
 	case GIL_VAL_TYPE_ATOM:
-		printf("ATOM %u\n", val->atom);
+		printf("ATOM %u\n", val->atom.atom);
 		break;
 
 	case GIL_VAL_TYPE_REAL:
-		printf("REAL %f\n", val->real);
+		printf("REAL %f\n", val->real.real);
 		break;
 
 	case GIL_VAL_TYPE_ARRAY: {
-		printf("ARRAY, len %u\n", val->extra.arr_length);
-		gil_word *data = val->flags & GIL_VAL_SBO ? val->shortarray : val->array->data;
-		for (size_t i = 0; i < val->extra.arr_length; ++i) {
+		printf("ARRAY, len %u\n", val->array.length);
+		gil_word *data;
+		if (val->flags & GIL_VAL_SBO) {
+			data = val->array.shortarray;
+		} else {
+			data = val->array.array->data;
+		}
+		for (size_t i = 0; i < val->array.length; ++i) {
 			printf("    %zu: %u\n", i, data[i]);
 		}
 	}
 		break;
 
 	case GIL_VAL_TYPE_BUFFER: {
-		if (val->buffer == NULL) {
+		if (val->buffer.buffer == NULL) {
 			printf("BUFFER, empty\n");
 			return;
 		}
 
-		printf("BUFFER, len %u\n", val->extra.buf_length);
-		for (size_t i = 0; i < val->extra.buf_length; ++i) {
-			printf("    %zu: %c\n", i, val->buffer[i]);
+		printf("BUFFER, len %u\n", val->buffer.length);
+		for (size_t i = 0; i < val->buffer.length; ++i) {
+			printf("    %zu: %c\n", i, val->buffer.buffer[i]);
 		}
 	}
 		break;
 
 	case GIL_VAL_TYPE_NAMESPACE: {
-		if (val->ns == NULL) {
-			printf("NAMESPACE, empty, parent %u\n", val->extra.ns_parent);
+		if (val->ns.ns == NULL) {
+			printf("NAMESPACE, empty, parent %u\n", val->ns.parent);
 			return;
 		}
 
-		printf("NAMESPACE, len %zu, parent %u\n", val->ns->len, val->extra.ns_parent);
-		for (size_t i = 0; i < val->ns->size; ++i) {
-			gil_word key = val->ns->data[i];
-			gil_word v = val->ns->data[val->ns->size + i];
+		printf("NAMESPACE, len %zu, parent %u\n", val->ns.ns->len, val->ns.parent);
+		for (size_t i = 0; i < val->ns.ns->size; ++i) {
+			gil_word key = val->ns.ns->data[i];
+			gil_word v = val->ns.ns->data[val->ns.ns->size + i];
 			if (key == 0 || key == ~(gil_word)0) continue;
 			printf("    %u: %u\n", key, v);
 		}
@@ -103,20 +108,20 @@ void gil_vm_print_val(struct gil_vm_value *val) {
 
 	case GIL_VAL_TYPE_CFUNCTION:
 		// ISO C doesn't let you cast a function pointer to void*.
-		printf("C FUNCTION, %8jx\n", (uintmax_t)val->cfunc);
+		printf("C FUNCTION, %8jx\n", (uintmax_t)val->cfunc.func);
 		break;
 
 	case GIL_VAL_TYPE_CONTINUATION:
 		printf("CONTINUATION, call %u, cont %08jx\n",
-				val->extra.cont_call, (uintmax_t)val->cont);
+				val->cont.call, (uintmax_t)val->cont.cont);
 		break;
 
 	case GIL_VAL_TYPE_RETURN:
-		printf("RETURN, ret %u\n", val->ret);
+		printf("RETURN, ret %u\n", val->ret.ret);
 		break;
 
 	case GIL_VAL_TYPE_ERROR:
-		printf("ERROR, %s\n", val->error);
+		printf("ERROR, %s\n", val->error.error);
 		break;
 	}
 }

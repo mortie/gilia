@@ -46,14 +46,15 @@ double getTime() {
 
 struct GiliaSpec {
 	static struct gil_vm_value alloc() {
-		return {
-			.flags = gil_value_type::GIL_VAL_TYPE_NAMESPACE,
-			.ns = nullptr,
-		};
+		struct gil_vm_value val;
+		val.flags = gil_value_type::GIL_VAL_TYPE_NAMESPACE;
+		val.ns.parent = 0;
+		val.ns.ns = nullptr;
+		return val;
 	}
 
 	static void free(struct gil_vm_value &ns) {
-		::free(ns.ns);
+		::free(ns.ns.ns);
 	}
 
 	static void insert(struct gil_vm_value &ns, gil_word key, gil_word val) {

@@ -47,46 +47,80 @@ struct gil_vm_contcontext {
 // 1 byte for flags, it's going to be padded up to 16 bytes anyways.
 // Might as well store some useful extra info in here.
 struct gil_vm_value {
-	// Byte 0: 4 bytes
 	union {
-		gil_word ns_parent;
-		gil_word cont_call;
-		gil_word buf_length;
-		gil_word arr_length;
-	} extra;
+		uint8_t flags;
 
-	// Byte 4: 1 byte, 3 bytes padding
-	uint8_t flags;
-
-	// Byte 8: 8 bytes
-	union {
-		gil_word atom;
-		double real;
-		char *buffer;
-		struct gil_vm_array *array;
-		gil_word shortarray[2];
-		struct gil_vm_namespace *ns;
 		struct {
+			uint8_t padding;
+			gil_word atom;
+		} atom;
+
+		struct {
+			uint8_t padding;
+			double real;
+		} real;
+
+		struct {
+			uint8_t padding;
+			gil_word length;
+			char *buffer;
+		} buffer;
+
+		struct {
+			uint8_t padding;
+			gil_word length;
+
+			union {
+				struct gil_vm_array *array;
+				gil_word shortarray[2];
+			};
+		} array;
+
+		struct {
+			uint8_t padding;
+			gil_word parent;
+			struct gil_vm_namespace *ns;
+		} ns;
+
+		struct {
+			uint8_t padding;
 			gil_word pos;
 			gil_word ns;
 		} func;
-		gil_vm_cfunction cfunc;
-		struct gil_vm_contcontext *cont;
-		gil_word ret;
-		char *error;
+
+		struct {
+			uint8_t padding;
+			gil_vm_cfunction func;
+		} cfunc;
+
+		struct {
+			uint8_t padding;
+			gil_word call;
+			struct gil_vm_contcontext *cont;
+		} cont;
+
+		struct {
+			uint8_t padding;
+			gil_word ret;
+		} ret;
+
+		struct {
+			uint8_t padding;
+			char *error;
+		} error;
 	};
 };
 
 #define gil_value_get_type(val) ((enum gil_value_type)((val)->flags & 0x0f))
 
-gil_word *gil_value_arr_data(struct gil_vm *vm, struct gil_vm_value *val);
-gil_word gil_value_arr_get(struct gil_vm *vm, struct gil_vm_value *val, gil_word k);
-gil_word gil_value_arr_set(struct gil_vm *vm, struct gil_vm_value *val, gil_word k, gil_word v);
-
 struct gil_vm_array {
 	size_t size;
 	gil_word data[];
 };
+
+gil_word *gil_vm_array_data(struct gil_vm *vm, struct gil_vm_value *val);
+gil_word gil_vm_array_get(struct gil_vm *vm, struct gil_vm_value *val, gil_word k);
+gil_word gil_vm_array_set(struct gil_vm *vm, struct gil_vm_value *val, gil_word k, gil_word v);
 
 struct gil_vm_namespace {
 	size_t len;
