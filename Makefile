@@ -23,7 +23,7 @@ include $(call depify,$(LIB_SRCS) $(CMD_SRCS))
 .PHONY: strip
 strip: $(OUT)/gilia
 	$(STRIP) --keep-symbol=gil_binary_size $(OUT)/gilia
-	./add-size-value.py $(OUT)/gilia
+	./add-size-value.py --strip --strip-cmd "$(STRIP)" $(OUT)/gilia
 
 .PHONY: clean
 clean:
