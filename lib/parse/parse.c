@@ -75,7 +75,7 @@ static int parse_object_literal(struct gil_parse_context *ctx) {
 		if (key.flags & GIL_TOK_SMALL) {
 			gil_gen_namespace_set_copy(ctx->gen, key.strbuf);
 		} else {
-			gil_gen_namespace_set_copy(ctx->gen, key.str);
+			gil_gen_namespace_set(ctx->gen, &key.str);
 		}
 
 		gil_gen_discard(ctx->gen);
