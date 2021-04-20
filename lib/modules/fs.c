@@ -10,7 +10,7 @@
 struct fs_module {
 	struct gil_module base;
 
-	gil_word kopen, kclose, kreadall;
+	gil_word kopen, kclose, kread;
 
 	gil_word nsfile;
 
@@ -124,7 +124,7 @@ static void init(
 	struct fs_module *mod = (struct fs_module *)ptr;
 	mod->kopen = alloc(data, "open");
 	mod->kclose = alloc(data, "close");
-	mod->kreadall = alloc(data, "read-all");
+	mod->kread = alloc(data, "read");
 }
 
 static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) {
@@ -141,7 +141,7 @@ static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) 
 	nsfile->ns.parent = 0;
 	nsfile->ns.ns = NULL;
 	gil_vm_namespace_set(nsfile, mod->kclose, gil_vm_make_cfunction(vm, fs_file_close, mid));
-	gil_vm_namespace_set(nsfile, mod->kreadall, gil_vm_make_cfunction(vm, fs_file_read_all, mid));
+	gil_vm_namespace_set(nsfile, mod->kread, gil_vm_make_cfunction(vm, fs_file_read_all, mid));
 
 	gil_vm_namespace_set(ns, mod->kopen, gil_vm_make_cfunction(vm, fs_open, mid));
 
