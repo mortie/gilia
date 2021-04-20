@@ -272,6 +272,7 @@ void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen) {
 	id = alloc_val(vm); \
 	vm->values[id].flags = GIL_VAL_TYPE_CFUNCTION | GIL_VAL_CONST; \
 	vm->values[id].cfunc.func = f; \
+	vm->values[id].cfunc.self = 0; \
 	gil_vm_namespace_set(&vm->values[builtins], key, id);
 #include "builtins.x.h"
 #undef XNAME
@@ -761,6 +762,7 @@ void gil_vm_step(struct gil_vm *vm) {
 		vm->values[word].flags = GIL_VAL_TYPE_FUNCTION;
 		vm->values[word].func.pos = read_uint(vm);
 		vm->values[word].func.ns = vm->fstack[vm->fsptr - 1].ns;
+		vm->values[word].func.self = 0;
 		vm->stack[vm->sptr] = word;
 		vm->sptr += 1;
 		break;
