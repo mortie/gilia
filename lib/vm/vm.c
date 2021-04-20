@@ -50,6 +50,9 @@ static void gc_mark(struct gil_vm *vm, gil_word id) {
 		gc_mark_namespace(vm, val);
 	} else if (typ == GIL_VAL_TYPE_FUNCTION) {
 		gc_mark(vm, val->func.ns);
+		gc_mark(vm, val->func.self);
+	} else if (typ == GIL_VAL_TYPE_CFUNCTION) {
+		gc_mark(vm, val->cfunc.self);
 	} else if (typ == GIL_VAL_TYPE_CONTINUATION) {
 		gc_mark(vm, val->cont.call);
 		if (val->cont.cont != NULL) {
@@ -376,6 +379,12 @@ size_t gil_vm_gc(struct gil_vm *vm) {
 		gc_mark(vm, vm->fstack[fsptr].args);
 	}
 
+	// Mark for all loaded modules
+	for (size_t i = 0; i < vm->moduleslen; ++i) {
+		gc_mark(vm, vm->modules[i].id);
+		vm->modules[i].mod->marker(vm->modules[i].mod, vm, gc_mark);
+	}
+
 	return gc_sweep(vm);
 }
 
@@ -508,7 +517,8 @@ static void call_func(
 
 	// C functions are called differently from language functions
 	if (typ == GIL_VAL_TYPE_CFUNCTION) {
-		vm->stack[vm->sptr++] = func->cfunc.func(vm, func->cfunc.mod, argc, argv);
+		vm->stack[vm->sptr++] = func->cfunc.func(
+				vm, func->cfunc.mod, func->cfunc.self, argc, argv);
 		after_cfunc_return(vm);
 		return;
 	}
@@ -774,8 +784,33 @@ void gil_vm_step(struct gil_vm *vm) {
 		struct gil_vm_value *ns = &vm->values[ns_id];
 		if (gil_value_get_type(ns) == GIL_VAL_TYPE_NAMESPACE) {
 			vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, ns, key);
+		} else if (gil_value_get_type(ns) == GIL_VAL_TYPE_CVAL) {
+			ns = &vm->values[ns->cval.ns];
+			if (gil_value_get_type(ns) == GIL_VAL_TYPE_NAMESPACE) {
+				vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, ns, key);
+			} else {
+				vm->stack[vm->sptr++] = gil_vm_type_error(vm, ns);
+			}
 		} else {
 			vm->stack[vm->sptr++] = gil_vm_type_error(vm, ns);
+		}
+
+		struct gil_vm_value *val = &vm->values[vm->stack[vm->sptr - 1]];
+		enum gil_value_type typ = gil_value_get_type(val);
+		if (typ == GIL_VAL_TYPE_FUNCTION || typ == GIL_VAL_TYPE_CFUNCTION) {
+			gil_word nval_id = alloc_val(vm);
+			struct gil_vm_value *nval = &vm->values[nval_id];
+			nval->flags = val->flags;
+			if (typ == GIL_VAL_TYPE_FUNCTION) {
+				nval->func.self = ns_id;
+				nval->func.pos = val->func.pos;
+				nval->func.ns = val->func.ns;
+			} else {
+				nval->cfunc.mod = val->cfunc.mod;
+				nval->cfunc.self = ns_id;
+				nval->cfunc.func = val->cfunc.func;
+			}
+			vm->stack[vm->sptr - 1] = nval_id;
 		}
 	}
 		break;
@@ -823,6 +858,17 @@ void gil_vm_step(struct gil_vm *vm) {
 				vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
 			} else {
 				vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, container, key->atom.atom);
+			}
+		} else if (gil_value_get_type(container) == GIL_VAL_TYPE_CVAL) {
+			container = &vm->values[container->cval.ns];
+			if (gil_value_get_type(container) == GIL_VAL_TYPE_NAMESPACE) {
+				if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
+					vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
+				} else {
+					vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, container, key->atom.atom);
+				}
+			} else {
+				vm->stack[vm->sptr++] = gil_vm_type_error(vm, container);
 			}
 		} else {
 			vm->stack[vm->sptr++] = gil_vm_type_error(vm, container);
@@ -924,12 +970,14 @@ gil_word gil_vm_make_cfunction(struct gil_vm *vm, gil_vm_cfunction val, gil_word
 	gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_CFUNCTION, 0);
 	vm->values[id].cfunc.mod = mod;
 	vm->values[id].cfunc.func = val;
+	vm->values[id].cfunc.self = 0;
 	return id;
 }
 
-gil_word gil_vm_make_cval(struct gil_vm *vm, gil_word ctype, void *val) {
+gil_word gil_vm_make_cval(struct gil_vm *vm, gil_word ctype, gil_word ns, void *val) {
 	gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_CVAL, 0);
 	vm->values[id].cval.ctype = ctype;
+	vm->values[id].cval.ns = ns;
 	vm->values[id].cval.cval = val;
 	return id;
 }

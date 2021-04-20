@@ -11,7 +11,8 @@
 struct gil_vm;
 struct gil_vm_array;
 typedef gil_word (*gil_vm_cfunction)(
-		struct gil_vm *vm, gil_word mid, gil_word argc, gil_word *argv);
+		struct gil_vm *vm, gil_word mid, gil_word self,
+		gil_word argc, gil_word *argv);
 typedef gil_word (*gil_vm_contcallback)(
 		struct gil_vm *vm, gil_word retval, gil_word cont);
 typedef void (*gil_vm_gcmarker)(
@@ -88,19 +89,22 @@ struct gil_vm_value {
 
 		struct {
 			uint8_t padding;
+			gil_word self;
 			gil_word pos;
 			gil_word ns;
 		} func;
 
 		struct {
 			uint8_t padding;
-			gil_word mod;
+			uint16_t mod;
+			gil_word self;
 			gil_vm_cfunction func;
 		} cfunc;
 
 		struct {
 			uint8_t padding;
-			gil_word ctype;
+			uint16_t ctype;
+			gil_word ns;
 			void *cval;
 		} cval;
 
@@ -121,6 +125,12 @@ struct gil_vm_value {
 		} error;
 	};
 };
+
+// This is here to make sure regressions aren't accidentally introduced.
+// If Gilia is ever compiled for an architecture where the gil_vm_value
+// has to be bigger (or smaller) than 16 bytes for whatever reason,
+// this static assert should be completely safe to remove.
+_Static_assert(sizeof(struct gil_vm_value) == 16, "Value should remain small");
 
 #define gil_value_get_type(val) ((enum gil_value_type)((val)->flags & 0x0f))
 
@@ -205,6 +215,6 @@ gil_word gil_vm_make_atom(struct gil_vm *vm, gil_word val);
 gil_word gil_vm_make_real(struct gil_vm *vm, double val);
 gil_word gil_vm_make_buffer(struct gil_vm *vm, char *data, size_t len);
 gil_word gil_vm_make_cfunction(struct gil_vm *vm, gil_vm_cfunction val, gil_word mod);
-gil_word gil_vm_make_cval(struct gil_vm *vm, gil_word ctype, void *val);
+gil_word gil_vm_make_cval(struct gil_vm *vm, gil_word ctype, gil_word ns, void *val);
 
 #endif

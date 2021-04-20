@@ -12,10 +12,14 @@ struct fs_module {
 
 	gil_word kopen, kclose, kreadall;
 
+	gil_word nsfile;
+
 	gil_word tfile;
 };
 
-static gil_word fs_open(struct gil_vm *vm, gil_word mid, gil_word argc, gil_word *argv) {
+static gil_word fs_open(
+		struct gil_vm *vm, gil_word mid, gil_word self,
+		gil_word argc, gil_word *argv) {
 	struct fs_module *mod = (struct fs_module *)vm->modules[mid].mod;
 
 	if (argc != 1 && argc != 2) {
@@ -42,17 +46,19 @@ static gil_word fs_open(struct gil_vm *vm, gil_word mid, gil_word argc, gil_word
 		return gil_vm_error(vm, "%s: %s", path->buffer, strerror(errno));
 	}
 
-	return gil_vm_make_cval(vm, mod->tfile, f);
+	return gil_vm_make_cval(vm, mod->tfile, mod->nsfile, f);
 }
 
-static gil_word fs_close(struct gil_vm *vm, gil_word mid, gil_word argc, gil_word *argv) {
+static gil_word fs_file_close(
+		struct gil_vm *vm, gil_word mid, gil_word self,
+		gil_word argc, gil_word *argv) {
 	struct fs_module *mod = (struct fs_module *)vm->modules[mid].mod;
 
-	if (argc != 1) {
-		return gil_vm_error(vm, "Expected 1 argument");
+	if (argc != 0) {
+		return gil_vm_error(vm, "Expected 0 arguments");
 	}
 
-	struct gil_vm_value *val = &vm->values[argv[0]];
+	struct gil_vm_value *val = &vm->values[self];
 	if (gil_value_get_type(val) != GIL_VAL_TYPE_CVAL) {
 		return gil_vm_type_error(vm, val);
 	}
@@ -70,14 +76,16 @@ static gil_word fs_close(struct gil_vm *vm, gil_word mid, gil_word argc, gil_wor
 	return vm->knone;
 }
 
-static gil_word fs_read_all(struct gil_vm *vm, gil_word mid, gil_word argc, gil_word *argv) {
+static gil_word fs_file_read_all(
+		struct gil_vm *vm, gil_word mid, gil_word self,
+		gil_word argc, gil_word *argv) {
 	struct fs_module *mod = (struct fs_module *)vm->modules[mid].mod;
 
-	if (argc != 1) {
-		return gil_vm_error(vm, "Expected 1 argument");
+	if (argc != 0) {
+		return gil_vm_error(vm, "Expected 0 arguments");
 	}
 
-	struct gil_vm_value *val = &vm->values[argv[0]];
+	struct gil_vm_value *val = &vm->values[self];
 	if (gil_value_get_type(val) != GIL_VAL_TYPE_CVAL) {
 		return gil_vm_type_error(vm, val);
 	}
@@ -124,15 +132,27 @@ static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) 
 	mod->tfile = gil_vm_alloc_ctype(vm);
 
 	gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_NAMESPACE, 0);
-	struct gil_vm_value *val = &vm->values[id];
-	val->ns.parent = 0;
-	val->ns.ns = NULL;
+	struct gil_vm_value *ns = &vm->values[id];
+	ns->ns.parent = 0;
+	ns->ns.ns = NULL;
 
-	gil_vm_namespace_set(val, mod->kopen, gil_vm_make_cfunction(vm, fs_open, mid));
-	gil_vm_namespace_set(val, mod->kclose, gil_vm_make_cfunction(vm, fs_close, mid));
-	gil_vm_namespace_set(val, mod->kreadall, gil_vm_make_cfunction(vm, fs_read_all, mid));
+	mod->nsfile = gil_vm_alloc(vm, GIL_VAL_TYPE_NAMESPACE, 0);
+	struct gil_vm_value *nsfile = &vm->values[mod->nsfile];
+	nsfile->ns.parent = 0;
+	nsfile->ns.ns = NULL;
+	gil_vm_namespace_set(nsfile, mod->kclose, gil_vm_make_cfunction(vm, fs_file_close, mid));
+	gil_vm_namespace_set(nsfile, mod->kreadall, gil_vm_make_cfunction(vm, fs_file_read_all, mid));
+
+	gil_vm_namespace_set(ns, mod->kopen, gil_vm_make_cfunction(vm, fs_open, mid));
 
 	return id;
+}
+
+static void marker(
+		struct gil_module *ptr, struct gil_vm *vm,
+		void (*mark)(struct gil_vm *vm, gil_word id)) {
+	struct fs_module *mod = (struct fs_module *)ptr;
+	mark(vm, mod->nsfile);
 }
 
 struct gil_module *gil_mod_fs() {
@@ -140,5 +160,6 @@ struct gil_module *gil_mod_fs() {
 	mod->base.name = "fs";
 	mod->base.init = init;
 	mod->base.create = create;
+	mod->base.marker = marker;
 	return &mod->base;
 }

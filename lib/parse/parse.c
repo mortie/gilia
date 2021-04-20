@@ -57,10 +57,13 @@ static int parse_import(struct gil_parse_context *ctx) {
 
 	if (val.flags & GIL_TOK_SMALL) {
 		if (gil_gen_import_copy(ctx->gen, val.strbuf, import_callback, ctx) < 0) {
+			gil_parse_err(ctx->err, tok, "'%s': Import failed", val.strbuf);
 			return -1;
 		}
 	} else {
 		if (gil_gen_import(ctx->gen, &val.str, import_callback, ctx) < 0) {
+			gil_parse_err(ctx->err, tok, "'%s': Import failed", val.str);
+			free(val.str);
 			return -1;
 		}
 	}

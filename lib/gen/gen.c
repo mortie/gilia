@@ -128,14 +128,16 @@ int gil_gen_import(
 		int (*callback)(void *data), void *data) {
 	int ret = gen_cmodule(gen, *str);
 	if (ret != 0) {
-		free(*str);
-		*str = NULL;
 		if (ret < 0) {
 			return -1;
 		} else {
+			free(*str);
+			*str = NULL;
 			return 0;
 		}
 	}
+
+	return -1;
 }
 
 int gil_gen_import_copy(
@@ -149,6 +151,8 @@ int gil_gen_import_copy(
 			return 0;
 		}
 	}
+
+	return -1;
 }
 
 void gil_gen_halt(struct gil_generator *gen) {
