@@ -132,8 +132,13 @@ static int parse_object_literal(struct gil_parse_context *ctx) {
 	return 0;
 }
 
-static int parse_function_literal_impl(struct gil_parse_context *ctx) {
+static int parse_function_literal(struct gil_parse_context *ctx) {
 	gil_trace_scope("function literal");
+
+	gil_word reloc_pos = ctx->gen->pos + 1;
+	gil_gen_rjmp_placeholder(ctx->gen); // 1-byte opcode, 4-byte length
+	gil_word start_pos = ctx->gen->pos;
+
 	// '{' and EOL already skipped by parse_object_or_function_literal
 
 	int first = 1;
@@ -162,46 +167,10 @@ static int parse_function_literal_impl(struct gil_parse_context *ctx) {
 	}
 
 	gil_gen_ret(ctx->gen);
-	return 0;
-}
 
-static int parse_function_literal(struct gil_parse_context *ctx) {
-	gil_gen_flush(ctx->gen);
-
-	struct gil_io_writer *prev_writer = ctx->gen->writer.w;
-
-	// Generate the function to a buffer in memory
-	struct gil_io_mem_writer w = {0};
-	w.w.write = gil_io_mem_write;
-	ctx->gen->writer.w = &w.w;
-
-	// Generates five bytes; RJMP, then 4 byte counter
-	gil_gen_rjmp_placeholder(ctx->gen);
-
-	gil_word pos = ctx->gen->pos;
-
-	// Generate the function body itself
-	int ret = parse_function_literal_impl(ctx);
-	gil_gen_flush(ctx->gen);
-	ctx->gen->writer.w = prev_writer;
-	if (ret < 0) {
-		free(w.mem);
-		return -1;
-	}
-
-	unsigned char *bc = w.mem;
-	gil_word jdist = w.len - 5;
-
-	// Write the jump distance (little endian)
-	bc[1] = (jdist >> 0) & 0xff;
-	bc[2] = (jdist >> 8) & 0xff;
-	bc[3] = (jdist >> 16) & 0xff;
-	bc[4] = (jdist >> 24) & 0xff;
-
-	gil_bufio_put_n(&ctx->gen->writer, bc, w.len);
-	free(w.mem);
-
-	gil_gen_function(ctx->gen, pos);
+	gil_word end_pos = ctx->gen->pos;
+	gil_gen_function(ctx->gen, start_pos);
+	gil_gen_add_reloc(ctx->gen, reloc_pos, end_pos - start_pos);
 	return 0;
 }
 

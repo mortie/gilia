@@ -30,7 +30,7 @@ static char *input_filename = "-";
 static struct gil_module **modules;
 static size_t moduleslen;
 
-static int parse_text(FILE *inf, struct gil_io_writer *w) {
+static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 	// Init lexer with its input reader
 	struct gil_io_file_reader r;
 	r.r.read = gil_io_file_read;
@@ -43,7 +43,7 @@ static int parse_text(FILE *inf, struct gil_io_writer *w) {
 
 	// Init gen with its output writer
 	struct gil_generator gen;
-	gil_gen_init(&gen, w);
+	gil_gen_init(&gen, &w->w);
 
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_gen_register_module(&gen, modules[i]);
@@ -58,6 +58,16 @@ static int parse_text(FILE *inf, struct gil_io_writer *w) {
 		gil_gen_free(&gen);
 		fclose(inf);
 		return -1;
+	}
+
+	for (gil_word i = 0; i < gen.relocslen; ++i) {
+		gil_word pos = gen.relocs[i].pos;
+		gil_word rep = gen.relocs[i].replacement;
+		unsigned char *mem = &((unsigned char *)w->mem)[pos];
+		mem[0] = rep & 0xff;
+		mem[1] = (rep >> 8) & 0xff;
+		mem[2] = (rep >> 16) & 0xff;
+		mem[3] = (rep >> 24) & 0xff;
 	}
 
 	gil_gen_free(&gen);
@@ -299,7 +309,7 @@ skip_args:;
 				input_filename);
 		return 1;
 	} else {
-		if (parse_text(inf, &bytecode_writer.w) < 0) {
+		if (parse_text(inf, &bytecode_writer) < 0) {
 			return 1;
 		}
 	}

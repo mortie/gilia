@@ -65,6 +65,9 @@ void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w) {
 	gen->pos = 0;
 	gil_bufio_writer_init(&gen->writer, w);
 
+	gen->relocs = NULL;
+	gen->relocslen = 0;
+
 	gen->modules = NULL;
 	gen->moduleslen = 0;
 
@@ -104,6 +107,14 @@ void gil_gen_free(struct gil_generator *gen) {
 	gil_strset_free(&gen->stringset);
 	free(gen->strings);
 	free(gen->modules);
+	free(gen->relocs);
+}
+
+void gil_gen_add_reloc(struct gil_generator *gen, gil_word pos, gil_word rep) {
+	gen->relocslen += 1;
+	gen->relocs = realloc(gen->relocs, gen->relocslen * sizeof(*gen->relocs));
+	gen->relocs[gen->relocslen - 1].pos = pos;
+	gen->relocs[gen->relocslen - 1].replacement = rep;
 }
 
 static int gen_cmodule(struct gil_generator *gen, const char *str) {
