@@ -5,6 +5,7 @@
 #include "bytecode.h"
 #include "parse/lex.h"
 #include "parse/parse.h"
+#include "module.h"
 
 static void put(struct gil_generator *gen, unsigned char ch) {
 	gil_bufio_put(&gen->writer, ch);
@@ -64,6 +65,9 @@ void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w) {
 	gen->pos = 0;
 	gil_bufio_writer_init(&gen->writer, w);
 
+	gen->modules = NULL;
+	gen->moduleslen = 0;
+
 	// Register atoms for all builtins
 #define XNAME(name, k) \
 	gil_strset_put_copy(&gen->atomset, name);
@@ -77,6 +81,20 @@ void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w) {
 #undef XFUNCTION
 }
 
+static gil_word alloc_name(void *ptr, const char *name) {
+	struct gil_generator *gen = ptr;
+	return gil_strset_put_copy(&gen->atomset, name);
+}
+
+void gil_gen_register_module(struct gil_generator *gen, struct gil_module *mod) {
+	gil_word id = gil_strset_put_copy(&gen->atomset, mod->name);
+	mod->init(mod, alloc_name, gen);
+
+	gen->moduleslen += 1;
+	gen->modules = realloc(gen->modules, gen->moduleslen * sizeof(*gen->modules));
+	gen->modules[gen->moduleslen - 1] = id;
+}
+
 void gil_gen_flush(struct gil_generator *gen) {
 	gil_bufio_flush(&gen->writer);
 }
@@ -85,6 +103,56 @@ void gil_gen_free(struct gil_generator *gen) {
 	gil_strset_free(&gen->atomset);
 	gil_strset_free(&gen->stringset);
 	free(gen->strings);
+	free(gen->modules);
+}
+
+static int gen_cmodule(struct gil_generator *gen, const char *str) {
+	gil_word id = gil_strset_get(&gen->atomset, str);
+	if (!id) {
+		return 0;
+	}
+
+	for (size_t i = 0; i < gen->moduleslen; ++i) {
+		if (gen->modules[i] == id) {
+			put(gen, GIL_OP_LOAD_CMODULE);
+			put_uint(gen, id);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+int gil_gen_import(
+		struct gil_generator *gen, char **str,
+		int (*callback)(void *data), void *data) {
+	int ret = gen_cmodule(gen, *str);
+	if (ret != 0) {
+		if (ret < 0) {
+			return -1;
+		} else {
+			free(*str);
+			*str = NULL;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+int gil_gen_import_copy(
+		struct gil_generator *gen, const char *str,
+		int (*callback)(void *data), void *data) {
+	int ret = gen_cmodule(gen, str);
+	if (ret != 0) {
+		if (ret < 0) {
+			return -1;
+		} else {
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 void gil_gen_halt(struct gil_generator *gen) {

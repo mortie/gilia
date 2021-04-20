@@ -108,11 +108,18 @@ void gil_vm_print_val(struct gil_vm_value *val) {
 
 	case GIL_VAL_TYPE_CFUNCTION:
 		// ISO C doesn't let you cast a function pointer to void*.
-		printf("C FUNCTION, %8jx\n", (uintmax_t)val->cfunc.func);
+		printf("C FUNCTION, 0x%08jx, mod %u, self %u\n",
+				(uintmax_t)val->cfunc.func, val->cfunc.mod, val->cfunc.self);
+		break;
+
+	case GIL_VAL_TYPE_CVAL:
+		// ISO C doesn't let you cast a function pointer to void*.
+		printf("C VALUE, 0x%08jx, type %u, ns %u\n",
+				(uintmax_t)val->cval.cval, val->cval.ctype, val->cval.ns);
 		break;
 
 	case GIL_VAL_TYPE_CONTINUATION:
-		printf("CONTINUATION, call %u, cont %08jx\n",
+		printf("CONTINUATION, call %u, cont 0x%08jx\n",
 				val->cont.call, (uintmax_t)val->cont.cont);
 		break;
 
@@ -266,6 +273,10 @@ void gil_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 
 	case GIL_OP_DYNAMIC_SET:
 		printf("DYNAMIC_SET\n");
+		return;
+
+	case GIL_OP_LOAD_CMODULE:
+		printf("LOAD_CMODULE %u\n", read_uint(ops, ptr));
 		return;
 
 	case GIL_OP_HALT:
