@@ -1,10 +1,9 @@
 #include "bitset.h"
 
+#include <features.h>
+#include <limits.h>
 #include <string.h>
 #include <strings.h>
-#include <limits.h>
-
-#include <stdio.h>
 
 #define ENTSIZ (sizeof(gil_bitset_entry) * CHAR_BIT)
 

@@ -1,9 +1,11 @@
 #include "modules/fs.h"
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "bytecode.h"
 #include "module.h"
 #include "vm/vm.h"
 

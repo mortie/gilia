@@ -1,8 +1,12 @@
 #include "vm/print.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
+
+#include "bitset.h"
+#include "bytecode.h"
+#include "vm/vm.h"
 
 static gil_word read_uint(unsigned char *ops, size_t *ptr) {
 	gil_word word = 0;

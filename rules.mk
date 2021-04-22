@@ -7,7 +7,7 @@ $(OUT)/%.c.o: %.c
 
 $(OUT)/%.s.o: %.s
 	@mkdir -p $(@D)
-	$(CC) -o $@ -c $<
+	$(AS) -o $@ -c $<
 
 $(OUT)/%.c.d: %.c
 	@mkdir -p $(@D)

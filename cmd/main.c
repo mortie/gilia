@@ -1,14 +1,5 @@
-#include "vm/vm.h"
-#include "vm/print.h"
-#include "parse/parse.h"
-#include "parse/lex.h"
-#include "io.h"
-#include "bitset.h"
-#include "bytecode.h"
-#include "loader.h"
-#include "modules/fs.h"
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef __unix__
@@ -17,6 +8,18 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #endif
+
+#include "bytecode.h"
+#include "gen/gen.h"
+#include "io.h"
+#include "loader.h"
+#include "modules/fs.h"
+#include "parse/lex.h"
+#include "parse/parse.h"
+#include "vm/print.h"
+#include "vm/vm.h"
+
+struct gil_module;
 
 extern int gil_binary_size;
 

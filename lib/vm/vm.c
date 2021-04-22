@@ -1,11 +1,15 @@
 #include "vm/vm.h"
 
-#include <string.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
-#include "vm/builtins.h"
+#include "bitset.h"
+#include "vm/builtins.h" // IWYU pragma: keep
+#include "bytecode.h"
+#include "io.h"
 #include "module.h"
+#include "strset.h"
 
 static int stdio_inited = 0;
 static struct gil_io_file_writer std_output;

@@ -1,6 +1,11 @@
 #include "parse/lex.h"
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "io.h"
 
 static void log_token(struct gil_token *tok) {
 	switch (gil_token_get_kind(tok)) {

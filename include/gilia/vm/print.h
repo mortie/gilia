@@ -1,7 +1,10 @@
 #ifndef GIL_VM_PRINT_H
 #define GIL_VM_PRINT_H
 
-#include "vm.h"
+#include <stddef.h>
+
+struct gil_vm;
+struct gil_vm_value;
 
 void gil_vm_print_val(struct gil_vm_value *val);
 void gil_vm_print_state(struct gil_vm *vm);

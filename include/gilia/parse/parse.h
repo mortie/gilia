@@ -1,8 +1,7 @@
 #ifndef GIL_PARSE_H
 #define GIL_PARSE_H
 
-#include "lex.h"
-#include "gen/gen.h"
+struct gil_token;
 
 struct gil_parse_error {
 	int line;

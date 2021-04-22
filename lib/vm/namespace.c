@@ -1,5 +1,9 @@
 #include "vm/vm.h"
 
+#include <stdlib.h>
+
+#include "bytecode.h"
+
 static const gil_word tombstone = ~(gil_word)0;
 
 static struct gil_vm_namespace *set(struct gil_vm_namespace *ns, gil_word key, gil_word val);

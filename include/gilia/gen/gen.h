@@ -1,9 +1,11 @@
 #ifndef GIL_GEN_H
 #define GIL_GEN_H
 
+#include <stddef.h>
+
+#include "../bytecode.h"
 #include "../io.h"
 #include "../strset.h"
-#include "../bytecode.h"
 
 struct gil_generator_string {
 	gil_word length;

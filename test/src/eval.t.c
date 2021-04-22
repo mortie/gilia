@@ -1,5 +1,7 @@
 #include "parse/parse.h"
+#include "parse/lex.h"
 #include "vm/vm.h"
+#include "gen/gen.h"
 #include "vm/print.h"
 
 #include <stdio.h>

@@ -1,6 +1,9 @@
 #include "loader.h"
 
 #include <stdint.h>
+#include "bytecode.h"
+
+#include "io.h"
 
 int gil_bc_serialize(FILE *outf, unsigned char *data, size_t len) {
 	char header[4] = { 0x1b, 0x67, 0x6c, 0x63 };

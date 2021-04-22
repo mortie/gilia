@@ -1,11 +1,14 @@
 #include "gen/gen.h"
 
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
+#include "builtins.x.h"
 #include "bytecode.h"
-#include "parse/lex.h"
-#include "parse/parse.h"
+#include "io.h"
 #include "module.h"
+#include "strset.h"
 
 static void put(struct gil_generator *gen, unsigned char ch) {
 	gil_bufio_put(&gen->writer, ch);

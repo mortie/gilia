@@ -1,7 +1,12 @@
 #include "parse/parse.h"
 
-#include "trace.h"
+#include <stdlib.h>
+#include <string.h>
+
+#include "bytecode.h"
 #include "gen/gen.h"
+#include "parse/lex.h"
+#include "trace.h"
 
 static int tok_is_end(struct gil_token *tok) {
 	enum gil_token_kind kind = gil_token_get_kind(tok);

@@ -1,8 +1,11 @@
 #include "parse/parse.h"
 
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "parse/lex.h"
 #include "trace.h"
 
 void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const char *fmt, ...) {

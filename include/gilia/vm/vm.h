@@ -1,15 +1,14 @@
 #ifndef GIL_VM_H
 #define GIL_VM_H
 
+#include <stdint.h>
 #include <stdlib.h>
 
-#include "../bytecode.h"
 #include "../bitset.h"
-#include "../io.h"
+#include "../bytecode.h"
 #include "../strset.h"
 
 struct gil_vm;
-struct gil_vm_array;
 typedef gil_word (*gil_vm_cfunction)(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv);

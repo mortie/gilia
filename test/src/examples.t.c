@@ -2,6 +2,8 @@
 
 #include "vm/vm.h"
 #include "parse/parse.h"
+#include "parse/lex.h"
+#include "gen/gen.h"
 
 #include <sys/types.h>
 #include <libgen.h>

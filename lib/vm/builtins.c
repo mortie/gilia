@@ -1,6 +1,11 @@
 #include "vm/builtins.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "io.h"
+#include "vm/vm.h"
 
 static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_vm_value *val) {
 	switch (gil_value_get_type(val)) {
