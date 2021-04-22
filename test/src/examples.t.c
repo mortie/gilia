@@ -92,6 +92,16 @@ static void check_impl(const char *name) {
 		snow_fail("%s:%i:%i: %s", example_path, err.line, err.ch, err.message);
 	}
 
+	for (gil_word i = 0; i < gen.relocslen; ++i) {
+		gil_word pos = gen.relocs[i].pos;
+		gil_word rep = gen.relocs[i].replacement;
+		unsigned char *mem = &((unsigned char *)bytecode.mem)[pos];
+		mem[0] = rep & 0xff;
+		mem[1] = (rep >> 8) & 0xff;
+		mem[2] = (rep >> 16) & 0xff;
+		mem[3] = (rep >> 24) & 0xff;
+	}
+
 	gil_gen_free(&gen);
 	fclose(inf);
 
