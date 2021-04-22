@@ -104,7 +104,7 @@ void gil_lexer_init(struct gil_lexer *lexer, struct gil_io_reader *r) {
 	lexer->line = 1;
 	lexer->ch = 1;
 	lexer->parens = 0;
-	lexer->prev_tok_is_ident = 0;
+	lexer->prev_tok_is_expr = 0;
 	lexer->do_log_tokens = 0;
 	gil_bufio_reader_init(&lexer->reader, r);
 }
@@ -485,14 +485,14 @@ static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 		return;
 	}
 
-	int prev_tok_is_ident = lexer->prev_tok_is_ident;
-	lexer->prev_tok_is_ident = 0;
+	int prev_tok_is_expr = lexer->prev_tok_is_expr;
+	lexer->prev_tok_is_expr = 0;
 
 	int ch = peek_ch(lexer);
 	switch (ch) {
 	case '(':
 		read_ch(lexer);
-		if (prev_tok_is_ident && !skipped_whitespace) {
+		if (prev_tok_is_expr && !skipped_whitespace) {
 			tok->v.flags = GIL_TOK_OPEN_PAREN_NS;
 		} else {
 			tok->v.flags = GIL_TOK_OPEN_PAREN;
@@ -503,6 +503,7 @@ static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 	case ')':
 		read_ch(lexer);
 		tok->v.flags = GIL_TOK_CLOSE_PAREN;
+		lexer->prev_tok_is_expr = 1;
 		lexer->parens -= 1;
 		break;
 
@@ -514,6 +515,7 @@ static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 	case '}':
 		read_ch(lexer);
 		tok->v.flags = GIL_TOK_CLOSE_BRACE;
+		lexer->prev_tok_is_expr = 1;
 		break;
 
 	case '[':
@@ -524,6 +526,7 @@ static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 	case ']':
 		read_ch(lexer);
 		tok->v.flags = GIL_TOK_CLOSE_BRACKET;
+		lexer->prev_tok_is_expr = 1;
 		break;
 
 	case ';':
@@ -555,9 +558,11 @@ static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 				tok->v.str = err;
 			} else {
 				tok->v.integer = (int)num;
+				lexer->prev_tok_is_expr = 1;
 			}
 		} else {
 			tok->v.flags = GIL_TOK_PERIOD;
+			lexer->prev_tok_is_expr = 1;
 		}
 		break;
 
@@ -598,7 +603,7 @@ static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 
 			tok->v.flags = GIL_TOK_IDENT;
 			read_ident(lexer, tok);
-			lexer->prev_tok_is_ident = 1;
+			lexer->prev_tok_is_expr = 1;
 
 			if (gil_token_is_small(tok) && strcmp(tok->v.strbuf, "=") == 0) {
 				tok->v.flags = GIL_TOK_EQUALS;
