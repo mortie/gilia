@@ -6,23 +6,13 @@
 #include <string.h>
 
 #include "bytecode.h"
-#include "module.h"
+#include "modules/fs.h"
 #include "vm/vm.h"
-
-struct fs_module {
-	struct gil_module base;
-
-	gil_word kopen, kclose, kread;
-
-	gil_word nsfile;
-
-	gil_word tfile;
-};
 
 static gil_word fs_open(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
-	struct fs_module *mod = (struct fs_module *)vm->modules[mid].mod;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->modules[mid].mod;
 
 	if (argc != 1 && argc != 2) {
 		return gil_vm_error(vm, "Expected 1 or 2 arguments");
@@ -54,7 +44,7 @@ static gil_word fs_open(
 static gil_word fs_file_close(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
-	struct fs_module *mod = (struct fs_module *)vm->modules[mid].mod;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->modules[mid].mod;
 
 	if (argc != 0) {
 		return gil_vm_error(vm, "Expected 0 arguments");
@@ -81,7 +71,7 @@ static gil_word fs_file_close(
 static gil_word fs_file_read_all(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
-	struct fs_module *mod = (struct fs_module *)vm->modules[mid].mod;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->modules[mid].mod;
 
 	if (argc != 0) {
 		return gil_vm_error(vm, "Expected 0 arguments");
@@ -123,14 +113,14 @@ static gil_word fs_file_read_all(
 static void init(
 		struct gil_module *ptr,
 		gil_word (*alloc)(void *data, const char *name), void *data) {
-	struct fs_module *mod = (struct fs_module *)ptr;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)ptr;
 	mod->kopen = alloc(data, "open");
 	mod->kclose = alloc(data, "close");
 	mod->kread = alloc(data, "read");
 }
 
 static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) {
-	struct fs_module *mod = (struct fs_module *)ptr;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)ptr;
 	mod->tfile = gil_vm_alloc_ctype(vm);
 
 	gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_NAMESPACE, 0);
@@ -153,15 +143,13 @@ static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) 
 static void marker(
 		struct gil_module *ptr, struct gil_vm *vm,
 		void (*mark)(struct gil_vm *vm, gil_word id)) {
-	struct fs_module *mod = (struct fs_module *)ptr;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)ptr;
 	mark(vm, mod->nsfile);
 }
 
-struct gil_module *gil_mod_fs() {
-	struct fs_module *mod = malloc(sizeof(*mod));
+void gil_mod_fs_init(struct gil_mod_fs *mod) {
 	mod->base.name = "fs";
 	mod->base.init = init;
 	mod->base.create = create;
 	mod->base.marker = marker;
-	return &mod->base;
 }

@@ -31,7 +31,7 @@ static int do_serialize_bytecode = 0;
 static int do_repl = 0;
 static char *input_filename = "-";
 
-static struct gil_module *builtin_module;
+static struct gil_mod_builtins builtins;
 static struct gil_module **modules;
 static size_t moduleslen;
 
@@ -48,7 +48,7 @@ static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 
 	// Init gen with its output writer
 	struct gil_generator gen;
-	gil_gen_init(&gen, &w->w, builtin_module);
+	gil_gen_init(&gen, &w->w, &builtins.base);
 
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_gen_register_module(&gen, modules[i]);
@@ -115,10 +115,10 @@ static void repl() {
 	struct gil_lexer lexer;
 
 	struct gil_generator gen;
-	gil_gen_init(&gen, &w.w, builtin_module);
+	gil_gen_init(&gen, &w.w, &builtins.base);
 
 	struct gil_vm vm;
-	gil_vm_init(&vm, NULL, 0, builtin_module);
+	gil_vm_init(&vm, NULL, 0, &builtins.base);
 
 	while (1) {
 		char line[4096];
@@ -154,8 +154,8 @@ static void repl() {
 			gil_vm_free(&vm);
 			gil_gen_free(&gen);
 			w.len = 0;
-			gil_gen_init(&gen, &w.w, builtin_module);
-			gil_vm_init(&vm, NULL, 0, builtin_module);
+			gil_gen_init(&gen, &w.w, &builtins.base);
+			gil_vm_init(&vm, NULL, 0, &builtins.base);
 		} else if (w.len > 0) {
 			vm.ops = w.mem;
 			vm.opslen = w.len;
@@ -273,10 +273,13 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	builtin_module = gil_mod_builtins();
+	gil_mod_builtins_init(&builtins);
+
+	struct gil_mod_fs mod_fs;
+	gil_mod_fs_init(&mod_fs);
 
 	struct gil_module *mods[] = {
-		gil_mod_fs(),
+		&mod_fs.base,
 	};
 	modules = mods;
 	moduleslen = sizeof(mods) / sizeof(*mods); // NOLINT(bugprone-sizeof-expression)
@@ -338,7 +341,7 @@ skip_args:;
 	}
 
 	struct gil_vm vm;
-	gil_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len, builtin_module);
+	gil_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len, &builtins.base);
 
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_vm_register_module(&vm, modules[i]);

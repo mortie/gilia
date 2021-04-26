@@ -9,16 +9,6 @@
 #include "module.h"
 #include "vm/vm.h"
 
-struct builtins_module {
-	struct gil_module base;
-
-	gil_word
-		kadd, ksub, kmul, kdiv, keq, kneq,
-		klt, klteq, kgt, kgteq, kland, klor, kfirst,
-		kprint, kwrite, klen,
-		kif, kloop, kwhile, kfor, kguard;
-};
-
 static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_vm_value *val) {
 	switch (gil_value_get_type(val)) {
 		case GIL_VAL_TYPE_NONE:
@@ -586,7 +576,7 @@ static gil_word builtin_guard(
 static void init(
 		struct gil_module *ptr,
 		gil_word (*alloc)(void *data, const char *name), void *data) {
-	struct builtins_module *mod = (struct builtins_module *)ptr;
+	struct gil_mod_builtins *mod = (struct gil_mod_builtins *)ptr;
 	mod->kadd = alloc(data, "+");
 	mod->ksub = alloc(data, "-");
 	mod->kmul = alloc(data, "*");
@@ -611,7 +601,7 @@ static void init(
 }
 
 static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) {
-	struct builtins_module *mod = (struct builtins_module *)ptr;
+	struct gil_mod_builtins *mod = (struct gil_mod_builtins *)ptr;
 
 	gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_NAMESPACE, 0);
 	struct gil_vm_value *ns = &vm->values[id];
@@ -669,11 +659,9 @@ static void marker(
 		void (*mark)(struct gil_vm *vm, gil_word id)) {
 }
 
-struct gil_module *gil_mod_builtins() {
-	struct builtins_module *mod = malloc(sizeof(*mod));
+void gil_mod_builtins_init(struct gil_mod_builtins *mod) {
 	mod->base.name = "fs";
 	mod->base.init = init;
 	mod->base.create = create;
 	mod->base.marker = marker;
-	return &mod->base;
 }

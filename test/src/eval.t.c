@@ -27,25 +27,24 @@ static int eval_impl(const char *str, struct gil_parse_error *err) {
 	r.mem = str;
 	gil_lexer_init(&lex, &r.r);
 
-	struct gil_module *builtins = gil_mod_builtins();
+	struct gil_mod_builtins builtins;
+	gil_mod_builtins_init(&builtins);
 
 	w.w.write = gil_io_mem_write;
 	w.len = 0;
 	w.size = 0;
 	w.mem = NULL;
-	gil_gen_init(&gen, (struct gil_io_writer *)&w, builtins);
+	gil_gen_init(&gen, (struct gil_io_writer *)&w, &builtins.base);
 
 	struct gil_parse_context ctx = {&lex, &gen, err};
 	if (gil_parse_program(&ctx) < 0) {
-		free(builtins);
 		free(w.mem);
 		return -1;
 	}
 
-	gil_vm_init(&vm, w.mem, w.len / sizeof(gil_word), builtins);
+	gil_vm_init(&vm, w.mem, w.len / sizeof(gil_word), &builtins.base);
 	gil_vm_run(&vm);
 
-	free(builtins);
 	free(w.mem);
 	return 0;
 }
