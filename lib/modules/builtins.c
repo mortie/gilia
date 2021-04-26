@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "io.h"
-#include "bytecode.h"
 #include "module.h"
 #include "vm/vm.h"
 

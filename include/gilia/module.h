@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bytecode.h" // iwyu: export
+#include "bytecode.h" // IWYU pragma: export
 
 struct gil_vm;
 

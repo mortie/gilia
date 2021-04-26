@@ -5,8 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bytecode.h"
-#include "modules/fs.h"
+#include "module.h"
 #include "vm/vm.h"
 
 static gil_word fs_open(
