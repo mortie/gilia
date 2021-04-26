@@ -4,6 +4,7 @@
 #include "parse/parse.h"
 #include "parse/lex.h"
 #include "gen/gen.h"
+#include "modules/builtins.h"
 
 #include <sys/types.h>
 #include <libgen.h>
@@ -82,12 +83,15 @@ static void check_impl(const char *name) {
 	struct gil_lexer lexer;
 	gil_lexer_init(&lexer, &input.r);
 
+	struct gil_module *builtins = gil_mod_builtins();
+
 	struct gil_generator gen;
-	gil_gen_init(&gen, &bytecode.w);
+	gil_gen_init(&gen, &bytecode.w, builtins);
 
 	struct gil_parse_error err;
 	struct gil_parse_context ctx = {&lexer, &gen, &err};
 	if (gil_parse_program(&ctx) < 0) {
+		free(builtins);
 		free(bytecode.mem);
 		fclose(input.f);
 		error_message = err.message;
@@ -109,6 +113,7 @@ static void check_impl(const char *name) {
 
 	FILE *outf = fopen(example_actual_path, "w");
 	if (outf == NULL) {
+		free(builtins);
 		snow_fail("%s: %s", example_actual_path, strerror(errno));
 	}
 
@@ -118,7 +123,7 @@ static void check_impl(const char *name) {
 	};
 
 	struct gil_vm vm;
-	gil_vm_init(&vm, bytecode.mem, bytecode.len / sizeof(gil_word));
+	gil_vm_init(&vm, bytecode.mem, bytecode.len / sizeof(gil_word), builtins);
 	vm.std_output = &output.w;
 
 	// Run a GC after every instruction to uncover potential GC issues
@@ -128,6 +133,7 @@ static void check_impl(const char *name) {
 	}
 
 	gil_vm_free(&vm);
+	free(builtins);
 	free(bytecode.mem);
 	fclose(output.f);
 

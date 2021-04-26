@@ -1,11 +1,23 @@
-#include "vm/builtins.h"
+#include "modules/builtins.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "io.h"
+#include "bytecode.h"
+#include "module.h"
 #include "vm/vm.h"
+
+struct builtins_module {
+	struct gil_module base;
+
+	gil_word
+		kadd, ksub, kmul, kdiv, keq, kneq,
+		klt, klteq, kgt, kgteq, kland, klor, kfirst,
+		kprint, kwrite, klen,
+		kif, kloop, kwhile, kfor, kguard;
+};
 
 static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_vm_value *val) {
 	switch (gil_value_get_type(val)) {
@@ -80,7 +92,7 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 }
 
 #define X(name, identity, op) \
-gil_word name(\
+static gil_word name(\
 		struct gil_vm *vm, gil_word mid, gil_word self, \
 		gil_word argc, gil_word *argv) { \
 	if (argc == 0) { \
@@ -109,13 +121,13 @@ gil_word name(\
 	vm->values[id].real.real = sum; \
 	return id; \
 }
-X(gil_builtin_add, 0, +)
-X(gil_builtin_sub, 0, -)
-X(gil_builtin_mul, 1, *)
-X(gil_builtin_div, 1, /)
+X(builtin_add, 0, +)
+X(builtin_sub, 0, -)
+X(builtin_mul, 1, *)
+X(builtin_div, 1, /)
 #undef X
 
-gil_word gil_builtin_eq(
+static gil_word builtin_eq(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	if (argc < 2) {
@@ -160,10 +172,10 @@ gil_word gil_builtin_eq(
 	return vm->ktrue;
 }
 
-gil_word gil_builtin_neq(
+static gil_word builtin_neq(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
-	gil_word ret_id = gil_builtin_eq(vm, mid, self, argc, argv);
+	gil_word ret_id = builtin_eq(vm, mid, self, argc, argv);
 	if (ret_id == vm->ktrue) {
 		return vm->kfalse;
 	} else if (ret_id == vm->kfalse) {
@@ -174,7 +186,7 @@ gil_word gil_builtin_neq(
 }
 
 #define X(name, op) \
-gil_word name( \
+static gil_word name( \
 		struct gil_vm *vm, gil_word mid, gil_word self, \
 		gil_word argc, gil_word *argv) { \
 	if (argc < 2) { \
@@ -196,13 +208,13 @@ gil_word name( \
 	} \
 	return vm->ktrue; \
 }
-X(gil_builtin_lt, <)
-X(gil_builtin_lteq, <=)
-X(gil_builtin_gt, >)
-X(gil_builtin_gteq, >=)
+X(builtin_lt, <)
+X(builtin_lteq, <=)
+X(builtin_gt, >)
+X(builtin_gteq, >=)
 #undef X
 
-gil_word gil_builtin_land(
+static gil_word builtin_land(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	for (gil_word i = 0; i < argc; ++i) {
@@ -219,7 +231,7 @@ gil_word gil_builtin_land(
 	return vm->ktrue;
 }
 
-gil_word gil_builtin_lor(
+static gil_word builtin_lor(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	for (gil_word i = 0; i < argc; ++i) {
@@ -236,7 +248,7 @@ gil_word gil_builtin_lor(
 	return vm->kfalse;
 }
 
-gil_word gil_builtin_first(
+static gil_word builtin_first(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	for (gil_word i = 0; i < argc; ++i) {
@@ -248,7 +260,7 @@ gil_word gil_builtin_first(
 	return vm->knone;
 }
 
-gil_word gil_builtin_print(
+static gil_word builtin_print(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	for (size_t i = 0; i < argc; ++i) {
@@ -264,7 +276,7 @@ gil_word gil_builtin_print(
 	return vm->knone;
 }
 
-gil_word gil_builtin_write(
+static gil_word builtin_write(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	for (size_t i = 0; i < argc; ++i) {
@@ -275,7 +287,7 @@ gil_word gil_builtin_write(
 	return vm->knone;
 }
 
-gil_word gil_builtin_len(
+gil_word builtin_len(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	if (argc != 1) {
@@ -317,7 +329,7 @@ gil_word gil_builtin_len(
 	return ret_id;
 }
 
-gil_word gil_builtin_if(
+static gil_word builtin_if(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	if (argc != 2 && argc != 3) {
@@ -363,7 +375,7 @@ static void loop_marker(
 	mark(vm, ctx->func);
 }
 
-gil_word gil_builtin_loop(
+static gil_word builtin_loop(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	if (argc != 1) {
@@ -425,7 +437,7 @@ static void while_marker(
 	mark(vm, ctx->body);
 }
 
-gil_word gil_builtin_while(
+static gil_word builtin_while(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	if (argc != 2) {
@@ -491,7 +503,7 @@ static void for_marker(
 	mark(vm, ctx->func);
 }
 
-gil_word gil_builtin_for(
+static gil_word builtin_for(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	if (argc != 2) {
@@ -524,7 +536,7 @@ static gil_word guard_callback(struct gil_vm *vm, gil_word retval, gil_word cont
 	return cont_id;
 }
 
-gil_word gil_builtin_guard(
+static gil_word builtin_guard(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
 	if (argc != 1 && argc != 2) {
@@ -569,4 +581,99 @@ gil_word gil_builtin_guard(
 	cont->cont.call = argv[1];
 	cont->cont.cont = ctx;
 	return cont_id;
+}
+
+static void init(
+		struct gil_module *ptr,
+		gil_word (*alloc)(void *data, const char *name), void *data) {
+	struct builtins_module *mod = (struct builtins_module *)ptr;
+	mod->kadd = alloc(data, "+");
+	mod->ksub = alloc(data, "-");
+	mod->kmul = alloc(data, "*");
+	mod->kdiv = alloc(data, "/");
+	mod->keq = alloc(data, "==");
+	mod->kneq = alloc(data, "!=");
+	mod->klt = alloc(data, "<");
+	mod->klteq = alloc(data, "<=");
+	mod->kgt = alloc(data, ">");
+	mod->kgteq = alloc(data, ">=");
+	mod->kland = alloc(data, "&&");
+	mod->klor = alloc(data, "||");
+	mod->kfirst = alloc(data, "??");
+	mod->kprint = alloc(data, "print");
+	mod->kwrite = alloc(data, "write");
+	mod->klen = alloc(data, "len");
+	mod->kif = alloc(data, "if");
+	mod->kloop = alloc(data, "loop");
+	mod->kwhile = alloc(data, "while");
+	mod->kfor = alloc(data, "for");
+	mod->kguard = alloc(data, "guard");
+}
+
+static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) {
+	struct builtins_module *mod = (struct builtins_module *)ptr;
+
+	gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_NAMESPACE, 0);
+	struct gil_vm_value *ns = &vm->values[id];
+	ns->ns.parent = 0;
+	ns->ns.ns = NULL;
+
+	gil_vm_namespace_set(ns, mod->kadd,
+			gil_vm_make_cfunction(vm, builtin_add, mid));
+	gil_vm_namespace_set(ns, mod->ksub,
+			gil_vm_make_cfunction(vm, builtin_sub, mid));
+	gil_vm_namespace_set(ns, mod->kmul,
+			gil_vm_make_cfunction(vm, builtin_mul, mid));
+	gil_vm_namespace_set(ns, mod->kdiv,
+			gil_vm_make_cfunction(vm, builtin_div, mid));
+	gil_vm_namespace_set(ns, mod->keq,
+			gil_vm_make_cfunction(vm, builtin_eq, mid));
+	gil_vm_namespace_set(ns, mod->kneq,
+			gil_vm_make_cfunction(vm, builtin_neq, mid));
+	gil_vm_namespace_set(ns, mod->klt,
+			gil_vm_make_cfunction(vm, builtin_lt, mid));
+	gil_vm_namespace_set(ns, mod->klteq,
+			gil_vm_make_cfunction(vm, builtin_lteq, mid));
+	gil_vm_namespace_set(ns, mod->kgt,
+			gil_vm_make_cfunction(vm, builtin_gt, mid));
+	gil_vm_namespace_set(ns, mod->kgteq,
+			gil_vm_make_cfunction(vm, builtin_gteq, mid));
+	gil_vm_namespace_set(ns, mod->kland,
+			gil_vm_make_cfunction(vm, builtin_land, mid));
+	gil_vm_namespace_set(ns, mod->klor,
+			gil_vm_make_cfunction(vm, builtin_lor, mid));
+	gil_vm_namespace_set(ns, mod->kfirst,
+			gil_vm_make_cfunction(vm, builtin_first, mid));
+	gil_vm_namespace_set(ns, mod->kprint,
+			gil_vm_make_cfunction(vm, builtin_print, mid));
+	gil_vm_namespace_set(ns, mod->kwrite,
+			gil_vm_make_cfunction(vm, builtin_write, mid));
+	gil_vm_namespace_set(ns, mod->klen,
+			gil_vm_make_cfunction(vm, builtin_len, mid));
+	gil_vm_namespace_set(ns, mod->kif,
+			gil_vm_make_cfunction(vm, builtin_if, mid));
+	gil_vm_namespace_set(ns, mod->kloop,
+			gil_vm_make_cfunction(vm, builtin_loop, mid));
+	gil_vm_namespace_set(ns, mod->kwhile,
+			gil_vm_make_cfunction(vm, builtin_while, mid));
+	gil_vm_namespace_set(ns, mod->kfor,
+			gil_vm_make_cfunction(vm, builtin_for, mid));
+	gil_vm_namespace_set(ns, mod->kguard,
+			gil_vm_make_cfunction(vm, builtin_guard, mid));
+
+	return id;
+}
+
+static void marker(
+		struct gil_module *ptr, struct gil_vm *vm,
+		void (*mark)(struct gil_vm *vm, gil_word id)) {
+}
+
+struct gil_module *gil_mod_builtins() {
+	struct builtins_module *mod = malloc(sizeof(*mod));
+	mod->base.name = "fs";
+	mod->base.init = init;
+	mod->base.create = create;
+	mod->base.marker = marker;
+	return &mod->base;
 }

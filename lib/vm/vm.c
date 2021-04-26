@@ -3,9 +3,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "bitset.h"
-#include "vm/builtins.h" // IWYU pragma: keep
 #include "bytecode.h"
 #include "io.h"
 #include "module.h"
@@ -139,12 +139,6 @@ static size_t gc_sweep(struct gil_vm *vm) {
 		}
 	}
 
-	// Normal variables are unmarked by the above loop,
-	// but builtins don't go through that loop
-	for (size_t i = 0; i < vm->gc_start; ++i) {
-		vm->values[i].flags &= ~GIL_VAL_MARKED;
-	}
-
 	return freed;
 }
 
@@ -201,7 +195,13 @@ gil_word gil_vm_array_set(struct gil_vm *vm, struct gil_vm_value *val, gil_word 
 	return val->array.array->data[k] = v;
 }
 
-void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen) {
+static gil_word mod_init_alloc(void *ptr, const char *name) {
+	struct gil_vm *vm = ptr;
+	return gil_strset_put_copy(&vm->atomset, name);
+}
+
+void gil_vm_init(
+		struct gil_vm *vm, unsigned char *ops, size_t opslen, struct gil_module *builtins) {
 	if (!stdio_inited) {
 		std_output.w.write = gil_io_file_write;
 		std_output.f = stdout;
@@ -229,14 +229,29 @@ void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen) {
 	// It's wasteful to allocate new 'none' variables all the time,
 	// variable ID 0 should be the only 'none' variable in the system
 	gil_word none_id = alloc_val(vm);
+	assert(none_id == 0);
 	vm->values[none_id].flags = GIL_VAL_TYPE_NONE | GIL_VAL_CONST;
+	vm->knone = 0;
+	vm->gc_start = 1;
 
-	// Need to allocate a builtins namespace
-	gil_word builtins = alloc_val(vm);
-	vm->values[builtins].ns.parent = 0;
-	vm->values[builtins].ns.ns = NULL; // Will be allocated on first insert
-	vm->values[builtins].flags = GIL_VAL_TYPE_NAMESPACE;
-	vm->fstack[vm->fsptr].ns = builtins;
+	gil_strset_init(&vm->atomset);
+	vm->next_ctype = 1;
+	vm->modules = NULL;
+	vm->moduleslen = 0;
+
+#define X(name, k) \
+		vm->k = alloc_val(vm); \
+		vm->values[vm->k].flags = GIL_VAL_TYPE_ATOM | GIL_VAL_CONST; \
+		vm->values[vm->k].atom.atom = gil_strset_put_copy(&vm->atomset, name); \
+		vm->gc_start += 1;
+	GIL_BYTECODE_ATOMS
+#undef X
+
+	builtins->init(builtins, mod_init_alloc, vm);
+	gil_word builtins_id = builtins->create(builtins, vm, 0);
+
+	// Need to allocate a frame stack for the builtins
+	vm->fstack[vm->fsptr].ns = builtins_id;
 	vm->fstack[vm->fsptr].retptr = 0;
 	vm->fstack[vm->fsptr].sptr = 0;
 	vm->fstack[vm->fsptr].args = 0;
@@ -244,7 +259,7 @@ void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen) {
 
 	// Need to allocate a root namespace
 	gil_word root = alloc_val(vm);
-	vm->values[root].ns.parent = builtins;
+	vm->values[root].ns.parent = builtins_id;
 	vm->values[root].ns.ns = NULL;
 	vm->values[root].flags = GIL_VAL_TYPE_NAMESPACE;
 	vm->fstack[vm->fsptr].ns = root;
@@ -252,53 +267,11 @@ void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen) {
 	vm->fstack[vm->fsptr].sptr = 0;
 	vm->fstack[vm->fsptr].args = 0;
 	vm->fsptr += 1;
-
-	// None is always at 0
-	vm->knone = 0;
-	vm->values[vm->knone].flags = GIL_VAL_TYPE_NONE | GIL_VAL_CONST;
-
-	gil_strset_init(&vm->atomset);
-
-	// Define a C function variable for every builtin
-	gil_word id;
-	gil_word key;
-#define XNAME(name, k) \
-	key = gil_strset_put_copy(&vm->atomset, name); \
-	gil_vm_namespace_set(&vm->values[builtins], key, vm->k);
-#define XATOM(name, k) \
-	key = gil_strset_put_copy(&vm->atomset, name); \
-	id = alloc_val(vm); \
-	vm->values[id].flags = GIL_VAL_TYPE_ATOM | GIL_VAL_CONST; \
-	vm->values[id].atom.atom = key; \
-	vm->k = id;
-#define XFUNCTION(name, f) \
-	key = gil_strset_put_copy(&vm->atomset, name); \
-	id = alloc_val(vm); \
-	vm->values[id].flags = GIL_VAL_TYPE_CFUNCTION | GIL_VAL_CONST; \
-	vm->values[id].cfunc.func = f; \
-	vm->values[id].cfunc.self = 0; \
-	gil_vm_namespace_set(&vm->values[builtins], key, id);
-#include "builtins.x.h"
-#undef XNAME
-#undef XATOM
-#undef XFUNCTION
-
-	vm->gc_start = id + 1;
-
-	vm->next_ctype = 1;
-
-	vm->modules = NULL;
-	vm->moduleslen = 0;
-}
-
-static gil_word alloc_name(void *ptr, const char *name) {
-	struct gil_vm *vm = ptr;
-	return gil_strset_put_copy(&vm->atomset, name);
 }
 
 void gil_vm_register_module(struct gil_vm *vm, struct gil_module *mod) {
 	gil_word id = gil_strset_put_copy(&vm->atomset, mod->name);
-	mod->init(mod, alloc_name, vm);
+	mod->init(mod, mod_init_alloc, vm);
 
 	vm->moduleslen += 1;
 	vm->modules = realloc(vm->modules, vm->moduleslen * sizeof(*vm->modules));
@@ -377,9 +350,7 @@ size_t gil_vm_gc(struct gil_vm *vm) {
 		gc_mark(vm, vm->stack[sptr]);
 	}
 
-	// Don't need to mark the first stack frame, since that's where all the
-	// builtins live, and they aren't sweeped anyways
-	for (gil_word fsptr = 1; fsptr < vm->fsptr; ++fsptr) {
+	for (gil_word fsptr = 0; fsptr < vm->fsptr; ++fsptr) {
 		gc_mark(vm, vm->fstack[fsptr].ns);
 		gc_mark(vm, vm->fstack[fsptr].args);
 	}

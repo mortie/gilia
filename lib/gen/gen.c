@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtins.x.h"
 #include "bytecode.h"
 #include "io.h"
 #include "module.h"
@@ -61,7 +60,14 @@ static void put_d8le(struct gil_generator *gen, double num) {
 	gen->pos += 8;
 }
 
-void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w) {
+static gil_word builtin_init_alloc(void *ptr, const char *name) {
+	struct gil_generator *gen = ptr;
+	return gil_strset_put_copy(&gen->atomset, name);
+}
+
+void gil_gen_init(
+		struct gil_generator *gen, struct gil_io_writer *w,
+		struct gil_module *builtins) {
 	gil_strset_init(&gen->atomset);
 	gil_strset_init(&gen->stringset);
 	gen->strings = NULL;
@@ -74,17 +80,11 @@ void gil_gen_init(struct gil_generator *gen, struct gil_io_writer *w) {
 	gen->modules = NULL;
 	gen->moduleslen = 0;
 
-	// Register atoms for all builtins
-#define XNAME(name, k) \
-	gil_strset_put_copy(&gen->atomset, name);
-#define XATOM(name, k) \
-	gil_strset_put_copy(&gen->atomset, name);
-#define XFUNCTION(name, f) \
-	gil_strset_put_copy(&gen->atomset, name);
-#include "builtins.x.h"
-#undef XNAME
-#undef XATOM
-#undef XFUNCTION
+#define X(name, k) gil_strset_put_copy(&gen->atomset, name);
+	GIL_BYTECODE_ATOMS
+#undef X
+
+	builtins->init(builtins, builtin_init_alloc, gen);
 }
 
 static gil_word alloc_name(void *ptr, const char *name) {

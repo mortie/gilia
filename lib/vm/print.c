@@ -147,10 +147,7 @@ void gil_vm_print_state(struct gil_vm *vm) {
 }
 
 void gil_vm_print_heap(struct gil_vm *vm) {
-	printf("  Root: ");
-	gil_vm_print_val(&vm->values[2]);
-	printf("  0-%u: (builtins)\n", vm->gc_start - 1);
-	for (gil_word i = vm->gc_start; i < vm->valuessize; ++i) {
+	for (gil_word i = 0; i < vm->valuessize; ++i) {
 		if (gil_bitset_get(&vm->valueset, i)) {
 			printf("  %u: ", i);
 			gil_vm_print_val(&vm->values[i]);

@@ -7,6 +7,13 @@ typedef uint32_t gil_word;
 
 #define gil_bytecode_version 2
 
+// These atoms have a special meaning which all modules, the code generator,
+// the VM, and other consumers of bytecode must understand
+#define GIL_BYTECODE_ATOMS \
+	X("true", ktrue) \
+	X("false", kfalse) \
+	X("stop", kstop)
+
 enum gil_opcode {
 	/*
 	 * Do nothing.

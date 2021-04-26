@@ -13,6 +13,7 @@
 #include "gen/gen.h"
 #include "io.h"
 #include "loader.h"
+#include "modules/builtins.h"
 #include "modules/fs.h"
 #include "parse/lex.h"
 #include "parse/parse.h"
@@ -30,6 +31,7 @@ static int do_serialize_bytecode = 0;
 static int do_repl = 0;
 static char *input_filename = "-";
 
+static struct gil_module *builtin_module;
 static struct gil_module **modules;
 static size_t moduleslen;
 
@@ -46,7 +48,7 @@ static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 
 	// Init gen with its output writer
 	struct gil_generator gen;
-	gil_gen_init(&gen, &w->w);
+	gil_gen_init(&gen, &w->w, builtin_module);
 
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_gen_register_module(&gen, modules[i]);
@@ -113,10 +115,10 @@ static void repl() {
 	struct gil_lexer lexer;
 
 	struct gil_generator gen;
-	gil_gen_init(&gen, &w.w);
+	gil_gen_init(&gen, &w.w, builtin_module);
 
 	struct gil_vm vm;
-	gil_vm_init(&vm, NULL, 0);
+	gil_vm_init(&vm, NULL, 0, builtin_module);
 
 	while (1) {
 		char line[4096];
@@ -152,8 +154,8 @@ static void repl() {
 			gil_vm_free(&vm);
 			gil_gen_free(&gen);
 			w.len = 0;
-			gil_gen_init(&gen, &w.w);
-			gil_vm_init(&vm, NULL, 0);
+			gil_gen_init(&gen, &w.w, builtin_module);
+			gil_vm_init(&vm, NULL, 0, builtin_module);
 		} else if (w.len > 0) {
 			vm.ops = w.mem;
 			vm.opslen = w.len;
@@ -271,6 +273,14 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	builtin_module = gil_mod_builtins();
+
+	struct gil_module *mods[] = {
+		gil_mod_fs(),
+	};
+	modules = mods;
+	moduleslen = sizeof(mods) / sizeof(*mods); // NOLINT(bugprone-sizeof-expression)
+
 	if (do_repl) {
 		repl();
 		printf("\n");
@@ -287,12 +297,6 @@ skip_args:;
 		fprintf(stderr, "%s: Reading file failed.\n", input_filename);
 		return 1;
 	}
-
-	struct gil_module *mods[] = {
-		gil_mod_fs(),
-	};
-	modules = mods;
-	moduleslen = sizeof(mods) / sizeof(*mods); // NOLINT(bugprone-sizeof-expression)
 
 	// Detect whether input is compiled bytecode or not
 	// (compile bytecode starts with (ESC) 'g' 'l' 'c')
@@ -334,7 +338,7 @@ skip_args:;
 	}
 
 	struct gil_vm vm;
-	gil_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len);
+	gil_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len, builtin_module);
 
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_vm_register_module(&vm, modules[i]);

@@ -188,17 +188,19 @@ struct gil_vm {
 	struct gil_vm_stack_frame fstack[1024];
 	gil_word fsptr;
 
-	gil_word knone, ktrue, kfalse, kstop;
-	gil_word gc_start;
+	gil_word knone;
+	gil_word ktrue, kfalse, kstop;
 
 	gil_word next_ctype;
+	gil_word gc_start;
 
 	struct gil_strset atomset;
 	struct gil_vm_cmodule *modules;
 	size_t moduleslen;
 };
 
-void gil_vm_init(struct gil_vm *vm, unsigned char *ops, size_t opslen);
+void gil_vm_init(
+		struct gil_vm *vm, unsigned char *ops, size_t opslen, struct gil_module *builtins);
 void gil_vm_register_module(struct gil_vm *vm, struct gil_module *mod);
 gil_word gil_vm_alloc(struct gil_vm *vm, enum gil_value_type typ, enum gil_value_flags flags);
 gil_word gil_vm_alloc_ctype(struct gil_vm *vm);
