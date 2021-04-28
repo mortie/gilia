@@ -164,6 +164,7 @@ struct gil_module;
 
 struct gil_vm_cmodule {
 	gil_word id;
+	gil_word ns;
 	struct gil_module *mod;
 };
 
@@ -182,12 +183,6 @@ struct gil_vm {
 	size_t valuessize;
 	struct gil_bitset valueset;
 
-	gil_word stack[1024];
-	gil_word sptr;
-
-	struct gil_vm_stack_frame fstack[1024];
-	gil_word fsptr;
-
 	gil_word knone;
 	gil_word ktrue, kfalse, kstop;
 
@@ -197,6 +192,11 @@ struct gil_vm {
 	struct gil_strset atomset;
 	struct gil_vm_cmodule *modules;
 	size_t moduleslen;
+
+	gil_word sptr;
+	gil_word fsptr;
+	struct gil_vm_stack_frame fstack[1024];
+	gil_word stack[1024];
 };
 
 void gil_vm_init(

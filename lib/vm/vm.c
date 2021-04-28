@@ -231,7 +231,7 @@ void gil_vm_init(
 	gil_word none_id = alloc_val(vm);
 	assert(none_id == 0);
 	vm->values[none_id].flags = GIL_VAL_TYPE_NONE | GIL_VAL_CONST;
-	vm->knone = 0;
+	vm->knone = none_id;
 	vm->gc_start = 1;
 
 	gil_strset_init(&vm->atomset);
@@ -276,6 +276,7 @@ void gil_vm_register_module(struct gil_vm *vm, struct gil_module *mod) {
 	vm->moduleslen += 1;
 	vm->modules = realloc(vm->modules, vm->moduleslen * sizeof(*vm->modules));
 	vm->modules[vm->moduleslen - 1].id = id;
+	vm->modules[vm->moduleslen - 1].ns = 0;
 	vm->modules[vm->moduleslen - 1].mod = mod;
 }
 
@@ -357,8 +358,10 @@ size_t gil_vm_gc(struct gil_vm *vm) {
 
 	// Mark for all loaded modules
 	for (size_t i = 0; i < vm->moduleslen; ++i) {
-		gc_mark(vm, vm->modules[i].id);
-		vm->modules[i].mod->marker(vm->modules[i].mod, vm, gc_mark);
+		if (vm->modules[i].ns) {
+			gc_mark(vm, vm->modules[i].ns);
+			vm->modules[i].mod->marker(vm->modules[i].mod, vm, gc_mark);
+		}
 	}
 
 	return gc_sweep(vm);
@@ -575,6 +578,14 @@ void gil_vm_step(struct gil_vm *vm) {
 			gil_vm_gc(vm);
 		}
 
+		return;
+	}
+
+	if (
+			vm->sptr > (sizeof(vm->stack) / sizeof(*vm->stack)) - 32 ||
+			vm->fsptr > (sizeof(vm->fstack) / sizeof(*vm->fstack)) - 32) {
+		gil_io_printf(vm->std_error, "Stack overflow\n");
+		vm->halted = 1;
 		return;
 	}
 
@@ -895,8 +906,11 @@ void gil_vm_step(struct gil_vm *vm) {
 		int found = 0;
 		for (size_t i = 0; i < vm->moduleslen; ++i) {
 			if (vm->modules[i].id == word) {
-				vm->stack[vm->sptr++] = vm->modules[i].mod->create(
-						vm->modules[i].mod, vm, i);
+				if (vm->modules[i].ns == vm->knone) {
+					vm->modules[i].ns = vm->modules[i].mod->create(
+							vm->modules[i].mod, vm, i);
+				}
+				vm->stack[vm->sptr++] = vm->modules[i].ns;
 				found = 1;
 				break;
 			}
