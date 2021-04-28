@@ -95,11 +95,11 @@ struct gil_token_value gil_token_extract_val(struct gil_token *tok) {
 	return v;
 }
 
-const char *gil_token_get_str(struct gil_token *tok) {
-	if (gil_token_is_small(tok)) {
-		return tok->v.strbuf;
+const char *gil_token_get_str(struct gil_token_value *val) {
+	if (val->flags & GIL_TOK_SMALL) {
+		return val->strbuf;
 	} else {
-		return tok->v.str;
+		return val->str;
 	}
 }
 

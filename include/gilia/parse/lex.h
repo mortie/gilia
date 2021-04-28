@@ -62,7 +62,7 @@ struct gil_token {
 #define gil_token_is_small(tok) ((tok)->v.flags & GIL_TOK_SMALL)
 void gil_token_free(struct gil_token *tok);
 struct gil_token_value gil_token_extract_val(struct gil_token *tok);
-const char *gil_token_get_str(struct gil_token *tok);
+const char *gil_token_get_str(struct gil_token_value *val);
 void gil_token_print(struct gil_token *tok, struct gil_io_writer *w);
 
 struct gil_lexer {

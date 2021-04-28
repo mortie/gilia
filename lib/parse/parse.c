@@ -18,7 +18,7 @@ static int tok_is_end(struct gil_token *tok) {
 
 static int tok_is_infix(struct gil_token *tok) {
 	if (gil_token_get_kind(tok) != GIL_TOK_IDENT) return 0;
-	const char *str = gil_token_get_str(tok);
+	const char *str = gil_token_get_str(&tok->v);
 
 	return
 			(str[0] == '$' && str[1] != '\0') ||
@@ -255,7 +255,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx) {
 		gil_trace_scope("ident");
 		gil_trace("ident '%s'", gil_token_get_str(tok));
 		struct gil_token_value ident = gil_token_extract_val(tok);
-		if (strcmp(gil_token_get_str(tok), "$") == 0) {
+		if (strcmp(gil_token_get_str(&ident), "$") == 0) {
 			gil_lexer_consume(ctx->lexer); // ident
 			gil_gen_stack_frame_get_args(ctx->gen);
 		} else {
@@ -507,7 +507,7 @@ static int parse_expression(struct gil_parse_context *ctx) {
 
 	if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
-			strcmp(gil_token_get_str(tok), "import") == 0) {
+			strcmp(gil_token_get_str(&tok->v), "import") == 0) {
 		parse_import(ctx);
 	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&

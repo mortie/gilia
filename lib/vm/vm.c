@@ -692,7 +692,7 @@ void gil_vm_step(struct gil_vm *vm) {
 		gil_word length = read_uint(vm);
 		gil_word offset = read_uint(vm);
 		vm->values[word].flags = GIL_VAL_TYPE_BUFFER;
-		vm->values[word].buffer.buffer = length > 0 ? malloc(length + 1) : NULL;
+		vm->values[word].buffer.buffer = malloc(length + 1);
 		vm->values[word].buffer.length = length;
 		memcpy(vm->values[word].buffer.buffer, vm->ops + offset, length);
 		vm->values[word].buffer.buffer[length] = '\0';
