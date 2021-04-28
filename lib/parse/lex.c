@@ -167,7 +167,8 @@ static void skip_whitespace(struct gil_lexer *lexer, int *nl, int *skipped) {
 
 		if (peek_ch(lexer) == '#') {
 			*nl = 1;
-			while (read_ch(lexer) != '\n');
+			int ch = read_ch(lexer);
+			while (ch != '\n' && ch != EOF) ch = read_ch(lexer);
 		} else {
 			break;
 		}
