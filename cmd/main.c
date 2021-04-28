@@ -211,6 +211,8 @@ int main(int argc, char **argv) {
 				fseek(self, gil_binary_size, SEEK_SET);
 				inf = self;
 				goto skip_args;
+			} else {
+				fclose(self);
 			}
 		}
 	}
@@ -355,8 +357,4 @@ skip_args:;
 
 	gil_vm_free(&vm);
 	free(bytecode_writer.mem);
-
-	for (size_t i = 0; i < moduleslen; ++i) {
-		free(modules[i]);
-	}
 }
