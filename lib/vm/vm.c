@@ -36,12 +36,21 @@ static gil_word alloc_val(struct gil_vm *vm) {
 	return (gil_word)id;
 }
 
-static void gc_mark_array(struct gil_vm *vm, struct gil_vm_value *val);
-static void gc_mark_namespace(struct gil_vm *vm, struct gil_vm_value *val);
+static void gc_mark_array(struct gil_vm *vm, struct gil_vm_value *val, int depth);
+static void gc_mark_namespace(struct gil_vm *vm, struct gil_vm_value *val, int depth);
 
-static void gc_mark(struct gil_vm *vm, gil_word id) {
+static void gc_mark(struct gil_vm *vm, gil_word id, int depth) {
 	struct gil_vm_value *val = &vm->values[id];
 	if (val->flags & GIL_VAL_MARKED) {
+		return;
+	}
+
+	if (depth > 300) {
+		if (!vm->halted) {
+			gil_io_printf(vm->std_error, "GC recursion limit reached\n");
+			vm->halted = 1;
+		}
+
 		return;
 	}
 
@@ -49,28 +58,28 @@ static void gc_mark(struct gil_vm *vm, gil_word id) {
 
 	int typ = gil_value_get_type(val);
 	if (typ == GIL_VAL_TYPE_ARRAY) {
-		gc_mark_array(vm, val);
+		gc_mark_array(vm, val, depth + 1);
 	} else if (typ == GIL_VAL_TYPE_NAMESPACE) {
-		gc_mark_namespace(vm, val);
+		gc_mark_namespace(vm, val, depth + 1);
 	} else if (typ == GIL_VAL_TYPE_FUNCTION) {
-		gc_mark(vm, val->func.ns);
-		gc_mark(vm, val->func.self);
+		gc_mark(vm, val->func.ns, depth + 1);
+		gc_mark(vm, val->func.self, depth + 1);
 	} else if (typ == GIL_VAL_TYPE_CFUNCTION) {
-		gc_mark(vm, val->cfunc.self);
+		gc_mark(vm, val->cfunc.self, depth + 1);
 	} else if (typ == GIL_VAL_TYPE_CONTINUATION) {
-		gc_mark(vm, val->cont.call);
+		gc_mark(vm, val->cont.call, depth + 1);
 		if (val->cont.cont != NULL) {
 			if (val->cont.cont->marker != NULL) {
-				val->cont.cont->marker(vm, val->cont.cont, gc_mark);
+				val->cont.cont->marker(vm, val->cont.cont, depth + 1, gc_mark);
 			}
 			if (val->cont.cont->args != 0) {
-				gc_mark(vm, val->cont.cont->args);
+				gc_mark(vm, val->cont.cont->args, depth + 1);
 			}
 		}
 	}
 }
 
-static void gc_mark_array(struct gil_vm *vm, struct gil_vm_value *val) {
+static void gc_mark_array(struct gil_vm *vm, struct gil_vm_value *val, int depth) {
 	gil_word *data;
 	if (val->flags & GIL_VAL_SBO) {
 		data = val->array.shortarray;
@@ -79,13 +88,13 @@ static void gc_mark_array(struct gil_vm *vm, struct gil_vm_value *val) {
 	}
 
 	for (size_t i = 0; i < val->array.length; ++i) {
-		gc_mark(vm, data[i]);
+		gc_mark(vm, data[i], depth + 1);
 	}
 }
 
-static void gc_mark_namespace(struct gil_vm *vm, struct gil_vm_value *val) {
+static void gc_mark_namespace(struct gil_vm *vm, struct gil_vm_value *val, int depth) {
 	if (val->ns.parent != 0) {
-		gc_mark(vm, val->ns.parent);
+		gc_mark(vm, val->ns.parent, depth + 1);
 	}
 
 	if (val->ns.ns == NULL) {
@@ -98,8 +107,12 @@ static void gc_mark_namespace(struct gil_vm *vm, struct gil_vm_value *val) {
 			continue;
 		}
 
-		gc_mark(vm, val->ns.ns->data[val->ns.ns->size + i]);
+		gc_mark(vm, val->ns.ns->data[val->ns.ns->size + i], depth + 1);
 	}
+}
+
+static void gc_mark_base(struct gil_vm *vm, gil_word id) {
+	gc_mark(vm, id, 0);
 }
 
 static void gc_free(struct gil_vm *vm, gil_word id) {
@@ -348,19 +361,19 @@ void gil_vm_free(struct gil_vm *vm) {
 
 size_t gil_vm_gc(struct gil_vm *vm) {
 	for (gil_word sptr = 0; sptr < vm->sptr; ++sptr) {
-		gc_mark(vm, vm->stack[sptr]);
+		gc_mark_base(vm, vm->stack[sptr]);
 	}
 
 	for (gil_word fsptr = 0; fsptr < vm->fsptr; ++fsptr) {
-		gc_mark(vm, vm->fstack[fsptr].ns);
-		gc_mark(vm, vm->fstack[fsptr].args);
+		gc_mark_base(vm, vm->fstack[fsptr].ns);
+		gc_mark_base(vm, vm->fstack[fsptr].args);
 	}
 
 	// Mark for all loaded modules
 	for (size_t i = 0; i < vm->moduleslen; ++i) {
 		if (vm->modules[i].ns) {
-			gc_mark(vm, vm->modules[i].ns);
-			vm->modules[i].mod->marker(vm->modules[i].mod, vm, gc_mark);
+			gc_mark_base(vm, vm->modules[i].ns);
+			vm->modules[i].mod->marker(vm->modules[i].mod, vm, gc_mark_base);
 		}
 	}
 

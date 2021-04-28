@@ -8,7 +8,12 @@
 #include "module.h"
 #include "vm/vm.h"
 
-static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_vm_value *val) {
+static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_vm_value *val, int depth) {
+	if (depth > 300) {
+		gil_io_printf(out, "Print recursion limit reached\n");
+		return;
+	}
+
 	switch (gil_value_get_type(val)) {
 		case GIL_VAL_TYPE_NONE:
 			gil_io_printf(out, "(none)");
@@ -48,7 +53,7 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 					out->write(out, " ", 1);
 				}
 
-				print_val(vm, out, &vm->values[data[i]]);
+				print_val(vm, out, &vm->values[data[i]], depth + 1);
 			}
 			out->write(out, "]", 1);
 			break;
@@ -258,7 +263,7 @@ static gil_word builtin_print(
 		}
 
 		struct gil_vm_value *val = &vm->values[argv[i]];
-		print_val(vm, vm->std_output, val);
+		print_val(vm, vm->std_output, val, 0);
 	}
 
 	vm->std_output->write(vm->std_output, "\n", 1);
@@ -270,7 +275,7 @@ static gil_word builtin_write(
 		gil_word argc, gil_word *argv) {
 	for (size_t i = 0; i < argc; ++i) {
 		struct gil_vm_value *val = &vm->values[argv[i]];
-		print_val(vm, vm->std_output, val);
+		print_val(vm, vm->std_output, val, 0);
 	}
 
 	return vm->knone;
@@ -359,9 +364,10 @@ static gil_word loop_callback(struct gil_vm *vm, gil_word retval, gil_word cont)
 }
 
 static void loop_marker(
-		struct gil_vm *vm, void *data, void (*mark)(struct gil_vm *vm, gil_word id)) {
+		struct gil_vm *vm, void *data, int depth,
+		void (*mark)(struct gil_vm *vm, gil_word id, int depth)) {
 	struct loop_context *ctx = data;
-	mark(vm, ctx->func);
+	mark(vm, ctx->func, depth + 1);
 }
 
 static gil_word builtin_loop(
@@ -420,10 +426,11 @@ static gil_word while_callback(struct gil_vm *vm, gil_word retval, gil_word cont
 }
 
 static void while_marker(
-		struct gil_vm *vm, void *data, void (*mark)(struct gil_vm *vm, gil_word id)) {
+		struct gil_vm *vm, void *data, int depth,
+		void (*mark)(struct gil_vm *vm, gil_word id, int depth)) {
 	struct while_context *ctx = data;
-	mark(vm, ctx->cond);
-	mark(vm, ctx->body);
+	mark(vm, ctx->cond, depth + 1);
+	mark(vm, ctx->body, depth + 1);
 }
 
 static gil_word builtin_while(
@@ -486,10 +493,11 @@ static gil_word for_callback(struct gil_vm *vm, gil_word retval, gil_word cont_i
 }
 
 static void for_marker(
-		struct gil_vm *vm, void *data, void (*mark)(struct gil_vm *vm, gil_word id)) {
+		struct gil_vm *vm, void *data, int depth,
+		void (*mark)(struct gil_vm *vm, gil_word id, int depth)) {
 	struct for_context *ctx = data;
-	mark(vm, ctx->iter);
-	mark(vm, ctx->func);
+	mark(vm, ctx->iter, depth + 1);
+	mark(vm, ctx->func, depth + 1);
 }
 
 static gil_word builtin_for(

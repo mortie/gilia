@@ -15,7 +15,8 @@ typedef gil_word (*gil_vm_cfunction)(
 typedef gil_word (*gil_vm_contcallback)(
 		struct gil_vm *vm, gil_word retval, gil_word cont);
 typedef void (*gil_vm_gcmarker)(
-		struct gil_vm *vm, void *data, void (*mark)(struct gil_vm *vm, gil_word id));
+		struct gil_vm *vm, void *data, int depth,
+		void (*mark)(struct gil_vm *vm, gil_word id, int depth));
 
 enum gil_value_type {
 	GIL_VAL_TYPE_NONE,
