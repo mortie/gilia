@@ -37,15 +37,16 @@ static int tok_is_infix(struct gil_token *tok) {
 			strcmp(str, "??") == 0;
 }
 
-static int parse_expression(struct gil_parse_context *ctx);
-static int parse_expression(struct gil_parse_context *ctx);
-static int parse_arg_level_expression(struct gil_parse_context *ctx);
+static int parse_program(struct gil_parse_context *ctx, int depth);
+static int parse_expression(struct gil_parse_context *ctx, int depth);
+static int parse_expression(struct gil_parse_context *ctx, int depth);
+static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth);
 
-static int import_callback(void *ptr) {
-	return gil_parse_program(ptr);
+static int import_callback(void *ptr, int depth) {
+	return parse_program(ptr, depth + 1);
 }
 
-static int parse_import(struct gil_parse_context *ctx) {
+static int parse_import(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("import");
 
 	gil_lexer_consume(ctx->lexer); // ident 'import'
@@ -61,12 +62,12 @@ static int parse_import(struct gil_parse_context *ctx) {
 	gil_lexer_consume(ctx->lexer);
 
 	if (val.flags & GIL_TOK_SMALL) {
-		if (gil_gen_import_copy(ctx->gen, val.strbuf, import_callback, ctx) < 0) {
+		if (gil_gen_import_copy(ctx->gen, val.strbuf, import_callback, ctx, depth) < 0) {
 			gil_parse_err(ctx->err, tok, "'%s': Import failed", val.strbuf);
 			return -1;
 		}
 	} else {
-		if (gil_gen_import(ctx->gen, &val.str, import_callback, ctx) < 0) {
+		if (gil_gen_import(ctx->gen, &val.str, import_callback, ctx, depth) < 0) {
 			gil_parse_err(ctx->err, tok, "'%s': Import failed", val.str);
 			free(val.str);
 			return -1;
@@ -76,7 +77,7 @@ static int parse_import(struct gil_parse_context *ctx) {
 	return 0;
 }
 
-static int parse_object_literal(struct gil_parse_context *ctx) {
+static int parse_object_literal(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("object literal");
 	// '{' and EOL already skipped by parse_object_or_function_literal
 
@@ -107,7 +108,7 @@ static int parse_object_literal(struct gil_parse_context *ctx) {
 
 		gil_lexer_consume(ctx->lexer); // ':'
 
-		if (parse_expression(ctx) < 0) {
+		if (parse_expression(ctx, depth + 1) < 0) {
 			if (!(key.flags & GIL_TOK_SMALL)) free(key.str);
 			return -1;
 		}
@@ -137,7 +138,7 @@ static int parse_object_literal(struct gil_parse_context *ctx) {
 	return 0;
 }
 
-static int parse_function_literal(struct gil_parse_context *ctx) {
+static int parse_function_literal(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("function literal");
 
 	gil_word reloc_pos = ctx->gen->pos + 1;
@@ -158,7 +159,7 @@ static int parse_function_literal(struct gil_parse_context *ctx) {
 		}
 
 		gil_trace_scope("function literal expression");
-		if (parse_expression(ctx) < 0) {
+		if (parse_expression(ctx, depth + 1) < 0) {
 			return -1;
 		}
 
@@ -179,7 +180,7 @@ static int parse_function_literal(struct gil_parse_context *ctx) {
 	return 0;
 }
 
-static int parse_object_or_function_literal(struct gil_parse_context *ctx) {
+static int parse_object_or_function_literal(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("object or function literal");
 	gil_lexer_consume(ctx->lexer); // '{'
 	gil_lexer_skip_opt(ctx->lexer, GIL_TOK_EOL);
@@ -194,11 +195,11 @@ static int parse_object_or_function_literal(struct gil_parse_context *ctx) {
 	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_COLON) {
-		if (parse_object_literal(ctx) < 0) {
+		if (parse_object_literal(ctx, depth + 1) < 0) {
 			return -1;
 		}
 	} else {
-		if (parse_function_literal(ctx) < 0) {
+		if (parse_function_literal(ctx, depth + 1) < 0) {
 			return -1;
 		}
 	}
@@ -206,7 +207,7 @@ static int parse_object_or_function_literal(struct gil_parse_context *ctx) {
 	return 0;
 }
 
-static int parse_array_literal(struct gil_parse_context *ctx) {
+static int parse_array_literal(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("array literal");
 	gil_lexer_consume(ctx->lexer); // '['
 	gil_lexer_skip_opt(ctx->lexer, GIL_TOK_EOL);
@@ -219,7 +220,7 @@ static int parse_array_literal(struct gil_parse_context *ctx) {
 		}
 
 		count += 1;
-		if (parse_arg_level_expression(ctx) < 0) {
+		if (parse_arg_level_expression(ctx, depth + 1) < 0) {
 			return -1;
 		}
 
@@ -230,16 +231,21 @@ static int parse_array_literal(struct gil_parse_context *ctx) {
 	return 0;
 }
 
-static int parse_arg_level_expression_base(struct gil_parse_context *ctx) {
+static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("arg level expression base");
 	struct gil_token *tok = gil_lexer_peek(ctx->lexer, 1);
 	struct gil_token *tok2 = gil_lexer_peek(ctx->lexer, 2);
+
+	if (depth > 1000) {
+		gil_parse_err(ctx->err, tok, "Recursion limit reached");
+		return -1;
+	}
 
 	if (gil_token_get_kind(tok) == GIL_TOK_OPEN_PAREN) {
 		gil_trace_scope("group expr");
 		gil_lexer_consume(ctx->lexer); // '('
 
-		if (parse_expression(ctx) < 0) {
+		if (parse_expression(ctx, depth + 1) < 0) {
 			return -1;
 		}
 
@@ -300,11 +306,11 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx) {
 			gil_gen_atom(ctx->gen, &ident.str);
 		}
 	} else if (gil_token_get_kind(tok) == GIL_TOK_OPEN_BRACE) {
-		if (parse_object_or_function_literal(ctx) < 0) {
+		if (parse_object_or_function_literal(ctx, depth + 1) < 0) {
 			return -1;
 		}
 	} else if (gil_token_get_kind(tok) == GIL_TOK_OPEN_BRACKET) {
-		if (parse_array_literal(ctx) < 0) {
+		if (parse_array_literal(ctx, depth + 1) < 0) {
 			return -1;
 		}
 	} else {
@@ -317,7 +323,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx) {
 }
 
 static int parse_func_call_after_base(
-		struct gil_parse_context *ctx, size_t infix_start) {
+		struct gil_parse_context *ctx, size_t infix_start, int depth) {
 	gil_trace_scope("func call after base");
 
 	size_t argc = 0;
@@ -329,7 +335,7 @@ static int parse_func_call_after_base(
 				// so we need to parse the operator, then the rhs
 
 				// Operator
-				int ret = parse_arg_level_expression(ctx);
+				int ret = parse_arg_level_expression(ctx, depth + 1);
 				if (ret < 0) {
 					return -1;
 				}
@@ -342,7 +348,7 @@ static int parse_func_call_after_base(
 				}
 
 				// RHS
-				if (parse_arg_level_expression(ctx) < 0) {
+				if (parse_arg_level_expression(ctx, depth + 1) < 0) {
 					return -1;
 				}
 
@@ -359,7 +365,7 @@ static int parse_func_call_after_base(
 			// neither added nor removed an arguemnt, just transformed one
 		} else {
 			gil_trace_scope("func call param");
-			if (parse_arg_level_expression(ctx) < 0) {
+			if (parse_arg_level_expression(ctx, depth + 1) < 0) {
 				return -1;
 			}
 
@@ -373,9 +379,9 @@ static int parse_func_call_after_base(
 	return 0;
 }
 
-static int parse_arg_level_expression(struct gil_parse_context *ctx) {
+static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("arg level expression");
-	if (parse_arg_level_expression_base(ctx) < 0) {
+	if (parse_arg_level_expression_base(ctx, depth + 1) < 0) {
 		return -1;
 	}
 
@@ -393,7 +399,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx) {
 				gil_lexer_consume(ctx->lexer); // ')'
 				gil_gen_func_call(ctx->gen, 0);
 			} else {
-				if (parse_func_call_after_base(ctx, 1) < 0) {
+				if (parse_func_call_after_base(ctx, 1, depth + 1) < 0) {
 					return -1;
 				}
 
@@ -416,7 +422,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx) {
 			gil_lexer_consume(ctx->lexer); // ident
 			gil_lexer_consume(ctx->lexer); // '='
 
-			if (parse_expression(ctx) < 0) {
+			if (parse_expression(ctx, depth + 1) < 0) {
 			if (!(ident.flags & GIL_TOK_SMALL)) free(ident.str);
 				return -1;
 			}
@@ -449,7 +455,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx) {
 			gil_lexer_consume(ctx->lexer); // dot-number
 			gil_lexer_consume(ctx->lexer); // '='
 
-			if (parse_expression(ctx) < 0) {
+			if (parse_expression(ctx, depth + 1) < 0) {
 				return -1;
 			}
 
@@ -468,7 +474,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx) {
 			gil_lexer_consume(ctx->lexer); // '.'
 			gil_lexer_consume(ctx->lexer); // '('
 
-			if (parse_expression(ctx) < 0) {
+			if (parse_expression(ctx, depth + 1) < 0) {
 				return -1;
 			}
 
@@ -482,7 +488,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx) {
 
 			if (gil_token_get_kind(gil_lexer_peek(ctx->lexer, 1)) == GIL_TOK_EQUALS) {
 				gil_lexer_consume(ctx->lexer); // '='
-				if (parse_expression(ctx) < 0) {
+				if (parse_expression(ctx, depth + 1) < 0) {
 					return -1;
 				}
 
@@ -500,15 +506,21 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx) {
 	return ret;
 }
 
-static int parse_expression(struct gil_parse_context *ctx) {
+static int parse_expression(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("expression");
+
 	struct gil_token *tok = gil_lexer_peek(ctx->lexer, 1);
 	struct gil_token *tok2 = gil_lexer_peek(ctx->lexer, 2);
+
+	if (depth > 1000) {
+		gil_parse_err(ctx->err, tok, "Recursion limit reached");
+		return -1;
+	}
 
 	if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			strcmp(gil_token_get_str(&tok->v), "import") == 0) {
-		parse_import(ctx);
+		parse_import(ctx, depth + 1);
 	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_COLON_EQ) {
@@ -518,7 +530,7 @@ static int parse_expression(struct gil_parse_context *ctx) {
 		gil_lexer_consume(ctx->lexer); // ident
 		gil_lexer_consume(ctx->lexer); // :=
 
-		if (parse_expression(ctx) < 0) {
+		if (parse_expression(ctx, depth + 1) < 0) {
 			if (!(ident.flags & GIL_TOK_SMALL)) free(ident.str);
 			return -1;
 		}
@@ -537,7 +549,7 @@ static int parse_expression(struct gil_parse_context *ctx) {
 		gil_lexer_consume(ctx->lexer); // ident
 		gil_lexer_consume(ctx->lexer); // =
 
-		if (parse_expression(ctx) < 0) {
+		if (parse_expression(ctx, depth + 1) < 0) {
 			if (!(ident.flags & GIL_TOK_SMALL)) free(ident.str);
 			return -1;
 		}
@@ -548,12 +560,12 @@ static int parse_expression(struct gil_parse_context *ctx) {
 			gil_gen_stack_frame_replace(ctx->gen, &ident.str);
 		}
 	} else {
-		if (parse_arg_level_expression(ctx) < 0) {
+		if (parse_arg_level_expression(ctx, depth + 1) < 0) {
 			return -1;
 		}
 
 		if (!tok_is_end(gil_lexer_peek(ctx->lexer, 1))) {
-			if (parse_func_call_after_base(ctx, 0) < 0) {
+			if (parse_func_call_after_base(ctx, 0, depth + 1) < 0) {
 				return -1;
 			}
 		}
@@ -562,7 +574,7 @@ static int parse_expression(struct gil_parse_context *ctx) {
 	return 0;
 }
 
-int gil_parse_program(struct gil_parse_context *ctx) {
+static int parse_program(struct gil_parse_context *ctx, int depth) {
 	gil_trace_scope("program");
 	while (1) {
 		gil_lexer_skip_opt(ctx->lexer, GIL_TOK_EOL);
@@ -570,7 +582,7 @@ int gil_parse_program(struct gil_parse_context *ctx) {
 			break;
 		}
 
-		if (parse_expression(ctx) < 0) {
+		if (parse_expression(ctx, depth + 1) < 0) {
 			gil_gen_halt(ctx->gen);
 			gil_gen_flush(ctx->gen);
 			return -1;
@@ -582,4 +594,8 @@ int gil_parse_program(struct gil_parse_context *ctx) {
 	gil_gen_halt(ctx->gen);
 	gil_gen_flush(ctx->gen);
 	return 0;
+}
+
+int gil_parse_program(struct gil_parse_context *ctx) {
+	return parse_program(ctx, 0);
 }

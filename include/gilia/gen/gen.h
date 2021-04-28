@@ -44,10 +44,10 @@ void gil_gen_add_reloc(struct gil_generator *gen, gil_word pos, gil_word rep);
 
 int gil_gen_import(
 		struct gil_generator *gen, char **str,
-		int (*callback)(void *data), void *data);
+		int (*callback)(void *data, int depth), void *data, int depth);
 int gil_gen_import_copy(
 		struct gil_generator *gen, const char *str,
-		int (*callback)(void *data), void *data);
+		int (*callback)(void *data, int depth), void *data, int depth);
 
 void gil_gen_halt(struct gil_generator *gen);
 void gil_gen_rjmp(struct gil_generator *gen, gil_word len);

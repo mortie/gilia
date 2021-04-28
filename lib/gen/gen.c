@@ -139,7 +139,7 @@ static int gen_cmodule(struct gil_generator *gen, const char *str) {
 
 int gil_gen_import(
 		struct gil_generator *gen, char **str,
-		int (*callback)(void *data), void *data) {
+		int (*callback)(void *data, int depth), void *data, int depth) {
 	int ret = gen_cmodule(gen, *str);
 	if (ret != 0) {
 		if (ret < 0) {
@@ -156,7 +156,7 @@ int gil_gen_import(
 
 int gil_gen_import_copy(
 		struct gil_generator *gen, const char *str,
-		int (*callback)(void *data), void *data) {
+		int (*callback)(void *data, int depth), void *data, int depth) {
 	int ret = gen_cmodule(gen, str);
 	if (ret != 0) {
 		if (ret < 0) {
