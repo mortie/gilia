@@ -15,7 +15,7 @@ for f in output/*/crashes/*; do
 
 	echo
 	echo "=== Running: $f"
-	valgrind -q ./gilia/gilia "$f"
+	valgrind -q ./gilia/gilia --timeout 0.8 "$f"
 
 	echo "OK? [Y/n]"
 	read ans

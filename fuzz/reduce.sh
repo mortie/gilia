@@ -12,4 +12,4 @@ else
 	outfile="$2"
 fi
 
-afl-tmin -i "$infile" -o "$outfile" -- ./gilia/gilia -
+afl-tmin -i "$infile" -o "$outfile" -- ./gilia/gilia --timeout 0.8 -

@@ -15,7 +15,7 @@ make -C .. OUT=fuzz/gilia CC=afl-clang -j $workers
 ulimit -s 700
 ulimit -a
 
-(afl-fuzz -i examples -o output -M fuzz1 -- gilia/gilia @@ | cat) &
+(afl-fuzz -i examples -o output -M fuzz1 -- gilia/gilia --timeout 0.8 - | cat) &
 main=$!
 
 sleep 1
@@ -25,7 +25,7 @@ if ! kill -0 $main 2>/dev/null; then
 fi
 
 for i in $(seq 2 $workers); do
-	(afl-fuzz -i examples -o output -S fuzz$i -- gilia/gilia - | cat) &
+	(afl-fuzz -i examples -o output -S fuzz$i -- gilia/gilia --timeout 0.8 - | cat) &
 done
 
 wait
