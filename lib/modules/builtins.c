@@ -9,7 +9,7 @@
 #include "vm/vm.h"
 
 static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_vm_value *val, int depth) {
-	if (depth > 300) {
+	if (depth > GIL_MAX_STACK_DEPTH) {
 		gil_io_printf(out, "Print recursion limit reached");
 		return;
 	}

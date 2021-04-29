@@ -61,7 +61,6 @@ static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 				input_filename, err.line, err.ch, err.message);
 		gil_parse_error_free(&err);
 		gil_gen_free(&gen);
-		fclose(inf);
 		return -1;
 	}
 
@@ -322,6 +321,8 @@ skip_args:;
 		return 1;
 	} else {
 		if (parse_text(inf, &bytecode_writer) < 0) {
+			fclose(inf);
+			free(bytecode_writer.mem);
 			return 1;
 		}
 	}

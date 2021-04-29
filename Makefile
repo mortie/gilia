@@ -1,7 +1,20 @@
 OUT ?= build
 CFLAGS += -Iinclude/gilia -fPIC -g -O2 \
-	-Wall -Wextra -Wno-unused-parameter
+	-Wall -Wextra -Wno-unused-parameter -Wpedantic
 LDLIBS += -lreadline
+
+# This is the max depth for all recursive algorithms in Gilia.
+# The assumptions which led to the number are as follows:
+# * There is at least 1MiB of stack memory available. (This is the stack size on Windows.)
+# * Gilia should use at most 1/4 of the total stack available in recursive 
+#   algorithms.
+# * Each stack frame will definitely use <=512 bytes of stack memory.
+# This gives (1MiB / 4) / 512b = 512.
+# If you compile Gilia for a system with a small amount of stack, you may want
+# to do a more careful analysis to ensure you're within bounds.
+MAX_STACK_DEPTH ?= 512
+
+CFLAGS += -DGIL_MAX_STACK_DEPTH=$(MAX_STACK_DEPTH)
 
 OBJCOPY ?= objcopy
 STRIP ?= strip

@@ -236,7 +236,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 	struct gil_token *tok = gil_lexer_peek(ctx->lexer, 1);
 	struct gil_token *tok2 = gil_lexer_peek(ctx->lexer, 2);
 
-	if (depth > 1000) {
+	if (depth > GIL_MAX_STACK_DEPTH) {
 		gil_parse_err(ctx->err, tok, "Recursion limit reached");
 		return -1;
 	}
@@ -512,7 +512,7 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 	struct gil_token *tok = gil_lexer_peek(ctx->lexer, 1);
 	struct gil_token *tok2 = gil_lexer_peek(ctx->lexer, 2);
 
-	if (depth > 1000) {
+	if (depth > GIL_MAX_STACK_DEPTH) {
 		gil_parse_err(ctx->err, tok, "Recursion limit reached");
 		return -1;
 	}

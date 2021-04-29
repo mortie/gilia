@@ -16,21 +16,39 @@ static struct gil_io_file_writer std_output;
 static struct gil_io_file_writer std_error;
 
 static gil_word alloc_val(struct gil_vm *vm) {
+	// The idea here is:
+	// * If there are less than 32 slots left, trigger a GC.
+	// * If there are less than 16 slots left, realloc.
+	// * If the realloc failed, halt the vm. This gives us some runway,
+	//   because things may continue to allocate and use values
+	//   after the alloc_val and before we get back to the main loop.
+	// When we move to a generational GC,
+	// all of this logic has to be rewritten.
 	size_t id = gil_bitset_set_next(&vm->valueset);
-	if (id + 16 >= vm->valuessize) {
-		if (id >= vm->valuessize) {
-			if (vm->valuessize == 0) {
-				vm->valuessize = 128;
+	if (id + 32 >= vm->valuessize) {
+		if (id + 16 >= vm->valuessize) {
+			size_t valuessize = vm->valuessize;
+			while (id + 16 >= valuessize) {
+				valuessize *= 2;
 			}
 
-			while (id >= vm->valuessize) {
-				vm->valuessize *= 2;
+			struct gil_vm_value *newvalues = realloc(
+					vm->values, sizeof(*vm->values) * valuessize);
+			if (newvalues != NULL) {
+				vm->values = newvalues;
+				vm->valuessize = valuessize;
+			} else if (!vm->halted) {
+				gil_io_printf(vm->std_error, "Allocation failure\n");
+				vm->halted = 1;
+			} else if (id == vm->valuessize) {
+				// This is bad. If we get here more than once,
+				// we may leak memory for real.
+				gil_io_printf(vm->std_error, "Critical allocation failure!\n");
+				id = vm->knone;
 			}
-
-			vm->values = realloc(vm->values, sizeof(*vm->values) * vm->valuessize);
-		} else {
-			vm->need_gc = 1;
 		}
+
+		vm->need_gc = 1;
 	}
 
 	return (gil_word)id;
@@ -45,7 +63,7 @@ static void gc_mark(struct gil_vm *vm, gil_word id, int depth) {
 		return;
 	}
 
-	if (depth > 300) {
+	if (depth > GIL_MAX_STACK_DEPTH) {
 		if (!vm->halted) {
 			gil_io_printf(vm->std_error, "GC recursion limit reached\n");
 			vm->halted = 1;
@@ -235,8 +253,13 @@ void gil_vm_init(
 	vm->sptr = 0;
 	vm->fsptr = 0;
 
-	vm->values = NULL;
-	vm->valuessize = 0;
+	vm->valuessize = 128;
+	vm->values = malloc(sizeof(*vm->values) * vm->valuessize);
+	if (vm->values == NULL) {
+		gil_io_printf(vm->std_error, "Allocation failure\n");
+		vm->halted = 1;
+		return;
+	}
 	gil_bitset_init(&vm->valueset);
 
 	// It's wasteful to allocate new 'none' variables all the time,
@@ -318,17 +341,38 @@ gil_word gil_vm_error(struct gil_vm *vm, const char *fmt, ...) {
 	if (n < 0) {
 		const char *message = "Failed to generate error message!";
 		val->error.error = malloc(strlen(message) + 1);
+		if (val->error.error == NULL) {
+			gil_io_printf(vm->std_error, "Allocation failure\n");
+			vm->halted = 1;
+			va_end(va);
+			return vm->knone;
+		}
+
 		strcpy(val->error.error, message);
 		va_end(va);
 		return id;
 	} else if ((size_t)n + 1 < sizeof(buf)) {
 		val->error.error = malloc(n + 1);
+		if (val->error.error == NULL) {
+			gil_io_printf(vm->std_error, "Allocation failure\n");
+			vm->halted = 1;
+			va_end(va);
+			return vm->knone;
+		}
+
 		strcpy(val->error.error, buf);
 		va_end(va);
 		return id;
 	}
 
 	val->error.error = malloc(n + 1);
+	if (val->error.error == NULL) {
+		gil_io_printf(vm->std_error, "Allocation failure\n");
+		vm->halted = 1;
+		va_end(va);
+		return vm->knone;
+	}
+
 	vsnprintf(val->error.error, n + 1, fmt, va);
 	va_end(va);
 	return id;
@@ -532,6 +576,13 @@ static void call_func(
 			args->flags = GIL_VAL_TYPE_ARRAY;
 			args->array.array = malloc(
 					sizeof(struct gil_vm_array) + sizeof(gil_word) * argc);
+			if (args->array.array == NULL) {
+				gil_io_printf(vm->std_error, "Allocation failure\n");
+				vm->stack[vm->sptr++] = vm->knone;
+				vm->halted = 1;
+				return;
+			}
+
 			args->array.array->size = argc;
 			memcpy(args->array.array->data, argv, argc * sizeof(gil_word));
 		}
@@ -717,6 +768,12 @@ void gil_vm_step(struct gil_vm *vm) {
 		gil_word offset = read_uint(vm);
 		vm->values[word].flags = GIL_VAL_TYPE_BUFFER;
 		vm->values[word].buffer.buffer = malloc(length + 1);
+		if (vm->values[word].buffer.buffer == NULL) {
+			gil_io_printf(vm->std_error, "Allocation failure\n");
+			vm->halted = 1;
+			break;
+		}
+
 		vm->values[word].buffer.length = length;
 		memcpy(vm->values[word].buffer.buffer, vm->ops + offset, length);
 		vm->values[word].buffer.buffer[length] = '\0';
@@ -737,6 +794,12 @@ void gil_vm_step(struct gil_vm *vm) {
 		} else {
 			arr->flags = GIL_VAL_TYPE_ARRAY;
 			arr->array.array = malloc(sizeof(struct gil_vm_array) + count * sizeof(gil_word));
+			if (arr->array.array == NULL) {
+				gil_io_printf(vm->std_error, "Allocation failure\n");
+				vm->halted = 1;
+				break;
+			}
+
 			arr->array.array->size = count;
 			data = arr->array.array->data;
 		}
