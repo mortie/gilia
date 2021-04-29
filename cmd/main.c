@@ -1,9 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef __unix__
 #define USE_READLINE
+#define USE_POSIX
+#include <time.h>
 #include <unistd.h>
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -187,9 +190,16 @@ static void usage(const char *argv0) {
 	printf("  --step:            Step through the program\n");
 	printf("  --repl:            Start a repl\n");
 	printf("  --output,-o <out>: Write bytecode to file\n");
+#ifdef USE_POSIX
+	printf("  --timeout <secs>:  Run instructions for <secs> seconds\n");
+#endif
 }
 
 int main(int argc, char **argv) {
+#ifdef USE_POSIX
+	double timeout = -1;
+#endif
+
 	int was_inf_set = 0;
 	FILE *inf = stdin;
 	FILE *outbc = NULL;
@@ -217,7 +227,7 @@ int main(int argc, char **argv) {
 	}
 #endif
 
-#ifdef __unix__
+#ifdef USE_POSIX
 	do_repl = isatty(0);
 #endif
 
@@ -252,6 +262,16 @@ int main(int argc, char **argv) {
 					return 1;
 				}
 			}
+#ifdef USE_POSIX
+		} else if (!dashes && strcmp(argv[i], "--timeout") == 0) {
+			if (i == argc - 1) {
+				fprintf(stderr, "%s expects an argument\n", argv[i]);
+				return 1;
+			}
+
+			i += 1;
+			timeout = strtod(argv[i], NULL);
+#endif
 		} else if (strcmp(argv[i], "--") == 0) {
 			dashes = 1;
 		} else if (strcmp(argv[i], "-") == 0) {
@@ -352,6 +372,43 @@ skip_args:;
 
 	if (do_step) {
 		step_through(&vm);
+#ifdef USE_POSIX
+	} else if (timeout > 0) {
+		// I usually like to work with time as doubles containing seconds,
+		// but we're gonna have to check if we're over after every single instruction,
+		// so we do some work ahead of time to make that check really cheap
+		// in the hot loop
+		struct timespec end, now;
+		if (clock_gettime(CLOCK_MONOTONIC, &end) < 0) {
+			perror("clock_gettime");
+			gil_vm_free(&vm);
+			free(bytecode_writer.mem);
+			return 1;
+		}
+
+		end.tv_sec += (time_t)timeout;
+		end.tv_nsec += (long)((timeout - (long)timeout) * 1000000000);
+		if (end.tv_nsec > 1000000000) {
+			end.tv_nsec -= 1000000000;
+			end.tv_sec += 1;
+		}
+
+		while (!vm.halted) {
+			gil_vm_step(&vm);
+
+			if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
+				perror("clock_gettime");
+				gil_vm_free(&vm);
+				free(bytecode_writer.mem);
+				return 1;
+			} else if (
+					now.tv_sec > end.tv_sec ||
+					(now.tv_sec == end.tv_sec && now.tv_nsec >= end.tv_nsec)) {
+				fprintf(stderr, "Timeout reached.\n");
+				break;
+			}
+		}
+#endif
 	} else {
 		gil_vm_run(&vm);
 	}
