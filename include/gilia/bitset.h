@@ -21,4 +21,16 @@ int gil_bitset_get(struct gil_bitset *bs, size_t id);
 size_t gil_bitset_set_next(struct gil_bitset *bs);
 void gil_bitset_unset(struct gil_bitset *bs, size_t id);
 
+struct gil_bitset_iterator {
+	size_t tableidx;
+	gil_bitset_entry table;
+};
+
+void gil_bitset_iterator_init(
+		struct gil_bitset_iterator *it, struct gil_bitset *bs);
+void gil_bitset_iterator_init_from(
+		struct gil_bitset_iterator *it, struct gil_bitset *bs, size_t start);
+int gil_bitset_iterator_next(
+		struct gil_bitset_iterator *it, struct gil_bitset *bs, size_t *val);
+
 #endif

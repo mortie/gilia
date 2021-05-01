@@ -40,7 +40,7 @@ $(OUT)/gilia.so:
 
 .PHONY: check
 check: $(OUT)/test
-	./$(OUT)/test
+	./$(OUT)/test $(ARGS)
 
 .PHONY: generate-coverage
 generate-coverage: check

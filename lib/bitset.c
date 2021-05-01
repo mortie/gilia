@@ -122,3 +122,49 @@ void gil_bitset_unset(struct gil_bitset *bs, size_t id) {
 	bs->tables[tblidx] &= ~((gil_bitset_entry)1 << tblbit);
 	bs->dirs[diridx] &= ~((gil_bitset_entry)1 << dirbit);
 }
+
+void gil_bitset_iterator_init(
+		struct gil_bitset_iterator *it, struct gil_bitset *bs) {
+	it->tableidx = 0;
+	if (bs->tableslen > 0) {
+		it->table = bs->tables[0];
+	} else {
+		it->table = 0;
+	}
+}
+
+void gil_bitset_iterator_init_from(
+		struct gil_bitset_iterator *it, struct gil_bitset *bs, size_t start) {
+	it->tableidx = start / ENTSIZ;
+	if (bs->tableslen > it->tableidx) {
+		it->table = bs->tables[it->tableidx];
+		for (size_t i = 0; i < start - (it->tableidx * ENTSIZ); ++i) {
+			it->table &= ~((gil_bitset_entry)1 << i);
+		}
+	} else {
+		it->table = 0;
+	}
+}
+
+int gil_bitset_iterator_next(
+		struct gil_bitset_iterator *it, struct gil_bitset *bs, size_t *val) {
+start:
+	if (it->table != 0) {
+		int fs = first_set(it->table) - 1;
+		*val = it->tableidx * ENTSIZ + fs;
+		it->table &= ~((gil_bitset_entry)1 << fs);
+		return 1;
+	}
+
+	while (1) {
+		it->tableidx += 1;
+		if (it->tableidx >= bs->tableslen) {
+			return 0;
+		}
+
+		it->table = bs->tables[it->tableidx];
+		if (it->table != 0) {
+			goto start; // tail recurse
+		}
+	}
+}

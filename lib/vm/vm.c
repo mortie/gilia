@@ -155,15 +155,14 @@ static void gc_free(struct gil_vm *vm, gil_word id) {
 
 static size_t gc_sweep(struct gil_vm *vm) {
 	size_t freed = 0;
-	for (size_t i = vm->gc_start; i < vm->valuessize; ++i) {
-		if (!gil_bitset_get(&vm->valueset, i)) {
-			continue;
-		}
-
-		struct gil_vm_value *val = &vm->values[i];
+	struct gil_bitset_iterator it;
+	gil_bitset_iterator_init_from(&it, &vm->valueset, vm->gc_start);
+	size_t id;
+	while (gil_bitset_iterator_next(&it, &vm->valueset, &id)) {
+		struct gil_vm_value *val = &vm->values[id];
 		if (!(val->flags & GIL_VAL_MARKED)) {
-			gil_bitset_unset(&vm->valueset, i);
-			gc_free(vm, i);
+			gil_bitset_unset(&vm->valueset, id);
+			gc_free(vm, id);
 			freed += 1;
 		} else {
 			val->flags &= ~GIL_VAL_MARKED;
@@ -388,13 +387,11 @@ gil_word gil_vm_type_error(struct gil_vm *vm, struct gil_vm_value *val) {
 }
 
 void gil_vm_free(struct gil_vm *vm) {
-	// Skip ID 0, because that's always NONE
-	for (size_t i = 1; i < vm->valuessize; ++i) {
-		if (!gil_bitset_get(&vm->valueset, i)) {
-			continue;
-		}
-
-		gc_free(vm, i);
+	struct gil_bitset_iterator it;
+	gil_bitset_iterator_init(&it, &vm->valueset);
+	size_t id;
+	while (gil_bitset_iterator_next(&it, &vm->valueset, &id)) {
+		gc_free(vm, id);
 	}
 
 	free(vm->values);
