@@ -67,3 +67,84 @@ While loops are also cool:
 
 Here, the first argument is a condition function, and the second argument is
 the body function.
+
+## TODO
+
+### Function parameters
+
+Example:
+
+	add := {$first $second
+		first + second
+	}
+
+With validation:
+
+	is-real := {$x (typeof x) == 'real}
+
+	add := {$first: is-real $second: is-real
+		first + second
+	}
+
+### Module system
+
+* Make it possible to implement modules in gilia
+  (MVP implementation just adds modules implemented in C)
+* Deduplicate imports; multiple `import "fs"` expressions should return the same object
+
+### 'With' blocks
+
+	with fs.open("lol") {$f
+		print f.read()
+	}
+
+`with` would be something like this:
+
+	with := {$val $block
+		block val
+		val.$destroy()
+	}
+
+### Line continuation syntax
+
+* It's useful to be able to make lines not terminated by newline.
+
+```
+	print "Hello world"
+	-> "the answer is:" 42
+```
+
+Should work as if there's no line break between the lines.
+
+### Pattern matching
+
+	match whatever
+	-> is-error {$err
+		print "Oh noes it failed" err
+	}
+	-> is-number {$num
+		print "seems like we got a number"
+	}
+	-> is-string {$str
+		print "we got a string" str
+	}
+	-> is-any {$val
+		print "we got something else" val
+	}
+
+### Error handling
+
+* Error handling is hard. Needs rework.
+
+### Generational GC
+
+* The current GC just does a global mark+sweep every time it has to clean up.
+* Generational GC: Keep around a list of young objects. When there are many
+  (say >=256) young objects, do a mark+sweep on only the young objects.
+  Clean the list of young objects (so all remaining objects are considered old).
+* Do a full GC every once in a while, but much less frequently than the young GC.
+* Any time a young object gains a reference from an old object, it should
+  no longer be considered young.
+* Or maybe the mark should happen across the whole object graph, and the sweep
+  is the only part which needs to be limited to the young objects?
+  Needs experimentation.
