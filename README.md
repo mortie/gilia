@@ -102,7 +102,7 @@ With validation:
 
 	with := {$val $block
 		block val
-		val.$destroy()
+		val.@destroy()
 	}
 
 ### Line continuation syntax
@@ -131,6 +131,19 @@ Should work as if there's no line break between the lines.
 	-> is-any {$val
 		print "we got something else" val
 	}
+
+### At-methods (like Python's dunder methods)
+
+Implementing custom functionality should be a thing. Some namespace property
+names should be special. Here are some ideas:
+
+* `@init`: The presence of this function should indicate that the namespace
+  is a "class". Calling the namespace as if it was a function should result in:
+	* A new namespace should be created, with the other namespace as its parent
+	* The `@init` function should be called on the new namespace
+* `@destroy`: Destructor method, possibly used by things like `with`-blocks.
+  Maybe called by the GC?
+* `@add`, `@sub`, `@mul`, `@div`: Overload the math operators
 
 ### Error handling
 
