@@ -74,15 +74,15 @@ the body function.
 
 Example:
 
-	add := {$first $second
+	add := |first second| {
 		first + second
 	}
 
 With validation:
 
-	is-real := {$x (typeof x) == 'real}
+	is-real := |x| {(typeof x) == 'real}
 
-	add := {$first: is-real $second: is-real
+	add := |first: is-real, second: is-real| {
 		first + second
 	}
 
@@ -94,13 +94,13 @@ With validation:
 
 ### 'With' blocks
 
-	with fs.open("lol") {$f
+	with fs.open("lol") |f| {
 		print f.read()
 	}
 
 `with` would be something like this:
 
-	with := {$val $block
+	with := |val block| {
 		block val
 		val.@destroy()
 	}
@@ -118,18 +118,18 @@ Should work as if there's no line break between the lines.
 
 ### Pattern matching
 
-	match whatever
-	-> is-error {$err
-		print "Oh noes it failed" err
+	match x
+	-> is-error {
+		print "Oh noes it failed:" x
 	}
-	-> is-number {$num
-		print "seems like we got a number"
+	-> is-number {
+		print "seems like we got a number, it is" x
 	}
-	-> is-string {$str
-		print "we got a string" str
+	-> is-string {
+		print "we got a string: " x
 	}
-	-> is-any {$val
-		print "we got something else" val
+	-> is-any {
+		print "we got something else:" x
 	}
 
 ### At-methods (like Python's dunder methods)
