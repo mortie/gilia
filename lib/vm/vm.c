@@ -726,6 +726,25 @@ void gil_vm_step(struct gil_vm *vm) {
 	}
 		break;
 
+	case GIL_OP_NAMED_PARAM: {
+		gil_word key = read_uint(vm);
+		gil_word idx = read_uint(vm);
+		struct gil_vm_stack_frame *frame = &vm->fstack[vm->fsptr - 1];
+		struct gil_vm_value *args = &vm->values[frame->args];
+		gil_word val = vm->knone;
+		if (idx < args->array.length) {
+			if (args->flags & GIL_VAL_SBO) {
+				val = args->array.shortarray[idx];
+			} else {
+				val = args->array.array->data[idx];
+			}
+		}
+
+		struct gil_vm_value *ns = &vm->values[frame->ns];
+		gil_vm_namespace_set(ns, key, val);
+	}
+		break;
+
 	case GIL_OP_RET: {
 		gil_word retval = vm->stack[--vm->sptr];
 		gil_word retptr = vm->fstack[vm->fsptr - 1].retptr;

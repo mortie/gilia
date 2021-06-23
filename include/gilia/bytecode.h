@@ -94,6 +94,12 @@ enum gil_opcode {
 	GIL_OP_STACK_FRAME_REPLACE,
 
 	/*
+	 * Add a named parameter to the stack frame; named_param <key> <idx>
+	 * Assign arguments[idk] to stack frame at <key>
+	 */
+	GIL_OP_NAMED_PARAM,
+
+	/*
 	 * Return from a function.
 	 * Pop <retval>
 	 * FSPop

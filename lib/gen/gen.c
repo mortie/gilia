@@ -169,6 +169,22 @@ int gil_gen_import_copy(
 	return -1;
 }
 
+void gil_gen_named_param(
+		struct gil_generator *gen, gil_word idx, char **ident) {
+	size_t atom_id = gil_strset_put(&gen->atomset, ident);
+	put(gen, GIL_OP_NAMED_PARAM);
+	put_uint(gen, atom_id);
+	put_uint(gen, idx);
+}
+
+void gil_gen_named_param_copy(
+		struct gil_generator *gen, gil_word idx, const char *ident) {
+	size_t atom_id = gil_strset_put_copy(&gen->atomset, ident);
+	put(gen, GIL_OP_NAMED_PARAM);
+	put_uint(gen, atom_id);
+	put_uint(gen, idx);
+}
+
 void gil_gen_halt(struct gil_generator *gen) {
 	put(gen, GIL_OP_HALT);
 }

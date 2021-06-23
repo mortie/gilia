@@ -217,6 +217,13 @@ void gil_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 		printf("STACK_FRAME_REPLACE %u\n", read_uint(ops, ptr));
 		return;
 
+	case GIL_OP_NAMED_PARAM: {
+		gil_word key = read_uint(ops, ptr);
+		gil_word idx = read_uint(ops, ptr);
+		printf("NAMED_PARAM %u %u\n", key, idx);
+	}
+		return;
+
 	case GIL_OP_RET:
 		printf("RET\n");
 		return;

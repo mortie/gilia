@@ -94,7 +94,7 @@ static int parse_object_literal(struct gil_parse_context *ctx, int depth) {
 			return -1;
 		}
 
-		gil_trace("key: '%s'", gil_token_get_str(tok));
+		gil_trace("key: '%s'", gil_token_get_str(&tok->v));
 		struct gil_token_value key = gil_token_extract_val(tok);
 		gil_lexer_consume(ctx->lexer); // ident
 
@@ -138,14 +138,10 @@ static int parse_object_literal(struct gil_parse_context *ctx, int depth) {
 	return 0;
 }
 
-static int parse_function_literal(struct gil_parse_context *ctx, int depth) {
-	gil_trace_scope("function literal");
+static int parse_function_literal_body(struct gil_parse_context *ctx, int depth) {
+	gil_trace_scope("function literal body");
 
-	gil_word reloc_pos = ctx->gen->pos + 1;
-	gil_gen_rjmp_placeholder(ctx->gen); // 1-byte opcode, 4-byte length
-	gil_word start_pos = ctx->gen->pos;
-
-	// '{' and EOL already skipped by parse_object_or_function_literal
+	// '{' and EOL already skipped
 
 	int first = 1;
 	while (1) {
@@ -173,6 +169,88 @@ static int parse_function_literal(struct gil_parse_context *ctx, int depth) {
 	}
 
 	gil_gen_ret(ctx->gen);
+	return 0;
+}
+
+static int parse_function_literal(struct gil_parse_context *ctx, int depth) {
+	gil_trace_scope("function literal");
+
+	gil_word reloc_pos = ctx->gen->pos + 1;
+	gil_gen_rjmp_placeholder(ctx->gen); // 1-byte opcode, 4-byte length
+	gil_word start_pos = ctx->gen->pos;
+
+	if (parse_function_literal_body(ctx, depth) < 0) {
+		return -1;
+	}
+
+	gil_word end_pos = ctx->gen->pos;
+	gil_gen_function(ctx->gen, start_pos);
+	gil_gen_add_reloc(ctx->gen, reloc_pos, end_pos - start_pos);
+	return 0;
+}
+
+static int parse_function_literal_with_introducer(struct gil_parse_context *ctx, int depth) {
+	gil_trace_scope("function literal with introducer");
+
+	gil_word reloc_pos = ctx->gen->pos + 1;
+	gil_gen_rjmp_placeholder(ctx->gen); // 1-byte opcode, 4-byte length
+	gil_word start_pos = ctx->gen->pos;
+
+	struct gil_token *tok;
+
+	gil_word param_idx = 0;
+	gil_lexer_consume(ctx->lexer); // '|'
+	while (1) {
+		tok = gil_lexer_peek(ctx->lexer, 1);
+		if (gil_token_get_kind(tok) == GIL_TOK_PIPE) {
+			break;
+		}
+
+		if (gil_token_get_kind(tok) == GIL_TOK_EOF) {
+			gil_lexer_consume(ctx->lexer); // EOF
+			continue;
+		}
+
+		if (gil_token_get_kind(tok) != GIL_TOK_IDENT) {
+			gil_parse_err(ctx->err, tok, "Unexpected token %s",
+					gil_token_get_name(tok));
+			return -1;
+		}
+
+		struct gil_token_value ident = gil_token_extract_val(tok);
+		gil_lexer_consume(ctx->lexer); // ident
+
+		tok = gil_lexer_peek(ctx->lexer, 1);
+		if (ident.flags & GIL_TOK_SMALL) {
+			gil_gen_named_param_copy(
+					ctx->gen, param_idx, ident.strbuf);
+		} else {
+			gil_gen_named_param(
+					ctx->gen, param_idx, &ident.str);
+		}
+
+		// TODO: Deal with ':' predicates
+
+		param_idx += 1;
+	}
+
+	gil_lexer_consume(ctx->lexer); // '|'
+
+	tok = gil_lexer_peek(ctx->lexer, 1);
+	if (gil_token_get_kind(tok) != GIL_TOK_OPEN_BRACE) {
+		gil_parse_err(ctx->err, tok, "Unexpected token %s",
+				gil_token_get_name(tok));
+		return -1;
+	}
+	gil_lexer_consume(ctx->lexer); // '{'
+
+	if (gil_token_get_kind(gil_lexer_peek(ctx->lexer, 1)) == GIL_TOK_EOL) {
+		gil_lexer_consume(ctx->lexer); // EOL
+	}
+
+	if (parse_function_literal_body(ctx, depth) < 0) {
+		return -1;
+	}
 
 	gil_word end_pos = ctx->gen->pos;
 	gil_gen_function(ctx->gen, start_pos);
@@ -259,7 +337,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 		gil_lexer_consume(ctx->lexer); // ')'
 	} else if (gil_token_get_kind(tok) == GIL_TOK_IDENT) {
 		gil_trace_scope("ident");
-		gil_trace("ident '%s'", gil_token_get_str(tok));
+		gil_trace("ident '%s'", gil_token_get_str(&tok->v));
 		struct gil_token_value ident = gil_token_extract_val(tok);
 		if (strcmp(gil_token_get_str(&ident), "$") == 0) {
 			gil_lexer_consume(ctx->lexer); // ident
@@ -282,7 +360,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 		gil_gen_number(ctx->gen, number);
 	} else if (gil_token_get_kind(tok) == GIL_TOK_STRING) {
 		gil_trace_scope("string literal");
-		gil_trace("string '%s'", gil_token_get_str(tok));
+		gil_trace("string '%s'", gil_token_get_str(&tok->v));
 		struct gil_token_value str = gil_token_extract_val(tok);
 		gil_lexer_consume(ctx->lexer); // string
 
@@ -295,7 +373,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 			gil_token_get_kind(tok) == GIL_TOK_QUOT &&
 			gil_token_get_kind(tok2) == GIL_TOK_IDENT) {
 		gil_trace_scope("atom literal");
-		gil_trace("atom '%s'", gil_token_get_str(tok2));
+		gil_trace("atom '%s'", gil_token_get_str(&tok2->v));
 		struct gil_token_value ident = gil_token_extract_val(tok2);
 		gil_lexer_consume(ctx->lexer); // "'"
 		gil_lexer_consume(ctx->lexer); // ident
@@ -307,6 +385,10 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 		}
 	} else if (gil_token_get_kind(tok) == GIL_TOK_OPEN_BRACE) {
 		if (parse_object_or_function_literal(ctx, depth + 1) < 0) {
+			return -1;
+		}
+	} else if (gil_token_get_kind(tok) == GIL_TOK_PIPE) {
+		if (parse_function_literal_with_introducer(ctx, depth + 1) < 0) {
 			return -1;
 		}
 	} else if (gil_token_get_kind(tok) == GIL_TOK_OPEN_BRACKET) {
@@ -416,7 +498,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 				gil_token_get_kind(tok2) == GIL_TOK_IDENT &&
 				gil_token_get_kind(tok3) == GIL_TOK_EQUALS) {
 			gil_trace_scope("namespace assign");
-			gil_trace("ident '%s'", gil_token_get_str(tok2));
+			gil_trace("ident '%s'", gil_token_get_str(&tok2->v));
 			struct gil_token_value ident = gil_token_extract_val(tok2);
 			gil_lexer_consume(ctx->lexer); // '.'
 			gil_lexer_consume(ctx->lexer); // ident
@@ -437,7 +519,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 				gil_token_get_kind(tok) == GIL_TOK_PERIOD &&
 				gil_token_get_kind(tok2) == GIL_TOK_IDENT) {
 			gil_trace_scope("namespace lookup");
-			gil_trace("ident '%s'", gil_token_get_str(tok2));
+			gil_trace("ident '%s'", gil_token_get_str(&tok2->v));
 			struct gil_token_value ident = gil_token_extract_val(tok2);
 			gil_lexer_consume(ctx->lexer); // '.'
 			gil_lexer_consume(ctx->lexer); // ident
@@ -525,7 +607,7 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_COLON_EQ) {
 		gil_trace_scope("assign expression");
-		gil_trace("ident '%s'", gil_token_get_str(tok));
+		gil_trace("ident '%s'", gil_token_get_str(&tok->v));
 		struct gil_token_value ident = gil_token_extract_val(tok);
 		gil_lexer_consume(ctx->lexer); // ident
 		gil_lexer_consume(ctx->lexer); // :=
@@ -544,7 +626,7 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_EQUALS) {
 		gil_trace_scope("replacement assign expression");
-		gil_trace("ident '%s'", gil_token_get_str(tok));
+		gil_trace("ident '%s'", gil_token_get_str(&tok->v));
 		struct gil_token_value ident = gil_token_extract_val(tok);
 		gil_lexer_consume(ctx->lexer); // ident
 		gil_lexer_consume(ctx->lexer); // =

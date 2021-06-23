@@ -63,6 +63,8 @@ const char *gil_token_kind_name(enum gil_token_kind kind) {
 		return "colon-equals";
 	case GIL_TOK_EQUALS:
 		return "equals";
+	case GIL_TOK_PIPE:
+		return "pipe";
 	case GIL_TOK_EOL:
 		return "end-of-line";
 	case GIL_TOK_EOF:
@@ -148,7 +150,7 @@ static int is_ident(int ch) {
 		ch != '(' && ch != ')' &&
 		ch != '{' && ch != '}' &&
 		ch != '[' && ch != ']' &&
-		ch != '\'' &&
+		ch != '\'' && ch != '|' &&
 		ch != ',' && ch != '.' &&
 		ch != ':' && ch != ';';
 }
@@ -585,6 +587,20 @@ static void read_tok(struct gil_lexer *lexer, struct gil_token *tok) {
 			tok->v.flags = GIL_TOK_COLON;
 			break;
 		}
+		break;
+
+	case '|':
+		read_ch(lexer);
+		// Treat '||' as an identifier
+		if (peek_ch(lexer) == '|') {
+			read_ch(lexer);
+			tok->v.flags = GIL_TOK_IDENT | GIL_TOK_SMALL;
+			strcpy(tok->v.strbuf, "||");
+			lexer->prev_tok_is_expr = 1;
+		} else {
+			tok->v.flags = GIL_TOK_PIPE;
+		}
+
 		break;
 
 	case EOF:
