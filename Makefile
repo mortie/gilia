@@ -20,6 +20,7 @@ OBJCOPY ?= objcopy
 STRIP ?= strip
 IWYU ?= include-what-you-use -Xiwyu --no_comments
 
+TRACE ?= 0
 IGNORE_DEPS ?= 0
 
 all: $(OUT)/gilia
@@ -36,6 +37,10 @@ $(OUT)/gilia.so: $(call objify,$(LIB_SRCS))
 
 ifneq ($(IGNORE_DEPS),1)
 include $(call depify,$(LIB_SRCS) $(CMD_SRCS))
+endif
+
+ifeq ($(TRACE),1)
+CFLAGS += -DGIL_ENABLE_TRACE
 endif
 
 .PHONY: strip
