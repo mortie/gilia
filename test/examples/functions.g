@@ -42,6 +42,10 @@ func := {
 }
 print func()()
 
+# Functions can take named parameters
+func := |a b| {a + b}
+print (func 10 20)
+
 # Functions can be called infix
 print 10 + 20
 
