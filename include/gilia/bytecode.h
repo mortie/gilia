@@ -72,6 +72,11 @@ enum gil_opcode {
 	 */
 	GIL_OP_STACK_FRAME_GET_ARGS,
 
+	/* Get the arguments array from the stack frame; stack_frame_get_arg <idx>
+	 * Push <argument <idx>>
+	 */
+	GIL_OP_STACK_FRAME_GET_ARG,
+
 	/*
 	 * Look up a value from the current stack frame; stack_frame_lookup <key>
 	 * Find <val> in stack frame using <key>
@@ -92,6 +97,13 @@ enum gil_opcode {
 	 * Assign <val> to stack frame at <key>
 	 */
 	GIL_OP_STACK_FRAME_REPLACE,
+
+	/*
+	 * Assert that the top of the stack is true; stack_frame_assert
+	 * Pop <val>
+	 * Error if <val> is false
+	 */
+	GIL_OP_ASSERT,
 
 	/*
 	 * Add a named parameter to the stack frame; named_param <key> <idx>

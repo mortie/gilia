@@ -205,6 +205,10 @@ void gil_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 		printf("STACK_FRAME_GET_ARGS\n");
 		return;
 
+	case GIL_OP_STACK_FRAME_GET_ARG:
+		printf("STACK_FRAME_GET_ARG %u\n", read_uint(ops, ptr));
+		return;
+
 	case GIL_OP_STACK_FRAME_LOOKUP:
 		printf("STACK_FRAME_LOOKUP %u\n", read_uint(ops, ptr));
 		return;
@@ -215,6 +219,10 @@ void gil_vm_print_op(unsigned char *ops, size_t opcount, size_t *ptr) {
 
 	case GIL_OP_STACK_FRAME_REPLACE:
 		printf("STACK_FRAME_REPLACE %u\n", read_uint(ops, ptr));
+		return;
+
+	case GIL_OP_ASSERT:
+		printf("ASSERT\n");
 		return;
 
 	case GIL_OP_NAMED_PARAM: {

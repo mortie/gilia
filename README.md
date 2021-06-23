@@ -82,7 +82,7 @@ With validation:
 
 	is-real := |x| {(typeof x) == 'real}
 
-	add := |first: is-real, second: is-real| {
+	add := |first(is-real) second(is-real)| {
 		first + second
 	}
 

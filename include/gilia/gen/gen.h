@@ -78,12 +78,14 @@ void gil_gen_array_set(struct gil_generator *gen, int number);
 void gil_gen_dynamic_lookup(struct gil_generator *gen);
 void gil_gen_dynamic_set(struct gil_generator *gen);
 void gil_gen_stack_frame_get_args(struct gil_generator *gen);
+void gil_gen_stack_frame_get_arg(struct gil_generator *gen, gil_word idx);
 void gil_gen_stack_frame_lookup(struct gil_generator *gen, char **ident);
 void gil_gen_stack_frame_lookup_copy(struct gil_generator *gen, char *ident);
 void gil_gen_stack_frame_set(struct gil_generator *gen, char **ident);
 void gil_gen_stack_frame_set_copy(struct gil_generator *gen, char *ident);
 void gil_gen_stack_frame_replace(struct gil_generator *gen, char **ident);
 void gil_gen_stack_frame_replace_copy(struct gil_generator *gen, char *ident);
+void gil_gen_assert(struct gil_generator *gen);
 void gil_gen_func_call(struct gil_generator *gen, gil_word argc);
 void gil_gen_func_call_infix(struct gil_generator *gen);
 

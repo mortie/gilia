@@ -701,6 +701,21 @@ void gil_vm_step(struct gil_vm *vm) {
 		vm->stack[vm->sptr++] = vm->fstack[vm->fsptr - 1].args;
 		break;
 
+	case GIL_OP_STACK_FRAME_GET_ARG: {
+		gil_word idx = read_uint(vm);
+		struct gil_vm_value *args = &vm->values[vm->fstack[vm->fsptr - 1].args];
+		if (idx < args->array.length) {
+			if (args->flags & GIL_VAL_SBO) {
+				vm->stack[vm->sptr++] = args->array.shortarray[idx];
+			} else {
+				vm->stack[vm->sptr++] = args->array.array->data[idx];
+			}
+		} else {
+			vm->stack[vm->sptr++] = vm->knone;
+		}
+	}
+		break;
+
 	case GIL_OP_STACK_FRAME_LOOKUP: {
 		gil_word key = read_uint(vm);
 		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
@@ -724,6 +739,19 @@ void gil_vm_step(struct gil_vm *vm) {
 			vm->stack[vm->sptr - 1] = gil_vm_error(vm, "Variable not found");
 		}
 	}
+		break;
+
+	case GIL_OP_ASSERT:
+		vm->sptr -= 1;
+		if (!gil_vm_val_is_true(vm, &vm->values[vm->stack[vm->sptr]])) {
+			gil_word retval = gil_vm_error(vm, "Assertion failed");
+			gil_word retptr = vm->fstack[vm->fsptr - 1].retptr;
+			gil_word sptr = vm->fstack[vm->fsptr - 1].sptr;
+			vm->fsptr -= 1;
+			vm->sptr = sptr;
+			vm->iptr = retptr;
+			vm->stack[vm->sptr++] = retval;
+		}
 		break;
 
 	case GIL_OP_NAMED_PARAM: {

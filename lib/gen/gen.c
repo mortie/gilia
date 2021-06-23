@@ -338,6 +338,11 @@ void gil_gen_stack_frame_get_args(struct gil_generator *gen) {
 	put(gen, GIL_OP_STACK_FRAME_GET_ARGS);
 }
 
+void gil_gen_stack_frame_get_arg(struct gil_generator *gen, gil_word idx) {
+	put(gen, GIL_OP_STACK_FRAME_GET_ARG);
+	put_uint(gen, idx);
+}
+
 void gil_gen_stack_frame_lookup(struct gil_generator *gen, char **ident) {
 	size_t atom_id = gil_strset_put(&gen->atomset, ident);
 	put(gen, GIL_OP_STACK_FRAME_LOOKUP);
@@ -372,6 +377,10 @@ void gil_gen_stack_frame_replace_copy(struct gil_generator *gen, char *ident) {
 	size_t atom_id = gil_strset_put_copy(&gen->atomset, ident);
 	put(gen, GIL_OP_STACK_FRAME_REPLACE);
 	put_uint(gen, atom_id);
+}
+
+void gil_gen_assert(struct gil_generator *gen) {
+	put(gen, GIL_OP_ASSERT);
 }
 
 void gil_gen_func_call(struct gil_generator *gen, gil_word argc) {

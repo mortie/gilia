@@ -220,7 +220,6 @@ static int parse_function_literal_with_introducer(struct gil_parse_context *ctx,
 		struct gil_token_value ident = gil_token_extract_val(tok);
 		gil_lexer_consume(ctx->lexer); // ident
 
-		tok = gil_lexer_peek(ctx->lexer, 1);
 		if (ident.flags & GIL_TOK_SMALL) {
 			gil_gen_named_param_copy(
 					ctx->gen, param_idx, ident.strbuf);
@@ -229,7 +228,27 @@ static int parse_function_literal_with_introducer(struct gil_parse_context *ctx,
 					ctx->gen, param_idx, &ident.str);
 		}
 
-		// TODO: Deal with ':' predicates
+		tok = gil_lexer_peek(ctx->lexer, 1);
+		if (gil_token_get_kind(tok) == GIL_TOK_OPEN_PAREN_NS) {
+			gil_lexer_consume(ctx->lexer); // '('
+
+			if (parse_expression(ctx, depth + 1) < 0) {
+				return -1;
+			}
+
+			tok = gil_lexer_peek(ctx->lexer, 1);
+			if (gil_token_get_kind(tok) != GIL_TOK_CLOSE_PAREN) {
+				gil_parse_err(ctx->err, tok, "Unexpected token %s",
+						gil_token_get_name(tok));
+				return -1;
+			}
+
+			gil_lexer_consume(ctx->lexer); // ')'
+
+			gil_gen_stack_frame_get_arg(ctx->gen, param_idx);
+			gil_gen_func_call(ctx->gen, 1);
+			gil_gen_assert(ctx->gen);
+		}
 
 		param_idx += 1;
 	}
