@@ -153,11 +153,8 @@ static void repl() {
 			fprintf(stderr, "Parse error: %s\n -- %s\n", err.message, line);
 			gil_parse_error_free(&err);
 
-			gil_vm_free(&vm);
-			gil_gen_free(&gen);
-			w.len = 0;
-			gil_gen_init(&gen, &w.w, &builtins.base);
-			gil_vm_init(&vm, NULL, 0, &builtins.base);
+			// Jump past the generated code
+			vm.iptr = w.len;
 		} else if (w.len > 0) {
 			vm.ops = w.mem;
 			vm.opslen = w.len;
