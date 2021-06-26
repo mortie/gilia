@@ -656,7 +656,9 @@ struct gil_token *gil_lexer_peek(struct gil_lexer *lexer, int count) {
 	while (offset >= lexer->tokidx) {
 		read_tok(lexer, &lexer->toks[lexer->tokidx++]);
 #ifdef GIL_ENABLE_TRACE
-		trace_token(&lexer->toks[lexer->tokidx - 1]);
+		if (gil_tracer_enabled()) {
+			trace_token(&lexer->toks[lexer->tokidx - 1]);
+		}
 #endif
 	}
 

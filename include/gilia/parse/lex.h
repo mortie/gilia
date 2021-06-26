@@ -73,7 +73,6 @@ struct gil_lexer {
 	int ch;
 	int parens;
 	int prev_tok_is_expr;
-	int do_log_tokens;
 
 	struct gil_bufio_reader reader;
 };
