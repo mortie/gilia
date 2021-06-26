@@ -23,7 +23,6 @@ static int tok_is_infix(struct gil_token *tok) {
 	const char *str = gil_token_get_str(&tok->v);
 
 	return
-			(str[0] == '$' && str[1] != '\0') ||
 			strcmp(str, "+") == 0 ||
 			strcmp(str, "-") == 0 ||
 			strcmp(str, "*") == 0 ||
