@@ -11,6 +11,13 @@
 #include "module.h"
 #include "strset.h"
 
+#ifdef GIL_ENABLE_TRACE
+#include "vm/print.h"
+#endif
+
+#define GIL_TRACER_NAME "vm"
+#include "trace.h"
+
 static int stdio_inited = 0;
 static struct gil_io_file_writer std_output;
 static struct gil_io_file_writer std_error;
@@ -631,16 +638,31 @@ static double read_d8le(struct gil_vm *vm) {
 
 void gil_vm_step(struct gil_vm *vm) {
 	if (vm->need_check_retval) {
+		gil_trace("check retval");
 		vm->need_check_retval = 0;
 		after_func_return(vm);
 
 		if (vm->need_gc) {
+			gil_trace("GC");
 			vm->need_gc = 0;
 			gil_vm_gc(vm);
 		}
 
 		return;
 	}
+
+#ifdef GIL_ENABLE_TRACE
+	if (gil_tracer_enabled()) {
+		struct gil_io_mem_writer w = {
+			.w.write = gil_io_mem_write,
+		};
+		size_t iptr = vm->iptr;
+		gil_vm_print_op(&w.w, vm->ops, vm->opslen, &iptr);
+		w.w.write(&w.w, "\0", 1);
+		gil_trace("%zi: %s", vm->iptr, w.mem);
+		free(w.mem);
+	}
+#endif
 
 	if (
 			vm->sptr > (sizeof(vm->stack) / sizeof(*vm->stack)) - 32 ||
@@ -1048,6 +1070,7 @@ void gil_vm_step(struct gil_vm *vm) {
 	}
 
 	if (vm->need_gc) {
+		gil_trace("GC");
 		vm->need_gc = 0;
 		gil_vm_gc(vm);
 	}

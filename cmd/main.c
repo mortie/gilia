@@ -79,7 +79,11 @@ static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 
 static void step_through(struct gil_vm *vm) {
 	printf("=====\n\nInitial state:\n");
-	gil_vm_print_state(vm);
+	struct gil_io_file_writer w = {
+		.w.write =gil_io_file_write,
+		.f = stdout,
+	};
+	gil_vm_print_state(&w.w, vm);
 
 	char buf[16];
 	while (!vm->halted) {
@@ -88,7 +92,8 @@ static void step_through(struct gil_vm *vm) {
 		if (vm->need_check_retval) {
 			printf("(internal)\n");
 		} else {
-			gil_vm_print_op(vm->ops, vm->opslen, &iptr);
+			gil_vm_print_op(&w.w, vm->ops, vm->opslen, &iptr);
+			printf("\n");
 		}
 
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
@@ -97,7 +102,7 @@ static void step_through(struct gil_vm *vm) {
 
 		gil_vm_step(vm);
 		gil_vm_gc(vm);
-		gil_vm_print_state(vm);
+		gil_vm_print_state(&w.w, vm);
 	}
 }
 
@@ -118,6 +123,11 @@ static void repl() {
 	struct gil_vm vm;
 	gil_vm_init(&vm, NULL, 0, &builtins.base);
 
+	struct gil_io_file_writer stdout_writer = {
+		.w.write = gil_io_file_write,
+		.f = stdout,
+	};
+
 	while (1) {
 		char line[4096];
 #ifdef USE_READLINE
@@ -134,7 +144,7 @@ static void repl() {
 #endif
 
 		if (strncmp(rline, "\\state", strlen("\\state")) == 0) {
-			gil_vm_print_state(&vm);
+			gil_vm_print_state(&stdout_writer.w, &vm);
 			goto next;
 		}
 
@@ -186,8 +196,9 @@ static void usage(const char *argv0) {
 	printf("  --timeout <secs>:  Run instructions for <secs> seconds\n");
 #endif
 #ifdef GIL_ENABLE_TRACE
-	printf("  --trace-parser:    Trace the parser\n");
 	printf("  --trace-lexer:     Trace the lexer\n");
+	printf("  --trace-parser:    Trace the parser\n");
+	printf("  --trace-vm:        Trace the lexer\n");
 #endif
 }
 
@@ -271,6 +282,8 @@ int main(int argc, char **argv) {
 			gil_trace_enable("lexer");
 		} else if (!dashes && strcmp(argv[i], "--trace-parser") == 0) {
 			gil_trace_enable("parser");
+		} else if (!dashes && strcmp(argv[i], "--trace-vm") == 0) {
+			gil_trace_enable("vm");
 #endif
 		} else if (strcmp(argv[i], "--") == 0) {
 			dashes = 1;
@@ -349,7 +362,11 @@ skip_args:;
 	fclose(inf);
 
 	if (do_print_bytecode) {
-		gil_vm_print_bytecode(bytecode_writer.mem, bytecode_writer.len);
+		struct gil_io_file_writer w = {
+			.w.write = gil_io_file_write,
+			.f = stdout,
+		};
+		gil_vm_print_bytecode(&w.w, bytecode_writer.mem, bytecode_writer.len);
 	}
 
 	if (do_serialize_bytecode) {

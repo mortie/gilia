@@ -1,6 +1,6 @@
 #include "trace.h"
 
-#if GIL_ENABLE_TRACE
+#ifdef GIL_ENABLE_TRACE
 
 #include <stdio.h>
 #include <stdarg.h>
