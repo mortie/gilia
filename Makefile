@@ -20,13 +20,14 @@ OBJCOPY ?= objcopy
 STRIP ?= strip
 IWYU ?= include-what-you-use -Xiwyu --no_comments
 
-TRACE ?= 0
+ENABLE_TRACE ?= 0
 IGNORE_DEPS ?= 0
 
 all: $(OUT)/gilia
 
 include files.mk
 include rules.mk
+-include .config.mk
 
 $(OUT)/gilia: $(call objify,$(LIB_SRCS) $(CMD_SRCS))
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -39,7 +40,7 @@ ifneq ($(IGNORE_DEPS),1)
 include $(call depify,$(LIB_SRCS) $(CMD_SRCS))
 endif
 
-ifeq ($(TRACE),1)
+ifeq ($(ENABLE_TRACE),1)
 CFLAGS += -DGIL_ENABLE_TRACE
 endif
 
