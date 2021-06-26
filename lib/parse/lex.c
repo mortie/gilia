@@ -162,7 +162,19 @@ static void skip_whitespace(struct gil_lexer *lexer, int *nl, int *skipped) {
 			do {
 				int ch = read_ch(lexer);
 				if (ch == '\n') {
-					*nl = 1;
+
+					// We found a newline. If the first non-whitespace on the
+					// next line is '->', then don't set *nl.
+					while (is_whitespace(peek_ch(lexer)) && peek_ch(lexer) != '\n') {
+						read_ch(lexer);
+					}
+
+					if (peek_ch(lexer) == '-' && peek_ch_n(lexer, 2) == '>') {
+						read_ch(lexer); // '-'
+						read_ch(lexer); // '>'
+					} else {
+						*nl = 1;
+					}
 				}
 			} while (is_whitespace(peek_ch(lexer)));
 		}
