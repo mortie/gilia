@@ -621,7 +621,9 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 	if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			strcmp(gil_token_get_str(&tok->v), "import") == 0) {
-		parse_import(ctx, depth + 1);
+		if (parse_import(ctx, depth + 1) < 0) {
+			return -1;
+		}
 	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_COLON_EQ) {
