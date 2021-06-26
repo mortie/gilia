@@ -151,6 +151,9 @@ static void repl() {
 			goto next;
 		}
 
+		// The next instruction should be the code we're about to generate
+		vm.iptr = w.len;
+
 		// Generate code for the user's line, store the output
 		// in the variable '$$'
 		r.idx = 0;
