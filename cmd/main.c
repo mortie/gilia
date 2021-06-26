@@ -128,6 +128,9 @@ static void repl() {
 		.f = stdout,
 	};
 
+	struct gil_parse_error err;
+	struct gil_parse_context ctx = {&lexer, &gen, &err};
+
 	while (1) {
 		char line[4096];
 #ifdef USE_READLINE
@@ -135,12 +138,12 @@ static void repl() {
 		if (rline == NULL) goto out;
 		if (rline[0] == '\0') goto next;
 		add_history(rline);
-		snprintf(line, sizeof(line), "print (%s)", rline);
+		snprintf(line, sizeof(line), "$$ := %s", rline);
 #else
 		char rline[4096];
 		if (fgets(rline, sizeof(rline), stdin) == NULL) goto out;
 		if (rline[0] == '\n' && rline[1] == '\0') goto next;
-		snprintf(line, sizeof(line), "print (%s)", rline);
+		snprintf(line, sizeof(line), "$$ := %s", rline);
 #endif
 
 		if (strncmp(rline, "\\state", strlen("\\state")) == 0) {
@@ -148,29 +151,48 @@ static void repl() {
 			goto next;
 		}
 
+		// Generate code for the user's line, store the output
+		// in the variable '$$'
 		r.idx = 0;
-		r.len = strlen(line);
 		r.mem = line;
+		r.len = strlen(r.mem);
 		gil_lexer_init(&lexer, &r.r);
-
-		struct gil_parse_error err;
-		struct gil_parse_context ctx = {&lexer, &gen, &err};
 		if (gil_parse_program(&ctx) < 0) {
 			fprintf(stderr, "Parse error: %s\n -- %s\n", err.message, line);
 			gil_parse_error_free(&err);
 
 			// Jump past the generated code
 			vm.iptr = w.len;
-		} else if (w.len > 0) {
-			vm.ops = w.mem;
-			vm.opslen = w.len;
-
-			while (vm.iptr < vm.opslen) {
-				gil_vm_step(&vm);
-			}
-
-			gil_vm_gc(&vm);
+			goto next;
 		}
+
+		// Skip the last HALT, because we're gonna writing more code
+		// to the buffer which we want to run as well
+		w.len -= 1;
+
+		// Generate code for printing the result from variable '$$'
+		r.idx = 0;
+		r.mem = "print $$\n";
+		r.len = strlen(r.mem);
+		gil_lexer_init(&lexer, &r.r);
+		if (gil_parse_program(&ctx) < 0) {
+			fprintf(stderr, "%s\n", err.message);
+			gil_parse_error_free(&err);
+
+			// Jump past the generated code
+			vm.iptr = w.len;
+			goto next;
+		}
+
+		// Run the resulting code
+		vm.ops = w.mem;
+		vm.opslen = w.len;
+		vm.halted = 0;
+		while (!vm.halted) {
+			gil_vm_step(&vm);
+		}
+
+		gil_vm_gc(&vm);
 
 next:
 #ifdef USE_READLINE
