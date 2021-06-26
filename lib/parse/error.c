@@ -6,6 +6,8 @@
 #include <string.h>
 
 #include "parse/lex.h"
+
+#define GIL_TRACER_NAME "parser"
 #include "trace.h"
 
 void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const char *fmt, ...) {
@@ -14,7 +16,7 @@ void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const cha
 	err->ch = tok->ch;
 
 	if (gil_token_get_kind(tok) == GIL_TOK_ERROR) {
-		gil_trace("Error token: %s", tok->v.str);
+		gil_trace("error token: %s", tok->v.str);
 		err->message = tok->v.str;
 		err->is_static = 1;
 		return;
@@ -30,7 +32,7 @@ void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const cha
 		err->is_static = 1;
 
 		va_end(va);
-		gil_trace("Parse error: %s", err->message);
+		gil_trace("error: %s", err->message);
 		return;
 	} else if ((size_t)n + 1 < sizeof(buf)) {
 		err->message = malloc(n + 1);
@@ -42,7 +44,7 @@ void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const cha
 		}
 
 		va_end(va);
-		gil_trace("Parse error: %s", err->message);
+		gil_trace("error: %s", err->message);
 		return;
 	}
 
@@ -56,7 +58,7 @@ void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const cha
 	}
 
 	va_end(va);
-	gil_trace("Parse error: %s", err->message);
+	gil_trace("error: %s", err->message);
 }
 
 void gil_parse_error_free(struct gil_parse_error *err) {

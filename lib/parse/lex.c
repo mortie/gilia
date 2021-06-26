@@ -7,31 +7,36 @@
 
 #include "io.h"
 
-static void log_token(struct gil_token *tok) {
+#define GIL_TRACER_NAME "lexer"
+#include "trace.h"
+
+#ifdef GIL_ENABLE_TRACE
+static void trace_token(struct gil_token *tok) {
 	switch (gil_token_get_kind(tok)) {
 	case GIL_TOK_STRING:
 	case GIL_TOK_IDENT:
 	case GIL_TOK_ERROR:
 		if (gil_token_is_small(tok)) {
-			printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
+			gil_trace("%i:%i %s '%s'", tok->line, tok->ch,
 					gil_token_get_name(tok), tok->v.strbuf);
 		} else {
-			printf("%i:%i\t%s '%s'\n", tok->line, tok->ch,
+			printf("%i:%i %s '%s'", tok->line, tok->ch,
 					gil_token_get_name(tok), tok->v.str);
 		}
 		break;
 
 	case GIL_TOK_NUMBER:
-		printf("%i:%i\t%s '%g'\n", tok->line, tok->ch,
+		gil_trace("%i:%i %s '%g'", tok->line, tok->ch,
 				gil_token_get_name(tok), tok->v.num);
 		break;
 
 	default:
-		printf("%i:%i\t%s\n", tok->line, tok->ch,
+		gil_trace("%i:%i %s", tok->line, tok->ch,
 				gil_token_get_name(tok));
 		break;
 	}
 }
+#endif
 
 const char *gil_token_kind_name(enum gil_token_kind kind) {
 	switch (kind) {
@@ -112,7 +117,6 @@ void gil_lexer_init(struct gil_lexer *lexer, struct gil_io_reader *r) {
 	lexer->ch = 1;
 	lexer->parens = 0;
 	lexer->prev_tok_is_expr = 0;
-	lexer->do_log_tokens = 0;
 	gil_bufio_reader_init(&lexer->reader, r);
 }
 
@@ -651,9 +655,9 @@ struct gil_token *gil_lexer_peek(struct gil_lexer *lexer, int count) {
 
 	while (offset >= lexer->tokidx) {
 		read_tok(lexer, &lexer->toks[lexer->tokidx++]);
-		if (lexer->do_log_tokens) {
-			log_token(&lexer->toks[lexer->tokidx - 1]);
-		}
+#ifdef GIL_ENABLE_TRACE
+		trace_token(&lexer->toks[lexer->tokidx - 1]);
+#endif
 	}
 
 	return &lexer->toks[offset];

@@ -6,6 +6,8 @@
 #include "bytecode.h"
 #include "gen/gen.h"
 #include "parse/lex.h"
+
+#define GIL_TRACER_NAME "parser"
 #include "trace.h"
 
 static int tok_is_end(struct gil_token *tok) {

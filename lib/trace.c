@@ -4,19 +4,49 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
-int gil_trace_depth = 0;
+static int gil_trace_depth = 0;
 
-void gil_trace_push(const char *name) {
+static const char *tracetbl[8];
+static int tracercount = 0;
+
+static int do_trace(const char *tracer) {
+	for (int i = 0; i < tracercount; ++i) {
+		if (strcmp(tracetbl[i], tracer) == 0) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+void gil_trace_enable(const char *tracer) {
+	if (tracercount >= (int)(sizeof(tracetbl) / sizeof(*tracetbl))) {
+		return;
+	}
+
+	tracetbl[tracercount++] = tracer;
+}
+
+void gil_trace_push_impl(const char *tracer, const char *name) {
+	if (!do_trace(tracer)) {
+		return;
+	}
+
 	for (int i = 0; i < gil_trace_depth; ++i) {
 		fprintf(stderr, "    ");
 	}
 
-	fprintf(stderr, "%s {\n", name);
+	fprintf(stderr, "[%s] %s {\n", tracer, name);
 	gil_trace_depth += 1;
 }
 
-void gil_trace_pop() {
+void gil_trace_pop_impl(const char *tracer) {
+	if (!do_trace(tracer)) {
+		return;
+	}
+
 	gil_trace_depth -= 1;
 	for (int i = 0; i < gil_trace_depth; ++i) {
 		fprintf(stderr, "    ");
@@ -25,10 +55,16 @@ void gil_trace_pop() {
 	fprintf(stderr, "}\n");
 }
 
-void gil_trace(const char *fmt, ...) {
+void gil_trace_impl(const char *tracer, const char *fmt, ...) {
+	if (!do_trace(tracer)) {
+		return;
+	}
+
 	for (int i = 0; i < gil_trace_depth; ++i) {
 		fprintf(stderr, "    ");
 	}
+
+	fprintf(stderr, "[%s] ", tracer);
 
 	va_list va;
 	va_start(va, fmt);
@@ -36,8 +72,8 @@ void gil_trace(const char *fmt, ...) {
 	fprintf(stderr, "\n");
 }
 
-void gil_trace_cleanup(void *unused) {
-	gil_trace_pop();
+void gil_trace_cleanup_func_impl(const char **tracer) {
+	gil_trace_pop_impl(*tracer);
 }
 
 #endif
