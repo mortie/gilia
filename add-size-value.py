@@ -1,56 +1,47 @@
 #!/usr/bin/env python3
 
+import os
+import argparse
 import sys
-import subprocess
 import struct
-import io
+from elftools.elf.elffile import ELFFile
 
-filename = None
-strip = False
-stripcmd = "strip"
-dashes = False
+symbol_name = "gil_binary_size"
+binary_size = 0
 
-def usage():
-    print("Usage: add-size-value.py [options] <file>")
-    print()
-    print("Options:")
-    print("  --strip:               Strip the file")
-    print("  --strip-cmd <command>: The program to strip a file (default: 'strip')")
+parser = argparse.ArgumentParser(description="Add 'gil_binary_size' to an ELF binary")
+parser.add_argument("file")
+args = parser.parse_args()
 
-args = iter(sys.argv[1:])
-for arg in args:
-    if not dashes and arg == "--strip":
-        strip = True
-    elif not dashes and arg == "--strip-cmd":
-        stripcmd = next(args)
-    elif not dashes and arg == "--":
-        dashes = True
-    elif filename == None:
-        filename = arg
-    else:
-        usage()
-        exit(1)
+if __name__ == "__main__":
+    binary_size = os.stat(args.file).st_size
 
-if filename == None:
-    usage()
-    exit(1)
+    with open(args.file, "rb+") as f:
+        elf = ELFFile(f)
+        symtab = None
+        for section in elf.iter_sections():
+            if section.name == ".symtab":
+                symtab = section
+                break
+        if symtab == None:
+            raise Exception("Couldn't find symbol table ('.symtab' section)")
 
-out = subprocess.check_output(["objdump", "-t", "--", filename])
-addr = None
-for line in out.split(b'\n'):
-    if b"gil_binary_size" in line:
-        addr = int(line.split(b' ')[0], 16)
+        symbol = None
+        for sym in section.iter_symbols():
+            if sym.name == symbol_name:
+                symbol = sym
+                break
+        if symbol == None:
+            raise Exception("Couldn't find symbol '" + symbol_name + "'")
 
-if addr is None:
-    print("Couldn't find gil_binary_size")
-    exit(1)
+        symbol_offset = None
+        for i, section in enumerate(elf.iter_sections()):
+            if i == symbol.entry.st_shndx:
+                symbol_offset = section.header.sh_offset + (
+                        symbol.entry.st_value - section.header.sh_addr)
+        if symbol_offset == None:
+            raise Exception("Couldn't find section with index " + str(symbol.entry.st_shndx))
 
-if strip:
-    subprocess.check_output([stripcmd, "--", filename])
-
-with open(filename, "r+b") as f:
-    f.seek(0, io.SEEK_END)
-    size = f.tell()
-    print(f"Write {size} to addr {hex(addr)}")
-    f.seek(addr)
-    f.write(struct.pack("i", size))
+        print("Writing", hex(binary_size), "to address", hex(symbol_offset), file=sys.stderr)
+        f.seek(symbol_offset)
+        f.write(struct.pack("I", binary_size))

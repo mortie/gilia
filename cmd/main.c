@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #ifdef __unix__
 #define USE_READLINE
@@ -25,7 +26,7 @@
 
 struct gil_module;
 
-extern int gil_binary_size;
+int gil_binary_size = -1;
 
 static int do_print_bytecode = 0;
 static int do_step = 0;
@@ -236,6 +237,7 @@ int main(int argc, char **argv) {
 	FILE *inf = stdin;
 	FILE *outbc = NULL;
 
+	// The binary size is encoded as the address to the symbol
 #ifdef __linux__
 	if (gil_binary_size > 0) {
 		FILE *self = fopen("/proc/self/exe", "rb");
@@ -243,12 +245,16 @@ int main(int argc, char **argv) {
 			fseek(self, 0, SEEK_END);
 			long size = ftell(self);
 
-			if (size < gil_binary_size) {
+			if (size < 0) {
+				perror("ftell");
+				fclose(self);
+				return 1;
+			} else if (size < (long)gil_binary_size) {
 				fprintf(stderr,
 						"WARNING: Binary smaller than expected (%li vs %i). "
 						"Was the binary stripped?\n",
 						size, gil_binary_size);
-			} else if (size > gil_binary_size)  {
+			} else if (size > (long)gil_binary_size)  {
 				fseek(self, gil_binary_size, SEEK_SET);
 				inf = self;
 				goto skip_args;
@@ -332,6 +338,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
+skip_args:;
 	gil_mod_builtins_init(&builtins);
 
 	struct gil_mod_fs mod_fs;
@@ -349,7 +356,6 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-skip_args:;
 	struct gil_io_mem_writer bytecode_writer = {
 		.w.write = gil_io_mem_write,
 	};

@@ -15,5 +15,4 @@ LIB_SRCS := \
 	lib/trace.c
 
 CMD_SRCS := \
-	cmd/main.c \
-	cmd/size.s
+	cmd/main.c
