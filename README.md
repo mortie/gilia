@@ -16,6 +16,10 @@ Clone this repo:
 	git clone https://github.com/mortie/gilia.git
 	cd gilia
 
+Install the `pyelftools` Python library if you don't have it already:
+
+	sudo apt install python3-pyelftools
+
 Build:
 
 	make -j
