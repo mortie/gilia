@@ -55,9 +55,5 @@ print ({$.0 + $.1} 10 20) + (50 - 40)
 # Infix operators are evaluated left to right
 print 10 + 20 - 5
 
-# Custom functions starting with a dollar can be infix
-$shift-add := {$.0 * 10 + $.1}
-print 1 $shift-add 2
-
 # Lastly, just print a function literal
 print {0}
