@@ -30,8 +30,9 @@ include rules.mk
 -include .config.mk
 
 $(OUT)/gilia: $(call objify,$(LIB_SRCS) $(CMD_SRCS))
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-	./add-size-value.py $@
+	$(CC) $(LDFLAGS) -o $@.in $^ $(LDLIBS)
+	./add-size-value.py $@.in
+	cp $@.in $@
 
 $(OUT)/gilia.so: $(call objify,$(LIB_SRCS))
 	$(CC) $(LDFLAGS) -shared -o $@ $^
@@ -46,8 +47,9 @@ endif
 
 .PHONY: strip
 strip: $(OUT)/gilia
-	$(STRIP) --keep-symbol=gil_binary_size $(OUT)/gilia
-	./add-size-value.py --strip --strip-cmd "$(STRIP)" $(OUT)/gilia
+	$(STRIP) --keep-symbol=gil_binary_size $(OUT)/gilia.in
+	./add-size-value.py $(OUT)/gilia.in
+	cp $(OUT)/gilia.in $(OUT)/gilia
 
 .PHONY: clean
 clean:
