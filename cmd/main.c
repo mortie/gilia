@@ -361,9 +361,11 @@ skip_args:;
 	};
 
 	int headerbyte = fgetc(inf);
-	if (headerbyte == EOF || ungetc(headerbyte, inf) == EOF) {
-		fprintf(stderr, "%s: Reading file failed.\n", input_filename);
-		return 1;
+	if (headerbyte != EOF) {
+		if (ungetc(headerbyte, inf) == EOF) {
+			fprintf(stderr, "%s: Reading file failed.\n", input_filename);
+			return 1;
+		}
 	}
 
 	// Detect whether input is compiled bytecode or not
