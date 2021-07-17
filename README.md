@@ -74,21 +74,15 @@ the body function.
 
 ## TODO
 
-### Function parameters
+### Clean up the SBO stuff in the parser
 
-Example:
+In the parser and bytecode generator, small buffer optimization (SBO) is used
+a lot to avoid small allocations. However, the implementation of this
+should be cleaned up.
 
-	add := |first second| {
-		first + second
-	}
+### Cleanup the main.c file
 
-With validation:
-
-	is-real := |x| {(typeof x) == 'real}
-
-	add := |first(is-real) second(is-real)| {
-		first + second
-	}
+The main file is a complete mess at the moment. Needs major clean-up.
 
 ### Module system
 
@@ -108,17 +102,6 @@ With validation:
 		block val
 		val.@destroy()
 	}
-
-### Line continuation syntax
-
-* It's useful to be able to make lines not terminated by newline.
-
-```
-	print "Hello world"
-	-> "the answer is:" 42
-```
-
-Should work as if there's no line break between the lines.
 
 ### Pattern matching
 

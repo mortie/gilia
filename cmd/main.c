@@ -14,6 +14,7 @@
 
 #include "bytecode.h"
 #include "gen/gen.h"
+#include "gen/fs_resolver.h"
 #include "io.h"
 #include "loader.h"
 #include "modules/builtins.h"
@@ -37,6 +38,7 @@ static char *input_filename = "-";
 static struct gil_mod_builtins builtins;
 static struct gil_module **modules;
 static size_t moduleslen;
+static struct gil_fs_resolver resolver;
 
 static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 	// Init lexer with its input reader
@@ -48,7 +50,7 @@ static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 
 	// Init gen with its output writer
 	struct gil_generator gen;
-	gil_gen_init(&gen, &w->w, &builtins.base);
+	gil_gen_init(&gen, &w->w, &builtins.base, &resolver.base);
 
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_gen_register_module(&gen, modules[i]);
@@ -119,7 +121,7 @@ static void repl() {
 	struct gil_lexer lexer;
 
 	struct gil_generator gen;
-	gil_gen_init(&gen, &w.w, &builtins.base);
+	gil_gen_init(&gen, &w.w, &builtins.base, NULL);
 
 	struct gil_vm vm;
 	gil_vm_init(&vm, NULL, 0, &builtins.base);
@@ -350,9 +352,12 @@ skip_args:;
 	modules = mods;
 	moduleslen = sizeof(mods) / sizeof(*mods); // NOLINT(bugprone-sizeof-expression)
 
+	gil_fs_resolver_init(&resolver, input_filename);
+
 	if (do_repl) {
 		repl();
 		printf("\n");
+		gil_fs_resolver_destroy(&resolver);
 		return 0;
 	}
 
@@ -364,6 +369,7 @@ skip_args:;
 	if (headerbyte != EOF) {
 		if (ungetc(headerbyte, inf) == EOF) {
 			fprintf(stderr, "%s: Reading file failed.\n", input_filename);
+			gil_fs_resolver_destroy(&resolver);
 			return 1;
 		}
 	}

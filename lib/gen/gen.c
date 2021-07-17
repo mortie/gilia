@@ -8,6 +8,7 @@
 #include "io.h"
 #include "module.h"
 #include "strset.h"
+#include "str.h"
 
 static void put(struct gil_generator *gen, unsigned char ch) {
 	gil_bufio_put(&gen->writer, ch);
@@ -67,7 +68,7 @@ static gil_word builtin_init_alloc(void *ptr, const char *name) {
 
 void gil_gen_init(
 		struct gil_generator *gen, struct gil_io_writer *w,
-		struct gil_module *builtins) {
+		struct gil_module *builtins, struct gil_generator_resolver *resolver) {
 	gil_strset_init(&gen->atomset);
 	gil_strset_init(&gen->stringset);
 	gen->strings = NULL;
@@ -77,8 +78,12 @@ void gil_gen_init(
 	gen->relocs = NULL;
 	gen->relocslen = 0;
 
-	gen->modules = NULL;
-	gen->moduleslen = 0;
+	gen->resolver = resolver;
+
+	gen->cmodules = NULL;
+	gen->cmoduleslen = 0;
+
+	gil_strset_init(&gen->moduleset);
 
 #define X(name, k) gil_strset_put_copy(&gen->atomset, name);
 	GIL_BYTECODE_ATOMS
@@ -96,9 +101,9 @@ void gil_gen_register_module(struct gil_generator *gen, struct gil_module *mod) 
 	gil_word id = gil_strset_put_copy(&gen->atomset, mod->name);
 	mod->init(mod, alloc_name, gen);
 
-	gen->moduleslen += 1;
-	gen->modules = realloc(gen->modules, gen->moduleslen * sizeof(*gen->modules));
-	gen->modules[gen->moduleslen - 1] = id;
+	gen->cmoduleslen += 1;
+	gen->cmodules = realloc(gen->cmodules, gen->cmoduleslen * sizeof(*gen->cmodules));
+	gen->cmodules[gen->cmoduleslen - 1] = id;
 }
 
 void gil_gen_flush(struct gil_generator *gen) {
@@ -109,7 +114,8 @@ void gil_gen_free(struct gil_generator *gen) {
 	gil_strset_free(&gen->atomset);
 	gil_strset_free(&gen->stringset);
 	free(gen->strings);
-	free(gen->modules);
+	free(gen->cmodules);
+	gil_strset_free(&gen->moduleset);
 	free(gen->relocs);
 }
 
@@ -126,8 +132,8 @@ static int gen_cmodule(struct gil_generator *gen, const char *str) {
 		return 0;
 	}
 
-	for (size_t i = 0; i < gen->moduleslen; ++i) {
-		if (gen->modules[i] == id) {
+	for (size_t i = 0; i < gen->cmoduleslen; ++i) {
+		if (gen->cmodules[i] == id) {
 			put(gen, GIL_OP_LOAD_CMODULE);
 			put_uint(gen, id);
 			return 1;
@@ -138,35 +144,111 @@ static int gen_cmodule(struct gil_generator *gen, const char *str) {
 }
 
 int gil_gen_import(
-		struct gil_generator *gen, char **str,
-		int (*callback)(void *data, int depth), void *data, int depth) {
-	int ret = gen_cmodule(gen, *str);
-	if (ret != 0) {
-		if (ret < 0) {
-			return -1;
-		} else {
-			free(*str);
-			*str = NULL;
-			return 0;
-		}
+		struct gil_generator *gen, char **str, char **err,
+		int (*callback)(struct gil_io_reader *reader, void *data, int depth),
+		void *data, int depth) {
+	if (gen_cmodule(gen, *str)) {
+		free(*str);
+		*str = NULL;
+		return 0;
 	}
 
-	return -1;
+	if (gen->resolver == NULL) {
+		*err = gil_strf("No such module");
+		return -1;
+	}
+
+	char *normalized_path = gen->resolver->normalize(gen->resolver, *str, err);
+	if (normalized_path == NULL) {
+		free(*str);
+		*str = NULL;
+		return -1;
+	}
+
+	gil_word id = gil_strset_get(&gen->moduleset, normalized_path);
+	if (id) {
+		put(gen, GIL_OP_LOAD_MODULE);
+		put_uint(gen, id);
+		free(normalized_path);
+		free(*str);
+		*str = NULL;
+		return 0;
+	}
+
+	struct gil_io_reader *reader = gen->resolver->create_reader(
+			gen->resolver, normalized_path, err);
+	if (reader == NULL) {
+		free(normalized_path);
+		free(*str);
+		*str = NULL;
+		return -1;
+	}
+
+	int ret = callback(reader, data, depth);
+	gen->resolver->destroy_reader(gen->resolver, reader);
+	if (ret < 0) {
+		free(normalized_path);
+		*err = NULL;
+		free(*str);
+		*str = NULL;
+		return -1;
+	} else {
+		free(normalized_path);
+		free(*str);
+		*str = NULL;
+		return 0;
+	}
 }
 
 int gil_gen_import_copy(
-		struct gil_generator *gen, const char *str,
-		int (*callback)(void *data, int depth), void *data, int depth) {
-	int ret = gen_cmodule(gen, str);
-	if (ret != 0) {
-		if (ret < 0) {
-			return -1;
-		} else {
-			return 0;
-		}
+		struct gil_generator *gen, const char *str, char **err,
+		int (*callback)(struct gil_io_reader *reader, void *data, int depth),
+		void *data, int depth) {
+	if (gen_cmodule(gen, str)) {
+		return 0;
 	}
 
-	return -1;
+	/*
+	 * Yeah, I need to fix all this duplication.
+	 * I'll get around to it, k.
+	 * Shush.
+	 */
+
+	if (gen->resolver == NULL) {
+		*err = gil_strf("No such module");
+		return -1;
+	}
+
+	char *normalized_path = gen->resolver->normalize(gen->resolver, str, err);
+	if (normalized_path == NULL) {
+		return -1;
+	}
+
+	gil_word id = gil_strset_get(&gen->moduleset, normalized_path);
+	if (id) {
+		put(gen, GIL_OP_LOAD_MODULE);
+		put_uint(gen, id);
+		free(normalized_path);
+		return 0;
+	}
+
+	struct gil_io_reader *reader = gen->resolver->create_reader(
+			gen->resolver, normalized_path, err);
+	if (reader == NULL) {
+		free(normalized_path);
+		return -1;
+	}
+
+	int ret = callback(reader, data, depth);
+	gen->resolver->destroy_reader(gen->resolver, reader);
+	if (ret < 0) {
+		free(normalized_path);
+		*err = NULL;
+		return -1;
+	} else {
+		free(normalized_path);
+		return 0;
+	}
 }
 
 void gil_gen_named_param(
@@ -286,6 +368,11 @@ void gil_gen_function(struct gil_generator *gen, gil_word pos) {
 void gil_gen_array(struct gil_generator *gen, gil_word count) {
 	put(gen, GIL_OP_ALLOC_ARRAY);
 	put_uint(gen, count);
+}
+
+void gil_gen_module(struct gil_generator *gen, gil_word pos) {
+	put(gen, GIL_OP_LOAD_MODULE);
+	put_uint(gen, pos);
 }
 
 void gil_gen_namespace(struct gil_generator *gen) {

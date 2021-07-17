@@ -34,7 +34,7 @@ static int eval_impl(const char *str, struct gil_parse_error *err) {
 	w.len = 0;
 	w.size = 0;
 	w.mem = NULL;
-	gil_gen_init(&gen, (struct gil_io_writer *)&w, &builtins.base);
+	gil_gen_init(&gen, (struct gil_io_writer *)&w, &builtins.base, NULL);
 
 	struct gil_parse_context ctx = {&lex, &gen, err};
 	if (gil_parse_program(&ctx) < 0) {

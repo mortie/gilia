@@ -87,7 +87,7 @@ static void check_impl(const char *name) {
 	gil_mod_builtins_init(&builtins);
 
 	struct gil_generator gen;
-	gil_gen_init(&gen, &bytecode.w, &builtins.base);
+	gil_gen_init(&gen, &bytecode.w, &builtins.base, NULL);
 
 	struct gil_parse_error err;
 	struct gil_parse_context ctx = {&lexer, &gen, &err};

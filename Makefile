@@ -1,6 +1,6 @@
 OUT ?= build
 CFLAGS += -Iinclude/gilia -fPIC -g -O2 \
-	-Wall -Wextra -Wno-unused-parameter -Wpedantic
+	-Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-format-truncation
 LDLIBS += -lreadline
 
 # This is the max depth for all recursive algorithms in Gilia.

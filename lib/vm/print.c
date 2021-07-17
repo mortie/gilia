@@ -297,6 +297,17 @@ void gil_vm_print_op(struct gil_io_writer *w, unsigned char *ops, size_t opcount
 		gil_io_printf(w, "LOAD_CMODULE %u", read_uint(ops, ptr));
 		return;
 
+	case GIL_OP_REGISTER_MODULE: {
+		gil_word w1 = read_uint(ops, ptr);
+		gil_word w2 = read_uint(ops, ptr);
+		gil_io_printf(w, "LOAD_MODULE %u %u", w1, w2);
+	}
+		return;
+
+	case GIL_OP_LOAD_MODULE:
+		gil_io_printf(w, "LOAD_MODULE %u", read_uint(ops, ptr));
+		return;
+
 	case GIL_OP_HALT:
 		gil_io_printf(w, "HALT");
 		return;
@@ -310,5 +321,6 @@ void gil_vm_print_bytecode(struct gil_io_writer *w, unsigned char *ops, size_t o
 	while (ptr < opcount) {
 		gil_io_printf(w, "%04zu ", ptr);
 		gil_vm_print_op(w, ops, opcount, &ptr);
+		gil_io_printf(w, "\n");
 	}
 }

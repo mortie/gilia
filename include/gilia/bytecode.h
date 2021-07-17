@@ -223,6 +223,16 @@ enum gil_opcode {
 	GIL_OP_LOAD_CMODULE,
 
 	/*
+	 * Register a Gilia module; register_module <id> <pos>
+	 */
+	GIL_OP_REGISTER_MODULE,
+
+	/*
+	 * Load a Gilia module; load_module <id>
+	 */
+	GIL_OP_LOAD_MODULE,
+
+	/*
 	 * Halt execution.
 	 */
 	GIL_OP_HALT,

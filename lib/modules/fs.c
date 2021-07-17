@@ -34,7 +34,7 @@ static gil_word fs_open(
 
 	FILE *f = fopen(path->buffer.buffer, modestr);
 	if (f == NULL) {
-		return gil_vm_error(vm, "%s: %s", path->buffer, strerror(errno));
+		return gil_vm_error(vm, "%s: %s", path->buffer.buffer, strerror(errno));
 	}
 
 	return gil_vm_make_cval(vm, mod->tfile, mod->nsfile, f);

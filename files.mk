@@ -1,4 +1,5 @@
 LIB_SRCS := \
+	lib/gen/fs_resolver.c \
 	lib/gen/gen.c \
 	lib/modules/builtins.c \
 	lib/modules/fs.c \

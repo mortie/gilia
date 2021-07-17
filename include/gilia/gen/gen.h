@@ -17,6 +17,14 @@ struct gil_generator_reloc {
 	gil_word replacement;
 };
 
+struct gil_generator_resolver {
+	char *(*normalize)(
+			struct gil_generator_resolver *rs, const char *str, char **err);
+	struct gil_io_reader *(*create_reader)(
+			struct gil_generator_resolver *rs, const char *path, char **err);
+	void (*destroy_reader)(struct gil_generator_resolver *rs, struct gil_io_reader *reader);
+};
+
 struct gil_generator {
 	struct gil_strset atomset;
 	struct gil_strset stringset;
@@ -27,15 +35,19 @@ struct gil_generator {
 	struct gil_generator_reloc *relocs;
 	size_t relocslen;
 
-	gil_word *modules;
-	size_t moduleslen;
+	struct gil_generator_resolver *resolver;
+
+	gil_word *cmodules;
+	size_t cmoduleslen;
+
+	struct gil_strset moduleset;
 };
 
 struct gil_module;
 
 void gil_gen_init(
 		struct gil_generator *gen, struct gil_io_writer *w,
-		struct gil_module *builtins);
+		struct gil_module *builtins, struct gil_generator_resolver *resolver);
 void gil_gen_register_module(struct gil_generator *gen, struct gil_module *mod);
 void gil_gen_flush(struct gil_generator *gen);
 void gil_gen_free(struct gil_generator *gen);
@@ -43,11 +55,13 @@ void gil_gen_free(struct gil_generator *gen);
 void gil_gen_add_reloc(struct gil_generator *gen, gil_word pos, gil_word rep);
 
 int gil_gen_import(
-		struct gil_generator *gen, char **str,
-		int (*callback)(void *data, int depth), void *data, int depth);
+		struct gil_generator *gen, char **str, char **err,
+		int (*callback)(struct gil_io_reader *reader, void *data, int depth),
+		void *data, int depth);
 int gil_gen_import_copy(
-		struct gil_generator *gen, const char *str,
-		int (*callback)(void *data, int depth), void *data, int depth);
+		struct gil_generator *gen, const char *str, char **err,
+		int (*callback)(struct gil_io_reader *reader, void *data, int depth),
+		void *data, int depth);
 
 void gil_gen_named_param(
 		struct gil_generator *gen, gil_word idx, char **ident);
@@ -68,6 +82,7 @@ void gil_gen_atom(struct gil_generator *gen, char **ident);
 void gil_gen_atom_copy(struct gil_generator *gen, char *ident);
 void gil_gen_function(struct gil_generator *gen, gil_word pos);
 void gil_gen_array(struct gil_generator *gen, gil_word count);
+void gil_gen_module(struct gil_generator *gen, gil_word pos);
 void gil_gen_namespace(struct gil_generator *gen);
 void gil_gen_namespace_set(struct gil_generator *gen, char **ident);
 void gil_gen_namespace_set_copy(struct gil_generator *gen, char *ident);

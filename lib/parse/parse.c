@@ -43,8 +43,33 @@ static int parse_expression(struct gil_parse_context *ctx, int depth);
 static int parse_expression(struct gil_parse_context *ctx, int depth);
 static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth);
 
-static int import_callback(void *ptr, int depth) {
-	return parse_program(ptr, depth + 1);
+static int import_callback(struct gil_io_reader *reader, void *ptr, int depth) {
+	gil_trace_scope("import callback");
+
+	struct gil_parse_context *ctx = ptr;
+
+	gil_word reloc_pos = ctx->gen->pos + 1;
+	gil_gen_rjmp_placeholder(ctx->gen); // 1-byte opcode, 4-byte length
+	gil_word start_pos = ctx->gen->pos;
+
+	struct gil_lexer *old_lexer = ctx->lexer;
+
+	struct gil_lexer lexer;
+	gil_lexer_init(&lexer, reader);
+	ctx->lexer = &lexer;
+
+	int ret = parse_program(ctx, depth + 1);
+	ctx->lexer = old_lexer;
+
+	if(ret < 0) {
+		return -1;
+	}
+
+	gil_word end_pos = ctx->gen->pos;
+	gil_gen_module(ctx->gen, start_pos);
+	gil_gen_add_reloc(ctx->gen, reloc_pos, end_pos - start_pos);
+
+	return 0;
 }
 
 static int parse_import(struct gil_parse_context *ctx, int depth) {
@@ -62,14 +87,21 @@ static int parse_import(struct gil_parse_context *ctx, int depth) {
 	struct gil_token_value val = gil_token_extract_val(tok);
 	gil_lexer_consume(ctx->lexer);
 
+	char *err;
 	if (val.flags & GIL_TOK_SMALL) {
-		if (gil_gen_import_copy(ctx->gen, val.strbuf, import_callback, ctx, depth) < 0) {
-			gil_parse_err(ctx->err, tok, "'%s': Import failed", val.strbuf);
+		if (gil_gen_import_copy(ctx->gen, val.strbuf, &err, import_callback, ctx, depth) < 0) {
+			if (err) {
+				gil_parse_err(ctx->err, tok, "'%s': %s", val.strbuf, err);
+				free(err);
+			}
 			return -1;
 		}
 	} else {
-		if (gil_gen_import(ctx->gen, &val.str, import_callback, ctx, depth) < 0) {
-			gil_parse_err(ctx->err, tok, "'%s': Import failed", val.str);
+		if (gil_gen_import(ctx->gen, &val.str, &err, import_callback, ctx, depth) < 0) {
+			if (err) {
+				gil_parse_err(ctx->err, tok, "'%s': %s", val.str, err);
+				free(err);
+			}
 			free(val.str);
 			return -1;
 		}
@@ -93,16 +125,23 @@ static int parse_use(struct gil_parse_context *ctx, int depth) {
 	struct gil_token_value name = gil_token_extract_val(tok);
 	gil_lexer_consume(ctx->lexer); // ident
 
+	char *err;
 	if (name.flags & GIL_TOK_SMALL) {
-		if (gil_gen_import_copy(ctx->gen, name.strbuf, import_callback, ctx, depth) < 0) {
-			gil_parse_err(ctx->err, tok, "'%s': Import failed", name.strbuf);
+		if (gil_gen_import_copy(ctx->gen, name.strbuf, &err, import_callback, ctx, depth) < 0) {
+			if (err) {
+				gil_parse_err(ctx->err, tok, "'%s': %s", name.strbuf, err);
+				free(err);
+			}
 			return -1;
 		}
 
 		gil_gen_stack_frame_set_copy(ctx->gen, name.strbuf);
 	} else {
-		if (gil_gen_import_copy(ctx->gen, name.str, import_callback, ctx, depth) < 0) {
-			gil_parse_err(ctx->err, tok, "'%s': Import failed", name.str);
+		if (gil_gen_import_copy(ctx->gen, name.str, &err, import_callback, ctx, depth) < 0) {
+			if (err) {
+				gil_parse_err(ctx->err, tok, "'%s': %s", name.str, err);
+				free(err);
+			}
 			free(name.str);
 			return -1;
 		}

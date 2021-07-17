@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 char *gil_strf(const char *fmt, ...) {
 	va_list va;
