@@ -11,6 +11,7 @@ LIB_SRCS := \
 	lib/bitset.c \
 	lib/io.c \
 	lib/loader.c \
+	lib/str.c \
 	lib/strset.c \
 	lib/trace.c
 
