@@ -5,6 +5,10 @@
 
 #include "io.h"
 
+#if !defined(GIL_MAJOR) || !defined(GIL_MINOR)
+#error "Need to define GIL_MAJOR and GIL_MINOR macros"
+#endif
+
 int gil_bc_serialize(FILE *outf, unsigned char *data, size_t len) {
 	char header[4] = { 0x1b, 0x67, 0x6c, 0x63 };
 	if (fwrite(header, 1, 4, outf) < 4) {
@@ -12,13 +16,11 @@ int gil_bc_serialize(FILE *outf, unsigned char *data, size_t len) {
 		return -1;
 	}
 
-	uint32_t version = gil_bytecode_version;
-
 	unsigned char version_buf[4] = {
-		(version >> 0) & 0xff,
-		(version >> 8) & 0xff,
-		(version >> 16) & 0xff,
-		(version >> 24) & 0xff,
+		((GIL_MAJOR) >> 8) & 0xff,
+		((GIL_MAJOR) >> 0) & 0xff,
+		((GIL_MINOR) >> 8) & 0xff,
+		((GIL_MINOR) >> 0) & 0xff,
 	};
 	if (fwrite(version_buf, 1, 4, outf) < 4) {
 		fprintf(stderr, "Write error\n");
@@ -42,16 +44,14 @@ int gil_bc_load(FILE *inf, struct gil_io_writer *w) {
 		return -1;
 	}
 
-	uint32_t version = 0 |
-		((uint32_t)version_buf[0]) << 0 |
-		((uint32_t)version_buf[1]) << 8 |
-		((uint32_t)version_buf[2]) << 16 |
-		((uint32_t)version_buf[3]) << 24;
-	if (version != gil_bytecode_version) {
+	uint16_t major = (uint32_t)version_buf[0] << 8 | version_buf[1];
+	uint16_t minor = (uint32_t)version_buf[2] << 8 | version_buf[3];
+
+	if (major != (GIL_MAJOR) || minor > (GIL_MINOR)) {
 		fprintf(stderr,
-				"Version mismatch! Bytecode file uses bytecode version %i"
-				", but your build of Gilia uses bytecode version %i\n",
-				version, gil_bytecode_version);
+				"Version mismatch! Bytecode is from version %i.%i"
+				", but your build of Gilia is version %i.%i\n",
+				major, minor, (GIL_MAJOR), (GIL_MINOR));
 		return -1;
 	}
 

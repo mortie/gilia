@@ -1,3 +1,6 @@
+MAJOR = 0
+MINOR = 1
+
 OUT ?= build
 CFLAGS += -Iinclude/gilia -fPIC -g -O2 \
 	-Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-format-truncation
@@ -14,7 +17,7 @@ LDLIBS += -lreadline
 # to do a more careful analysis to ensure you're within bounds.
 MAX_STACK_DEPTH ?= 512
 
-CFLAGS += -DGIL_MAX_STACK_DEPTH=$(MAX_STACK_DEPTH)
+CFLAGS += -DGIL_MAX_STACK_DEPTH=$(MAX_STACK_DEPTH) -DGIL_MAJOR=$(MAJOR) -DGIL_MINOR=$(MINOR)
 
 OBJCOPY ?= objcopy
 STRIP ?= strip
