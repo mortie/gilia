@@ -1,20 +1,40 @@
 #!/usr/bin/env python3
 
-import fs
 import shutil
 import os
 import subprocess
 import time
 import sys
 import argparse
+import signal
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
+terminate = False
+
+def handle_sigint(sig, frame):
+    global terminate
+    if terminate:
+        print("\n===> Terminating non-gracefully.", file=sys.stderr)
+        exit(1)
+    else:
+        print("\n===> Terminating ASAP...", file=sys.stderr)
+        terminate = True
+
+def run_command(args):
+    try:
+        ret = subprocess.run(
+                args, check=True, preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as ex:
+        print("\nCommand failed:", args, file=sys.stderr)
+        print("Output:", file=sys.stderr)
+        sys.stderr.buffer.write(ex.output);
+        raise ex
+
 def bench_one_iter(name):
     start = time.time()
-    subprocess.run(
-            ["./gilia/build/gilia", f"benches/{name}/{name}.g"],
-            check=True, capture_output=True)
+    run_command(["./gilia/build/gilia", f"benches/{name}/{name}.g"])
     return time.time() - start
 
 def bench_one_version(name):
@@ -36,7 +56,7 @@ def bench_all_versions(names, count=None):
     try:
         shutil.rmtree("gilia")
     except: pass
-    subprocess.run(["git", "clone", "../..", "gilia"], check=True)
+    run_command(["git", "clone", "../..", "gilia"])
 
     xs = {}
     ys = {}
@@ -53,37 +73,41 @@ def bench_all_versions(names, count=None):
     if count != None:
         commits = commits[0:count]
 
-    n = len(commits)
+    n = 1
     for commit in tqdm(commits, desc="Benchmarking"):
         n -= 1
         parts = commit.split(" ")
         cid = parts[0]
 
         try:
-            subprocess.check_output(["make", "-C", "gilia", "clean"])
-            subprocess.check_output(["make", "-C", "gilia", "-j", "8"])
+            run_command(["make", "-C", "gilia", "clean"])
+            run_command(["make", "-C", "gilia", "-j", "8"])
         except subprocess.CalledProcessError:
             continue
 
         for name in names:
-            subprocess.run(["git", "-C", "gilia", "checkout", "-q", cid], check=True)
+            run_command(["git", "-C", "gilia", "checkout", "-q", cid])
             try:
                 score = bench_one_version(name)
-                xs[name].append(n)
+                xs[name].append(str(n))
                 ys[name].append(score)
             except subprocess.CalledProcessError:
-                print("Error on commit", commit, file=sys.stderr)
+                print("\nError on commit", commit, file=sys.stderr)
+
+        if terminate:
+            break
 
     print("Writing output...", file=sys.stderr)
     try:
         os.mkdir("output")
     except: pass
     for name in names:
-        for x, ydots in tqdm(list(zip(xs[name], ys[name])), desc=name):
+        for x, ydots in tqdm(reversed(list(zip(xs[name], ys[name]))), desc=name):
             for y in ydots:
                 plt.scatter(x, y, c="blue")
         plt.title(name)
         plt.ylim(ymin=0)
+        print(f"Saving output/{name}.png...", file=sys.stderr)
         plt.savefig(f"output/{name}.png")
         plt.cla()
 
@@ -98,4 +122,6 @@ for name in args.benchmarks:
         print(f"No such benchmark: {name}")
         exit(1)
 
+
+signal.signal(signal.SIGINT, handle_sigint)
 bench_all_versions(args.benchmarks, count=args.n)
