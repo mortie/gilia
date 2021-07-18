@@ -238,6 +238,10 @@ void gil_vm_print_op(struct gil_io_writer *w, unsigned char *ops, size_t opcount
 		gil_io_printf(w, "RET");
 		return;
 
+	case GIL_OP_MOD_RET:
+		gil_io_printf(w, "MOD_RET");
+		return;
+
 	case GIL_OP_ALLOC_NONE:
 		gil_io_printf(w, "ALLOC_NONE");
 		return;
@@ -295,13 +299,6 @@ void gil_vm_print_op(struct gil_io_writer *w, unsigned char *ops, size_t opcount
 
 	case GIL_OP_LOAD_CMODULE:
 		gil_io_printf(w, "LOAD_CMODULE %u", read_uint(ops, ptr));
-		return;
-
-	case GIL_OP_REGISTER_MODULE: {
-		gil_word w1 = read_uint(ops, ptr);
-		gil_word w2 = read_uint(ops, ptr);
-		gil_io_printf(w, "LOAD_MODULE %u %u", w1, w2);
-	}
 		return;
 
 	case GIL_OP_LOAD_MODULE:

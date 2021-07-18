@@ -122,6 +122,11 @@ enum gil_opcode {
 	GIL_OP_RET,
 
 	/*
+	 * Return from a Gilia module
+	 */
+	GIL_OP_MOD_RET,
+
+	/*
 	 * Put a reference to none at the top of the stack.
 	 * Push 0
 	 */
@@ -223,12 +228,7 @@ enum gil_opcode {
 	GIL_OP_LOAD_CMODULE,
 
 	/*
-	 * Register a Gilia module; register_module <id> <pos>
-	 */
-	GIL_OP_REGISTER_MODULE,
-
-	/*
-	 * Load a Gilia module; load_module <id>
+	 * Load a Gilia module; load_module <pos>
 	 */
 	GIL_OP_LOAD_MODULE,
 

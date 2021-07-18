@@ -11,7 +11,7 @@
 static gil_word fs_open(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
-	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->modules[mid].mod;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->cmodules[mid].mod;
 
 	if (argc != 1 && argc != 2) {
 		return gil_vm_error(vm, "Expected 1 or 2 arguments");
@@ -43,7 +43,7 @@ static gil_word fs_open(
 static gil_word fs_file_close(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
-	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->modules[mid].mod;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->cmodules[mid].mod;
 
 	if (argc != 0) {
 		return gil_vm_error(vm, "Expected 0 arguments");
@@ -70,7 +70,7 @@ static gil_word fs_file_close(
 static gil_word fs_file_read_all(
 		struct gil_vm *vm, gil_word mid, gil_word self,
 		gil_word argc, gil_word *argv) {
-	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->modules[mid].mod;
+	struct gil_mod_fs *mod = (struct gil_mod_fs *)vm->cmodules[mid].mod;
 
 	if (argc != 0) {
 		return gil_vm_error(vm, "Expected 0 arguments");

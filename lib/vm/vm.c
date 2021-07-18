@@ -277,7 +277,11 @@ void gil_vm_init(
 	vm->gc_start = 1;
 
 	gil_strset_init(&vm->atomset);
+
 	vm->next_ctype = 1;
+	vm->cmodules = NULL;
+	vm->cmoduleslen = 0;
+
 	vm->modules = NULL;
 	vm->moduleslen = 0;
 
@@ -315,11 +319,12 @@ void gil_vm_register_module(struct gil_vm *vm, struct gil_module *mod) {
 	gil_word id = gil_strset_put_copy(&vm->atomset, mod->name);
 	mod->init(mod, mod_init_alloc, vm);
 
-	vm->moduleslen += 1;
-	vm->modules = realloc(vm->modules, vm->moduleslen * sizeof(*vm->modules));
-	vm->modules[vm->moduleslen - 1].id = id;
-	vm->modules[vm->moduleslen - 1].ns = 0;
-	vm->modules[vm->moduleslen - 1].mod = mod;
+	vm->cmoduleslen += 1;
+	vm->cmodules = realloc(vm->cmodules, vm->cmoduleslen * sizeof(*vm->cmodules));
+	struct gil_vm_cmodule *cmod = &vm->cmodules[vm->cmoduleslen - 1];
+	cmod->id = id;
+	cmod->ns = 0;
+	cmod->mod = mod;
 }
 
 gil_word gil_vm_alloc(struct gil_vm *vm, enum gil_value_type typ, enum gil_value_flags flags) {
@@ -404,7 +409,7 @@ void gil_vm_free(struct gil_vm *vm) {
 	free(vm->values);
 	gil_bitset_free(&vm->valueset);
 	gil_strset_free(&vm->atomset);
-	free(vm->modules);
+	free(vm->cmodules);
 }
 
 size_t gil_vm_gc(struct gil_vm *vm) {
@@ -418,10 +423,10 @@ size_t gil_vm_gc(struct gil_vm *vm) {
 	}
 
 	// Mark for all loaded modules
-	for (size_t i = 0; i < vm->moduleslen; ++i) {
-		if (vm->modules[i].ns) {
-			gc_mark_base(vm, vm->modules[i].ns);
-			vm->modules[i].mod->marker(vm->modules[i].mod, vm, gc_mark_base);
+	for (size_t i = 0; i < vm->cmoduleslen; ++i) {
+		if (vm->cmodules[i].ns) {
+			gc_mark_base(vm, vm->cmodules[i].ns);
+			vm->cmodules[i].mod->marker(vm->cmodules[i].mod, vm, gc_mark_base);
 		}
 	}
 
@@ -808,6 +813,17 @@ void gil_vm_step(struct gil_vm *vm) {
 	}
 		break;
 
+	case GIL_OP_MOD_RET: {
+		gil_word retptr = vm->fstack[vm->fsptr - 1].retptr;
+		gil_word sptr = vm->fstack[vm->fsptr - 1].sptr;
+		gil_word ns = vm->fstack[vm->fsptr - 1].ns;
+		vm->fsptr -= 1;
+		vm->sptr = sptr;
+		vm->iptr = retptr;
+		vm->stack[vm->sptr++] = ns;
+	}
+		break;
+
 	case GIL_OP_ALLOC_NONE:
 		vm->stack[vm->sptr++] = 0;
 		break;
@@ -1046,13 +1062,13 @@ void gil_vm_step(struct gil_vm *vm) {
 	case GIL_OP_LOAD_CMODULE: {
 		word = read_uint(vm);
 		int found = 0;
-		for (size_t i = 0; i < vm->moduleslen; ++i) {
-			if (vm->modules[i].id == word) {
-				if (vm->modules[i].ns == vm->knone) {
-					vm->modules[i].ns = vm->modules[i].mod->create(
-							vm->modules[i].mod, vm, i);
+		for (size_t i = 0; i < vm->cmoduleslen; ++i) {
+			if (vm->cmodules[i].id == word) {
+				if (vm->cmodules[i].ns == vm->knone) {
+					vm->cmodules[i].ns = vm->cmodules[i].mod->create(
+							vm->cmodules[i].mod, vm, i);
 				}
-				vm->stack[vm->sptr++] = vm->modules[i].ns;
+				vm->stack[vm->sptr++] = vm->cmodules[i].ns;
 				found = 1;
 				break;
 			}
@@ -1061,6 +1077,42 @@ void gil_vm_step(struct gil_vm *vm) {
 		if (!found) {
 			vm->stack[vm->sptr++] = gil_vm_error(vm, "Module not found");
 		}
+	}
+		break;
+
+	case GIL_OP_LOAD_MODULE: {
+		gil_word pos = read_uint(vm);
+		int found = 0;
+		for (size_t i = 0; i < vm->moduleslen; ++i) {
+			if (vm->modules[i].pos == pos) {
+				vm->stack[vm->sptr++] = vm->modules[i].ns;
+				found = 1;
+				break;
+			}
+		}
+
+		if (found) {
+			break;
+		}
+
+		// We haven't seen the module before; let's load it
+		gil_word ns_id = alloc_val(vm);
+		vm->values[ns_id].ns.parent = vm->fstack[1].ns;
+		vm->values[ns_id].ns.ns = NULL;
+		vm->values[ns_id].flags = GIL_VAL_TYPE_NAMESPACE;
+		vm->fstack[vm->fsptr].ns = ns_id;
+		vm->fstack[vm->fsptr].retptr = vm->iptr;
+		vm->fstack[vm->fsptr].sptr = vm->sptr;
+		vm->fstack[vm->fsptr].args = vm->knone;
+		vm->fsptr += 1;
+
+		vm->iptr = pos;
+
+		// Alloc a new module for it
+		vm->moduleslen += 1;
+		vm->modules = realloc(vm->modules, vm->moduleslen * sizeof(*vm->modules));
+		vm->modules[vm->moduleslen - 1].pos = pos;
+		vm->modules[vm->moduleslen - 1].ns = ns_id;
 	}
 		break;
 

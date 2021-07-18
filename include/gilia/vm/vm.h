@@ -169,6 +169,11 @@ struct gil_vm_cmodule {
 	struct gil_module *mod;
 };
 
+struct gil_vm_module {
+	gil_word pos;
+	gil_word ns;
+};
+
 struct gil_vm {
 	int halted;
 	int need_gc;
@@ -187,11 +192,15 @@ struct gil_vm {
 	gil_word knone;
 	gil_word ktrue, kfalse, kstop;
 
-	gil_word next_ctype;
 	gil_word gc_start;
 
 	struct gil_strset atomset;
-	struct gil_vm_cmodule *modules;
+
+	gil_word next_ctype;
+	struct gil_vm_cmodule *cmodules;
+	size_t cmoduleslen;
+
+	struct gil_vm_module *modules;
 	size_t moduleslen;
 
 	gil_word sptr;

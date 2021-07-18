@@ -65,6 +65,8 @@ static int import_callback(struct gil_io_reader *reader, void *ptr, int depth) {
 		return -1;
 	}
 
+	gil_gen_mod_ret(ctx->gen);
+
 	gil_word end_pos = ctx->gen->pos;
 	gil_gen_module(ctx->gen, start_pos);
 	gil_gen_add_reloc(ctx->gen, reloc_pos, end_pos - start_pos);
@@ -775,11 +777,15 @@ static int parse_program(struct gil_parse_context *ctx, int depth) {
 		gil_gen_discard(ctx->gen);
 	}
 
-	gil_gen_halt(ctx->gen);
-	gil_gen_flush(ctx->gen);
 	return 0;
 }
 
 int gil_parse_program(struct gil_parse_context *ctx) {
-	return parse_program(ctx, 0);
+	if (parse_program(ctx, 0) < 0) {
+		return -1;
+	}
+
+	gil_gen_halt(ctx->gen);
+	gil_gen_flush(ctx->gen);
+	return 0;
 }

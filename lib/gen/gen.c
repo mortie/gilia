@@ -296,6 +296,10 @@ void gil_gen_ret(struct gil_generator *gen) {
 	put(gen, GIL_OP_RET);
 }
 
+void gil_gen_mod_ret(struct gil_generator *gen) {
+	put(gen, GIL_OP_MOD_RET);
+}
+
 void gil_gen_none(struct gil_generator *gen) {
 	put(gen, GIL_OP_ALLOC_NONE);
 }
