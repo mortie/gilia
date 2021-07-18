@@ -10,6 +10,7 @@
 #include "io.h"
 #include "module.h"
 #include "strset.h"
+#include "str.h"
 
 #ifdef GIL_ENABLE_TRACE
 #include "vm/print.h"
@@ -343,49 +344,17 @@ gil_word gil_vm_error(struct gil_vm *vm, const char *fmt, ...) {
 	struct gil_vm_value *val = &vm->values[id];
 	val->flags = GIL_VAL_CONST | GIL_VAL_TYPE_ERROR;
 
-	char buf[256];
-
 	va_list va;
 	va_start(va, fmt);
-	int n = vsnprintf(buf, sizeof(buf), fmt, va);
+	val->error.error = gil_vstrf(fmt, va);
+	va_end(va);
 
-	if (n < 0) {
-		const char *message = "Failed to generate error message!";
-		val->error.error = malloc(strlen(message) + 1);
-		if (val->error.error == NULL) {
-			gil_io_printf(vm->std_error, "Allocation failure\n");
-			vm->halted = 1;
-			va_end(va);
-			return vm->knone;
-		}
-
-		strcpy(val->error.error, message);
-		va_end(va);
-		return id;
-	} else if ((size_t)n + 1 < sizeof(buf)) {
-		val->error.error = malloc(n + 1);
-		if (val->error.error == NULL) {
-			gil_io_printf(vm->std_error, "Allocation failure\n");
-			vm->halted = 1;
-			va_end(va);
-			return vm->knone;
-		}
-
-		strcpy(val->error.error, buf);
-		va_end(va);
-		return id;
-	}
-
-	val->error.error = malloc(n + 1);
 	if (val->error.error == NULL) {
-		gil_io_printf(vm->std_error, "Allocation failure\n");
+		gil_io_printf(vm->std_error, "Failed to create error message\n");
 		vm->halted = 1;
-		va_end(va);
 		return vm->knone;
 	}
 
-	vsnprintf(val->error.error, n + 1, fmt, va);
-	va_end(va);
 	return id;
 }
 

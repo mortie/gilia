@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "parse/lex.h"
+#include "str.h"
 
 #define GIL_TRACER_NAME "parser"
 #include "trace.h"
@@ -22,42 +23,16 @@ void gil_parse_err(struct gil_parse_error *err, struct gil_token *tok, const cha
 		return;
 	}
 
-	char buf[256];
 	va_list va;
 	va_start(va, fmt);
-	int n = vsnprintf(buf, sizeof(buf), fmt, va);
-
-	if (n < 0) {
-		err->message = "Failed to generate error message!";
-		err->is_static = 1;
-
-		va_end(va);
-		gil_trace("error: %s", err->message);
-		return;
-	} else if ((size_t)n + 1 < sizeof(buf)) {
-		err->message = malloc(n + 1);
-		if (err->message == NULL) {
-			err->message = "Failed to allocate error message!";
-			err->is_static = 1;
-		} else {
-			strcpy(err->message, buf);
-		}
-
-		va_end(va);
-		gil_trace("error: %s", err->message);
-		return;
-	}
-
-	// Need to allocate for this one
-	err->message = malloc(n + 1);
-	if (err->message == NULL) {
-		err->message = "Failed to allocate error message!";
-		err->is_static = 1;
-	} else {
-		vsnprintf(err->message, n + 1, fmt, va);
-	}
-
+	err->message = gil_vstrf(fmt, va);
 	va_end(va);
+
+	if (err->message == NULL) {
+		err->message = "Failed to create error message";
+		err->is_static = 1;
+	}
+
 	gil_trace("error: %s", err->message);
 }
 
