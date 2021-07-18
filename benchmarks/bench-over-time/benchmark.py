@@ -102,12 +102,14 @@ def bench_all_versions(names, count=None):
         os.mkdir("output")
     except: pass
     for name in names:
-        for x, ydots in tqdm(reversed(list(zip(xs[name], ys[name]))), desc=name):
+        lst = list(zip(xs[name], ys[name]))
+        lst.reverse()
+        for x, ydots in tqdm(lst, desc=name):
             for y in ydots:
                 plt.scatter(x, y, c="blue")
         plt.title(name)
         plt.ylim(ymin=0)
-        print(f"Saving output/{name}.png...", file=sys.stderr)
+        plt.grid(axis='y')
         plt.savefig(f"output/{name}.png")
         plt.cla()
 
@@ -121,7 +123,6 @@ for name in args.benchmarks:
     if not os.path.exists(f"benches/{name}/{name}.g"):
         print(f"No such benchmark: {name}")
         exit(1)
-
 
 signal.signal(signal.SIGINT, handle_sigint)
 bench_all_versions(args.benchmarks, count=args.n)
