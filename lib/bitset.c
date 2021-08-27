@@ -1,6 +1,8 @@
 #include "bitset.h"
 
+#ifdef __GLIBC__
 #include <features.h>
+#endif 
 #include <limits.h>
 #include <string.h>
 #include <strings.h>

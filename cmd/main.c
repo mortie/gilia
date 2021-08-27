@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#ifdef __unix__
+#if defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))
 #define USE_READLINE
 #define USE_POSIX
 #include <time.h>
@@ -26,8 +26,6 @@
 #include "trace.h"
 
 struct gil_module;
-
-int gil_binary_size = -1;
 
 static int do_print_bytecode = 0;
 static int do_step = 0;
@@ -200,7 +198,7 @@ static void repl() {
 
 		gil_vm_gc(&vm);
 
-next:
+next: ;
 #ifdef USE_READLINE
 		free(rline);
 #endif
@@ -238,34 +236,6 @@ int main(int argc, char **argv) {
 	int was_inf_set = 0;
 	FILE *inf = stdin;
 	FILE *outbc = NULL;
-
-	// The binary size is encoded as the address to the symbol
-#ifdef __linux__
-	if (gil_binary_size > 0) {
-		FILE *self = fopen("/proc/self/exe", "rb");
-		if (self != NULL) {
-			fseek(self, 0, SEEK_END);
-			long size = ftell(self);
-
-			if (size < 0) {
-				perror("ftell");
-				fclose(self);
-				return 1;
-			} else if (size < (long)gil_binary_size) {
-				fprintf(stderr,
-						"WARNING: Binary smaller than expected (%li vs %i). "
-						"Was the binary stripped?\n",
-						size, gil_binary_size);
-			} else if (size > (long)gil_binary_size)  {
-				fseek(self, gil_binary_size, SEEK_SET);
-				inf = self;
-				goto skip_args;
-			} else {
-				fclose(self);
-			}
-		}
-	}
-#endif
 
 #ifdef USE_POSIX
 	do_repl = isatty(0);
@@ -340,7 +310,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-skip_args:;
 	gil_mod_builtins_init(&builtins);
 
 	struct gil_mod_fs mod_fs;

@@ -33,9 +33,7 @@ include rules.mk
 -include .config.mk
 
 $(OUT)/gilia: $(call objify,$(LIB_SRCS) $(CMD_SRCS))
-	$(CC) $(LDFLAGS) -o $@.in $^ $(LDLIBS)
-	./add-size-value.py $@.in
-	cp $@.in $@
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(OUT)/gilia.so: $(call objify,$(LIB_SRCS))
 	$(CC) $(LDFLAGS) -shared -o $@ $^
