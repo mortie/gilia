@@ -1,5 +1,7 @@
 #include "str.h"
 
+#include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <snow/snow.h>
 
