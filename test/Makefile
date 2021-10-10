@@ -1,46 +1,60 @@
-OUT ?= build
+SRCS = $(wildcard src/*.c)
 
-CFLAGS += -g -I../include/gilia -Isnow -DSNOW_ENABLED \
-	-Wall -Wextra -Wno-unsed-parameter
+WARNINGS := -Wall -Wextra -Wpedantic -Wno-unused-parameter
+INCLUDES := -I../include/gilia -Isnow
+DEFINES := -DSNOW_ENABLED
+
+FLAGS := $(WARNINGS) $(INCLUDES) $(DEFINES)
+CFLAGS += $(FLAGS)
 LDFLAGS +=
-LDLIBS +=
+LDLIBS += -lreadline
 
-GILCFLAGS +=
-GILLDFLAGS +=
+OUT ?= build
+CC ?= cc
+PKG_CONFIG ?= pkg-config
 
 SANITIZE ?= address,undefined
 ifneq ($(SANITIZE),)
-	CFLAGS += -fsanitize=$(SANITIZE)
-	LDFLAGS += -fsanitize=$(SANITIZE)
-	GILCFLAGS += -fsanitize=$(SANITIZE)
+LDFLAGS += -fsanitize=$(SANITIZE)
+FLAGS += -fsanitize=$(SANITIZE)
 endif
 
-COVERAGE ?= 1
-ifeq ($(COVERAGE),1)
-	CFLAGS += -fprofile-arcs -ftest-coverage
-	LDFLAGS += -fprofile-arcs -ftest-coverage --coverage
-	GILCFLAGS += -fprofile-arcs -ftest-coverage
-	GILLDFLAGS += -fprofile-arcs -ftest-coverage --coverage
-	LDLIBS += -lgcov
+ifeq ($(VERBOSE),1)
+define exec
+	@echo '$(1):' $(2)
+	@$(2)
+endef
+else
+define exec
+	@echo '$(1)' $@
+	@$(2) || (echo '$(1) $@:' $(2) >&2 && false)
+endef
 endif
 
-all: $(OUT)/test
+$(OUT)/test: $(patsubst %,$(OUT)/%.o,$(SRCS)) $(OUT)/libgilia.so
+	@mkdir -p $(@D)
+	$(call exec,LD ,$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS))
 
-include files.mk
-include ../files.mk
-include ../rules.mk
+.PHONY: $(OUT)/libgilia.so
+$(OUT)/libgilia.so:
+	$(MAKE) -C .. SANITIZE=$(SANITIZE) OUT=$(abspath $(OUT)) $(abspath $(OUT))/libgilia.so
 
-$(OUT)/test: $(call objify,$(TEST_SRCS)) $(OUT)/gilia.so
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+$(OUT)/%.c.o: %.c $(OUT)/%.c.d
+	@mkdir -p $(@D)
+	$(call exec,CC ,$(CC) $(CFLAGS) -MMD -o $@ -c $<)
+$(OUT)/%.c.d: %.c;
 
-.PHONY: $(OUT)/gilia.so
-$(OUT)/gilia.so:
-	CFLAGS="$(GILCFLAGS)" LDFLAGS="$(GILLDFLAGS)" OUT="test/$(OUT)" \
-		$(MAKE) -C .. test/$(OUT)/gilia.so
+ifneq ($(filter clean,$(MAKECMDGOALS)),clean)
+-include $(patsubst %,$(OUT)/%.d,$(SRCS))
+endif
 
 .PHONY: check
 check: $(OUT)/test
-	./$(OUT)/test $(ARGS)
+	$(OUT)/test
+
+.PHONY: clean
+clean:
+	rm -rf $(OUT) coverage
 
 .PHONY: generate-coverage
 generate-coverage: check
@@ -50,7 +64,3 @@ generate-coverage: check
 	cp $$(find build -type f -name '*.gcda' -or -name '*.gcno') coverage
 	cd coverage && lcov --capture --directory . --output-file coverage.info
 	cd coverage && genhtml coverage.info --output-directory report
-
-.PHONY: clean
-clean:
-	rm -rf $(OUT) coverage

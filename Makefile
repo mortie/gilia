@@ -1,10 +1,25 @@
 MAJOR = 0
 MINOR = 1
 
-OUT ?= build
-CFLAGS += -Iinclude/gilia -fPIC -g -O2 \
-	-Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-format-truncation
-LDLIBS += -lreadline
+SRCS = \
+	lib/gen/fs_resolver.c \
+	lib/gen/gen.c \
+	lib/modules/builtins.c \
+	lib/modules/fs.c \
+	lib/parse/error.c \
+	lib/parse/lex.c \
+	lib/parse/parse.c \
+	lib/vm/namespace.c \
+	lib/vm/print.c \
+	lib/vm/vm.c \
+	lib/bitset.c \
+	lib/io.c \
+	lib/loader.c \
+	lib/str.c \
+	lib/strset.c \
+	lib/trace.c \
+	cmd/main.c \
+#
 
 # This is the max depth for all recursive algorithms in Gilia.
 # The assumptions which led to the number are as follows:
@@ -17,45 +32,67 @@ LDLIBS += -lreadline
 # to do a more careful analysis to ensure you're within bounds.
 MAX_STACK_DEPTH ?= 512
 
-CFLAGS += -DGIL_MAX_STACK_DEPTH=$(MAX_STACK_DEPTH) -DGIL_MAJOR=$(MAJOR) -DGIL_MINOR=$(MINOR)
+WARNINGS := -Wall -Wextra -Wpedantic -Wno-unused-parameter
+INCLUDES := -Iinclude/gilia
+DEFINES := -DGIL_MAX_STACK_DEPTH=$(MAX_STACK_DEPTH) -DGIL_MAJOR=$(MAJOR) -DGIL_MINOR=$(MINOR)
 
-OBJCOPY ?= objcopy
-STRIP ?= strip
-IWYU ?= include-what-you-use -Xiwyu --no_comments
+FLAGS := $(WARNINGS) $(INCLUDES) $(DEFINES)
+CFLAGS += $(FLAGS)
+LDFLAGS +=
+LDLIBS += -lreadline
 
-ENABLE_TRACE ?= 0
-IGNORE_DEPS ?= 0
+HASH :=
+BUILDDIR ?= build
+OUT ?= $(BUILDDIR)/$(HASH)
+CC ?= cc
+PKG_CONFIG ?= pkg-config
 
-all: $(OUT)/gilia
-
-include files.mk
-include rules.mk
--include .config.mk
-
-$(OUT)/gilia: $(call objify,$(LIB_SRCS) $(CMD_SRCS))
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-$(OUT)/gilia.so: $(call objify,$(LIB_SRCS))
-	$(CC) $(LDFLAGS) -shared -o $@ $^
-
-ifneq ($(IGNORE_DEPS),1)
-include $(call depify,$(LIB_SRCS) $(CMD_SRCS))
+ifeq ($(RELEASE),1)
+HASH := release
+FLAGS += -O2 -DNDEBUG
+else
+HASH := debug
+FLAGS += -g
 endif
 
-ifeq ($(ENABLE_TRACE),1)
-CFLAGS += -DGIL_ENABLE_TRACE
+ifneq ($(SANITIZE),)
+HASH := $(HASH)-sanitize-$(SANITIZE)
+LDFLAGS += -fsanitize=$(SANITIZE)
+FLAGS += -fsanitize=$(SANITIZE)
 endif
 
-.PHONY: strip
-strip: $(OUT)/gilia
-	$(STRIP) --keep-symbol=gil_binary_size $(OUT)/gilia.in
-	./add-size-value.py $(OUT)/gilia.in
-	cp $(OUT)/gilia.in $(OUT)/gilia
+ifeq ($(VERBOSE),1)
+define exec
+	@echo '$(1):' $(2)
+	@$(2)
+endef
+else
+define exec
+	@echo '$(1)' $@
+	@$(2) || (echo '$(1) $@:' $(2) >&2 && false)
+endef
+endif
+
+$(OUT)/gilia: $(patsubst %,$(OUT)/%.o,$(SRCS))
+	@mkdir -p $(@D)
+	$(call exec,LD ,$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS))
+
+$(OUT)/libgilia.so: $(patsubst %,$(OUT)/%.o,$(SRCS))
+	$(call exec,LD ,$(CC) $(LDFLAGS) -shared -o $@ $^ $(LDLIBS))
+
+$(OUT)/%.c.o: %.c $(OUT)/%.c.d
+	@mkdir -p $(@D)
+	$(call exec,CC ,$(CC) $(CFLAGS) -MMD -o $@ -c $<)
+$(OUT)/%.c.d: %.c;
+
+ifneq ($(filter clean,$(MAKECMDGOALS)),clean)
+-include $(patsubst %,$(OUT)/%.d,$(SRCS))
+endif
 
 .PHONY: clean
 clean:
 	rm -rf $(OUT)
 
-.PHONY: iwyu
-iwyu:
-	$(MAKE) -k -B CC="$(IWYU)" IGNORE_DEPS=1 $(call objify,$(LIB_SRCS) $(CMD_SRCS))
+.PHONY: cleanall
+cleanall:
+	rm -rf $(BUILDDIR)
