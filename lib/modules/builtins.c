@@ -30,7 +30,7 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 			break;
 
 		case GIL_VAL_TYPE_REAL:
-			gil_io_printf(out, "%g", val->real);
+			gil_io_printf(out, "%g", val->real.real);
 			break;
 
 		case GIL_VAL_TYPE_BUFFER:
