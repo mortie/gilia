@@ -53,6 +53,7 @@ void gil_gen_flush(struct gil_generator *gen);
 void gil_gen_free(struct gil_generator *gen);
 
 void gil_gen_add_reloc(struct gil_generator *gen, gil_word pos, gil_word rep);
+void gil_gen_fixup_reloc(unsigned char *mem, gil_word rep);
 
 int gil_gen_import(
 		struct gil_generator *gen, char **str, char **err,

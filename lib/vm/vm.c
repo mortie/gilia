@@ -633,7 +633,7 @@ void gil_vm_step(struct gil_vm *vm) {
 		size_t iptr = vm->iptr;
 		gil_vm_print_op(&w.w, vm->ops, vm->opslen, &iptr);
 		w.w.write(&w.w, "\0", 1);
-		gil_trace("%zi: %s", vm->iptr, w.mem);
+		gil_trace("%04u: %s", vm->iptr, w.mem);
 		free(w.mem);
 	}
 #endif
