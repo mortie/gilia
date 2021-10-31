@@ -61,6 +61,11 @@ LDFLAGS += -fsanitize=$(SANITIZE)
 FLAGS += -fsanitize=$(SANITIZE)
 endif
 
+ifeq ($(TRACE),1)
+	HASH := $(HASH)-trace
+	FLAGS += -DGIL_ENABLE_TRACE
+endif
+
 ifeq ($(VERBOSE),1)
 define exec
 	@echo '$(1):' $(2)
