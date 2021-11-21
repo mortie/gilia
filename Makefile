@@ -36,7 +36,7 @@ WARNINGS := -Wall -Wextra -Wpedantic -Wno-unused-parameter
 INCLUDES := -Iinclude/gilia
 DEFINES := -DGIL_MAX_STACK_DEPTH=$(MAX_STACK_DEPTH) -DGIL_MAJOR=$(MAJOR) -DGIL_MINOR=$(MINOR)
 
-FLAGS := $(WARNINGS) $(INCLUDES) $(DEFINES)
+FLAGS := $(WARNINGS) $(INCLUDES) $(DEFINES) -g
 CFLAGS += $(FLAGS)
 LDFLAGS +=
 LDLIBS += -lreadline
@@ -52,7 +52,6 @@ HASH := release
 FLAGS += -O2 -DNDEBUG
 else
 HASH := debug
-FLAGS += -g
 endif
 
 ifneq ($(SANITIZE),)
@@ -68,15 +67,18 @@ endif
 
 ifeq ($(VERBOSE),1)
 define exec
-	@echo '$(1):' $(2)
+	@echo '$(1): $(2)'
 	@$(2)
 endef
 else
 define exec
 	@echo '$(1)' $@
-	@$(2) || (echo '$(1) $@:' $(2) >&2 && false)
+	@$(2) || (echo '$(1) $@: $(2)' >&2 && false)
 endef
 endif
+
+$(BUILDDIR)/gilia: $(OUT)/gilia
+	ln -sf $(HASH)/gilia $@
 
 $(OUT)/gilia: $(patsubst %,$(OUT)/%.o,$(SRCS))
 	@mkdir -p $(@D)
