@@ -17,6 +17,8 @@ static gil_bitset_entry first_unset_bit(gil_bitset_entry n) {
 		(__GLIBC__>= 2 && __GLIBC_MINOR__ >= 27) || \
 		_GNU_SOURCE)
 #define first_set ffsll
+#elif defined(__APPLE__)
+#define first_set ffsll
 #else
 static int first_set(gil_bitset_entry n) {
 	if (n == 0) {
