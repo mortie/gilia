@@ -586,22 +586,44 @@ static gil_word builtin_guard(
 
 struct match_context {
 	struct gil_vm_contcontext base;
-	gil_word pred_args_id;
+	gil_word index;
 	gil_word pairs_len;
-	gil_word pairs[];
+	gil_word pairs[][2];
 };
 
 static gil_word match_callback(
 		struct gil_vm *vm, gil_word retval, gil_word cont_id) {
+	struct gil_vm_value *cont = &vm->values[cont_id];
+	struct match_context *ctx = (struct match_context *)cont->cont.cont;
+
+	// We have executed a predicate
+
+	if (gil_vm_val_is_true(vm, &vm->values[retval])) {
+		// If it was true, we call the relevant function
+		cont->cont.call = ctx->pairs[ctx->index][1];
+		ctx->base.callback = NULL;
+		ctx->base.marker = NULL;
+	} else {
+		// Otherwise, we have to execute the next predicate
+		ctx->index += 1;
+		if (ctx->index >= ctx->pairs_len) {
+			// This might've been the last predicate,
+			// in which case we return none
+			return vm->knone;
+		}
+		cont->cont.call = ctx->pairs[ctx->index][0];
+	}
+
+	return cont_id;
 }
 
 static void match_marker(
 		struct gil_vm *vm, void *data, int depth,
 		void (*mark)(struct gil_vm *vm, gil_word id, int depth)) {
 	struct match_context *ctx = data;
-	mark(vm, ctx->pred_args_id, depth + 1);
 	for (gil_word i = 0; i < ctx->pairs_len; ++i) {
-		mark(vm, ctx->pairs[i], depth + 1);
+		mark(vm, ctx->pairs[i][0], depth + 1);
+		mark(vm, ctx->pairs[i][1], depth + 1);
 	}
 }
 
@@ -617,23 +639,25 @@ static gil_word builtin_match(
 	}
 
 	gil_word *pairs = argv + 1;
-	gil_word pairs_len = argc - 1;
+	gil_word pairs_len = (argc - 1) / 2; // This is okay, since argc is odd
 
-	struct match_context *ctx = malloc(sizeof(*ctx) + pairs_len * sizeof(gil_word));
+	struct match_context *ctx = malloc(
+			sizeof(*ctx) +
+			pairs_len * sizeof(*(ctx->pairs)));
 	if (ctx == NULL) {
 		return gil_vm_error(vm, "Allocation failure");
 	}
 
-	ctx->pred_args_id = gil_vm_alloc(vm, GIL_VAL_TYPE_ARRAY, GIL_VAL_SBO);
-	vm->values[ctx->pred_args_id].array.length = 1;
-	vm->values[ctx->pred_args_id].array.shortarray[0] = argv[0];
+	ctx->base.args = gil_vm_alloc(vm, GIL_VAL_TYPE_ARRAY, GIL_VAL_SBO);
+	vm->values[ctx->base.args].array.length = 1;
+	vm->values[ctx->base.args].array.shortarray[0] = argv[0];
 
+	ctx->index = 0;
 	ctx->pairs_len = pairs_len;
-	memcpy(ctx->pairs, argv + 1, pairs_len * sizeof(gil_word));
+	memcpy(ctx->pairs, pairs, pairs_len * sizeof(*(ctx->pairs)));
 
 	ctx->base.callback = match_callback;
 	ctx->base.marker = match_marker;
-	ctx->base.args = ctx->pred_args_id;
 
 	gil_word cont_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
 	vm->values[cont_id].cont.cont = &ctx->base;
