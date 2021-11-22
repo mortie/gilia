@@ -73,7 +73,7 @@ void gil_vm_print_val(struct gil_io_writer *w, struct gil_vm_value *val) {
 			data = val->array.array->data;
 		}
 		for (size_t i = 0; i < val->array.length; ++i) {
-			gil_io_printf(w, "    %zu: %u\n", i, data[i]);
+			gil_io_printf(w, "\n    %zu: %u", i, data[i]);
 		}
 	}
 		break;
