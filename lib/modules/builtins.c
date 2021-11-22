@@ -15,73 +15,73 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 	}
 
 	switch (gil_value_get_type(val)) {
-		case GIL_VAL_TYPE_NONE:
-			gil_io_printf(out, "(none)");
-			break;
+	case GIL_VAL_TYPE_NONE:
+		gil_io_printf(out, "(none)");
+		break;
 
-		case GIL_VAL_TYPE_ATOM:
-			if (val->atom.atom == vm->values[vm->ktrue].atom.atom) {
-				gil_io_printf(out, "(true)");
-			} else if (val->atom.atom == vm->values[vm->kfalse].atom.atom) {
-				gil_io_printf(out, "(false)");
-			} else {
-				gil_io_printf(out, "(atom %u)", val->atom.atom);
+	case GIL_VAL_TYPE_ATOM:
+		if (val->atom.atom == vm->values[vm->ktrue].atom.atom) {
+			gil_io_printf(out, "(true)");
+		} else if (val->atom.atom == vm->values[vm->kfalse].atom.atom) {
+			gil_io_printf(out, "(false)");
+		} else {
+			gil_io_printf(out, "(atom %u)", val->atom.atom);
+		}
+		break;
+
+	case GIL_VAL_TYPE_REAL:
+		gil_io_printf(out, "%g", val->real.real);
+		break;
+
+	case GIL_VAL_TYPE_BUFFER:
+		if (val->buffer.buffer != NULL) {
+			out->write(out, val->buffer.buffer, val->buffer.length);
+		}
+		break;
+
+	case GIL_VAL_TYPE_ARRAY:
+		out->write(out, "[", 1);
+		gil_word *data;
+		if (val->flags & GIL_VAL_SBO) {
+			data = val->array.shortarray;
+		} else {
+			data = val->array.array->data;
+		}
+
+		for (size_t i = 0; i < val->array.length; ++i) {
+			if (i != 0) {
+				out->write(out, " ", 1);
 			}
-			break;
 
-		case GIL_VAL_TYPE_REAL:
-			gil_io_printf(out, "%g", val->real.real);
-			break;
+			print_val(vm, out, &vm->values[data[i]], depth + 1);
+		}
+		out->write(out, "]", 1);
+		break;
 
-		case GIL_VAL_TYPE_BUFFER:
-			if (val->buffer.buffer != NULL) {
-				out->write(out, val->buffer.buffer, val->buffer.length);
-			}
-			break;
+	case GIL_VAL_TYPE_NAMESPACE:
+		gil_io_printf(out, "(namespace)");
+		break;
 
-		case GIL_VAL_TYPE_ARRAY:
-			out->write(out, "[", 1);
-			gil_word *data;
-			if (val->flags & GIL_VAL_SBO) {
-				data = val->array.shortarray;
-			} else {
-				data = val->array.array->data;
-			}
+	case GIL_VAL_TYPE_FUNCTION:
+	case GIL_VAL_TYPE_CFUNCTION:
+		gil_io_printf(out, "(function)");
+		break;
 
-			for (size_t i = 0; i < val->array.length; ++i) {
-				if (i != 0) {
-					out->write(out, " ", 1);
-				}
+	case GIL_VAL_TYPE_CVAL:
+		gil_io_printf(out, "(C value)");
+		break;
 
-				print_val(vm, out, &vm->values[data[i]], depth + 1);
-			}
-			out->write(out, "]", 1);
-			break;
+	case GIL_VAL_TYPE_CONTINUATION:
+		gil_io_printf(out, "(continuation)");
+		break;
 
-		case GIL_VAL_TYPE_NAMESPACE:
-			gil_io_printf(out, "(namespace)");
-			break;
+	case GIL_VAL_TYPE_RETURN:
+		gil_io_printf(out, "(return)");
+		break;
 
-		case GIL_VAL_TYPE_FUNCTION:
-		case GIL_VAL_TYPE_CFUNCTION:
-			gil_io_printf(out, "(function)");
-			break;
-
-		case GIL_VAL_TYPE_CVAL:
-			gil_io_printf(out, "(C value)");
-			break;
-
-		case GIL_VAL_TYPE_CONTINUATION:
-			gil_io_printf(out, "(continuation)");
-			break;
-
-		case GIL_VAL_TYPE_RETURN:
-			gil_io_printf(out, "(return)");
-			break;
-
-		case GIL_VAL_TYPE_ERROR:
-			gil_io_printf(out, "(error: %s)", val->error.error);
-			break;
+	case GIL_VAL_TYPE_ERROR:
+		gil_io_printf(out, "(error: %s)", val->error.error);
+		break;
 	}
 }
 
@@ -350,7 +350,8 @@ struct loop_context {
 	gil_word func;
 };
 
-static gil_word loop_callback(struct gil_vm *vm, gil_word retval, gil_word cont) {
+static gil_word loop_callback(
+		struct gil_vm *vm, gil_word retval, gil_word cont) {
 	struct gil_vm_value *val = &vm->values[retval];
 	if (gil_value_get_type(val) == GIL_VAL_TYPE_ERROR) {
 		return retval;
@@ -399,7 +400,8 @@ struct while_context {
 	gil_word cond, body;
 };
 
-static gil_word while_callback(struct gil_vm *vm, gil_word retval, gil_word cont_id) {
+static gil_word while_callback(
+		struct gil_vm *vm, gil_word retval, gil_word cont_id) {
 	struct gil_vm_value *cont = &vm->values[cont_id];
 	struct while_context *ctx = (struct while_context *)cont->cont.cont;
 	struct gil_vm_value *ret = &vm->values[retval];
@@ -464,7 +466,8 @@ struct for_context {
 	gil_word func;
 };
 
-static gil_word for_callback(struct gil_vm *vm, gil_word retval, gil_word cont_id) {
+static gil_word for_callback(
+		struct gil_vm *vm, gil_word retval, gil_word cont_id) {
 	struct gil_vm_value *cont = &vm->values[cont_id];
 	struct for_context *ctx = (struct for_context *)cont->cont.cont;
 	struct gil_vm_value *ret = &vm->values[retval];
@@ -525,7 +528,8 @@ static gil_word builtin_for(
 	return cont_id;
 }
 
-static gil_word guard_callback(struct gil_vm *vm, gil_word retval, gil_word cont_id) {
+static gil_word guard_callback(
+		struct gil_vm *vm, gil_word retval, gil_word cont_id) {
 	struct gil_vm_value *ret = &vm->values[cont_id];
 	free(ret->cont.cont);
 	ret->flags = GIL_VAL_TYPE_RETURN;
@@ -580,6 +584,87 @@ static gil_word builtin_guard(
 	return cont_id;
 }
 
+struct match_context {
+	struct gil_vm_contcontext base;
+	gil_word index;
+	gil_word pairs_len;
+	gil_word pairs[][2];
+};
+
+static gil_word match_callback(
+		struct gil_vm *vm, gil_word retval, gil_word cont_id) {
+	struct gil_vm_value *cont = &vm->values[cont_id];
+	struct match_context *ctx = (struct match_context *)cont->cont.cont;
+
+	// We have executed a predicate
+
+	if (gil_vm_val_is_true(vm, &vm->values[retval])) {
+		// If it was true, we call the relevant function
+		cont->cont.call = ctx->pairs[ctx->index][1];
+		ctx->base.callback = NULL;
+		ctx->base.marker = NULL;
+	} else {
+		// Otherwise, we have to execute the next predicate
+		ctx->index += 1;
+		if (ctx->index >= ctx->pairs_len) {
+			// This might've been the last predicate,
+			// in which case we return none
+			return vm->knone;
+		}
+		cont->cont.call = ctx->pairs[ctx->index][0];
+	}
+
+	return cont_id;
+}
+
+static void match_marker(
+		struct gil_vm *vm, void *data, int depth,
+		void (*mark)(struct gil_vm *vm, gil_word id, int depth)) {
+	struct match_context *ctx = data;
+	for (gil_word i = 0; i < ctx->pairs_len; ++i) {
+		mark(vm, ctx->pairs[i][0], depth + 1);
+		mark(vm, ctx->pairs[i][1], depth + 1);
+	}
+}
+
+static gil_word builtin_match(
+		struct gil_vm *vm, gil_word mid, gil_word self,
+		gil_word argc, gil_word *argv) {
+	if (argc < 3) {
+		return gil_vm_error(vm, "Expected 3 or more arguments");
+	}
+
+	if (argc % 2 != 1) {
+		return gil_vm_error(vm, "Expected an odd number of arguments");
+	}
+
+	gil_word *pairs = argv + 1;
+	gil_word pairs_len = (argc - 1) / 2; // This is okay, since argc is odd
+
+	struct match_context *ctx = malloc(
+			sizeof(*ctx) +
+			pairs_len * sizeof(*(ctx->pairs)));
+	if (ctx == NULL) {
+		return gil_vm_error(vm, "Allocation failure");
+	}
+
+	ctx->base.args = gil_vm_alloc(vm, GIL_VAL_TYPE_ARRAY, GIL_VAL_SBO);
+	vm->values[ctx->base.args].array.length = 1;
+	vm->values[ctx->base.args].array.shortarray[0] = argv[0];
+
+	ctx->index = 0;
+	ctx->pairs_len = pairs_len;
+	memcpy(ctx->pairs, pairs, pairs_len * sizeof(*(ctx->pairs)));
+
+	ctx->base.callback = match_callback;
+	ctx->base.marker = match_marker;
+
+	gil_word cont_id = gil_vm_alloc(vm, GIL_VAL_TYPE_CONTINUATION, 0);
+	vm->values[cont_id].cont.cont = &ctx->base;
+	vm->values[cont_id].cont.call = pairs[0];
+	return cont_id;
+}
+
 static void init(
 		struct gil_module *ptr,
 		gil_word (*alloc)(void *data, const char *name), void *data) {
@@ -605,6 +690,7 @@ static void init(
 	mod->kwhile = alloc(data, "while");
 	mod->kfor = alloc(data, "for");
 	mod->kguard = alloc(data, "guard");
+	mod->kmatch = alloc(data, "match");
 }
 
 static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) {
@@ -657,6 +743,8 @@ static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) 
 			gil_vm_make_cfunction(vm, builtin_for, mid));
 	gil_vm_namespace_set(ns, mod->kguard,
 			gil_vm_make_cfunction(vm, builtin_guard, mid));
+	gil_vm_namespace_set(ns, mod->kmatch,
+			gil_vm_make_cfunction(vm, builtin_match, mid));
 
 	return id;
 }
@@ -667,7 +755,7 @@ static void marker(
 }
 
 void gil_mod_builtins_init(struct gil_mod_builtins *mod) {
-	mod->base.name = "fs";
+	mod->base.name = "builtins";
 	mod->base.init = init;
 	mod->base.create = create;
 	mod->base.marker = marker;

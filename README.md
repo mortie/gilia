@@ -72,6 +72,23 @@ While loops are also cool:
 Here, the first argument is a condition function, and the second argument is
 the body function.
 
+And then there's the match construct:
+
+	is-n := |n| {{$.0 == n}}
+	is-any := {'true}
+
+	match 24
+	-> is-n(10) {print "It was 10"}
+	-> is-n(20) {print "It was 20"}
+	-> is-any |x| {print "It was neither:" x}
+
+This `match` function does what you would expect; it runs the first case
+if the first argument passed to `match` is 10, the second case if it's 20,
+and the third case if it's anything else. As always, `match` is just
+another function, and this is normal function call syntax.
+The arrows `->` is a generic line continuation syntax, to tell the parser
+that the logical line isn't over yet.
+
 ## TODO
 
 ### Clean up the SBO stuff in the parser
@@ -101,22 +118,6 @@ The main file is a complete mess at the moment. Needs major clean-up.
 	with := |val block| {
 		block val
 		val.@destroy()
-	}
-
-### Pattern matching
-
-	match x
-	-> is-error {
-		print "Oh noes it failed:" x
-	}
-	-> is-number {
-		print "seems like we got a number, it is" x
-	}
-	-> is-string {
-		print "we got a string: " x
-	}
-	-> is-any {
-		print "we got something else:" x
 	}
 
 ### At-methods (like Python's dunder methods)
