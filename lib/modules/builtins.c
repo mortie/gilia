@@ -15,73 +15,73 @@ static void print_val(struct gil_vm *vm, struct gil_io_writer *out, struct gil_v
 	}
 
 	switch (gil_value_get_type(val)) {
-		case GIL_VAL_TYPE_NONE:
-			gil_io_printf(out, "(none)");
-			break;
+	case GIL_VAL_TYPE_NONE:
+		gil_io_printf(out, "(none)");
+		break;
 
-		case GIL_VAL_TYPE_ATOM:
-			if (val->atom.atom == vm->values[vm->ktrue].atom.atom) {
-				gil_io_printf(out, "(true)");
-			} else if (val->atom.atom == vm->values[vm->kfalse].atom.atom) {
-				gil_io_printf(out, "(false)");
-			} else {
-				gil_io_printf(out, "(atom %u)", val->atom.atom);
+	case GIL_VAL_TYPE_ATOM:
+		if (val->atom.atom == vm->values[vm->ktrue].atom.atom) {
+			gil_io_printf(out, "(true)");
+		} else if (val->atom.atom == vm->values[vm->kfalse].atom.atom) {
+			gil_io_printf(out, "(false)");
+		} else {
+			gil_io_printf(out, "(atom %u)", val->atom.atom);
+		}
+		break;
+
+	case GIL_VAL_TYPE_REAL:
+		gil_io_printf(out, "%g", val->real.real);
+		break;
+
+	case GIL_VAL_TYPE_BUFFER:
+		if (val->buffer.buffer != NULL) {
+			out->write(out, val->buffer.buffer, val->buffer.length);
+		}
+		break;
+
+	case GIL_VAL_TYPE_ARRAY:
+		out->write(out, "[", 1);
+		gil_word *data;
+		if (val->flags & GIL_VAL_SBO) {
+			data = val->array.shortarray;
+		} else {
+			data = val->array.array->data;
+		}
+
+		for (size_t i = 0; i < val->array.length; ++i) {
+			if (i != 0) {
+				out->write(out, " ", 1);
 			}
-			break;
 
-		case GIL_VAL_TYPE_REAL:
-			gil_io_printf(out, "%g", val->real.real);
-			break;
+			print_val(vm, out, &vm->values[data[i]], depth + 1);
+		}
+		out->write(out, "]", 1);
+		break;
 
-		case GIL_VAL_TYPE_BUFFER:
-			if (val->buffer.buffer != NULL) {
-				out->write(out, val->buffer.buffer, val->buffer.length);
-			}
-			break;
+	case GIL_VAL_TYPE_NAMESPACE:
+		gil_io_printf(out, "(namespace)");
+		break;
 
-		case GIL_VAL_TYPE_ARRAY:
-			out->write(out, "[", 1);
-			gil_word *data;
-			if (val->flags & GIL_VAL_SBO) {
-				data = val->array.shortarray;
-			} else {
-				data = val->array.array->data;
-			}
+	case GIL_VAL_TYPE_FUNCTION:
+	case GIL_VAL_TYPE_CFUNCTION:
+		gil_io_printf(out, "(function)");
+		break;
 
-			for (size_t i = 0; i < val->array.length; ++i) {
-				if (i != 0) {
-					out->write(out, " ", 1);
-				}
+	case GIL_VAL_TYPE_CVAL:
+		gil_io_printf(out, "(C value)");
+		break;
 
-				print_val(vm, out, &vm->values[data[i]], depth + 1);
-			}
-			out->write(out, "]", 1);
-			break;
+	case GIL_VAL_TYPE_CONTINUATION:
+		gil_io_printf(out, "(continuation)");
+		break;
 
-		case GIL_VAL_TYPE_NAMESPACE:
-			gil_io_printf(out, "(namespace)");
-			break;
+	case GIL_VAL_TYPE_RETURN:
+		gil_io_printf(out, "(return)");
+		break;
 
-		case GIL_VAL_TYPE_FUNCTION:
-		case GIL_VAL_TYPE_CFUNCTION:
-			gil_io_printf(out, "(function)");
-			break;
-
-		case GIL_VAL_TYPE_CVAL:
-			gil_io_printf(out, "(C value)");
-			break;
-
-		case GIL_VAL_TYPE_CONTINUATION:
-			gil_io_printf(out, "(continuation)");
-			break;
-
-		case GIL_VAL_TYPE_RETURN:
-			gil_io_printf(out, "(return)");
-			break;
-
-		case GIL_VAL_TYPE_ERROR:
-			gil_io_printf(out, "(error: %s)", val->error.error);
-			break;
+	case GIL_VAL_TYPE_ERROR:
+		gil_io_printf(out, "(error: %s)", val->error.error);
+		break;
 	}
 }
 
