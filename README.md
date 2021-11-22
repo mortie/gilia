@@ -91,6 +91,17 @@ that the logical line isn't over yet.
 
 ## TODO
 
+### Make namespaces differentiate between 'set but none' and 'not set'
+
+Currently, assigning 'none' to a key in a namespace is the same as clearing that key.
+We probably want to keep track of whether a key exists but is none, or if the key
+doesn't exist at all. Because currently, something like this doesn't work:
+
+	foo := none
+	foo = 10
+
+We also want it to be an error to look up an undeclared variable.
+
 ### Clean up the SBO stuff in the parser
 
 In the parser and bytecode generator, small buffer optimization (SBO) is used
