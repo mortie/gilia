@@ -111,6 +111,16 @@ gil_word gil_vm_namespace_get(struct gil_vm *vm, struct gil_vm_value *v, gil_wor
 	return ret;
 }
 
+gil_word gil_vm_namespace_get_or(
+		struct gil_vm *vm, struct gil_vm_value *v, gil_word key, gil_word alt) {
+	gil_word id = gil_vm_namespace_get(vm, v, key);
+	if (id == 0) {
+		return alt;
+	} else {
+		return id;
+	}
+}
+
 void gil_vm_namespace_set(struct gil_vm_value *v, gil_word key, gil_word val) {
 	if (val == 0) {
 		del(v->ns.ns, key);

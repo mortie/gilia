@@ -269,13 +269,16 @@ void gil_vm_init(
 	}
 	gil_bitset_init(&vm->valueset);
 
+	// Use ID 0 to represent an undeclared variable
+	gil_word undeclared_id = alloc_val(vm);
+	assert(undeclared_id == 0);
+	vm->values[undeclared_id].flags = GIL_VAL_TYPE_NONE | GIL_VAL_CONST;
+
 	// It's wasteful to allocate new 'none' variables all the time,
-	// variable ID 0 should be the only 'none' variable in the system
 	gil_word none_id = alloc_val(vm);
-	assert(none_id == 0);
 	vm->values[none_id].flags = GIL_VAL_TYPE_NONE | GIL_VAL_CONST;
 	vm->knone = none_id;
-	vm->gc_start = 1;
+	vm->gc_start = none_id + 1;
 
 	gil_strset_init(&vm->atomset);
 
@@ -715,7 +718,12 @@ void gil_vm_step(struct gil_vm *vm) {
 	case GIL_OP_STACK_FRAME_LOOKUP: {
 		gil_word key = read_uint(vm);
 		struct gil_vm_value *ns = &vm->values[vm->fstack[vm->fsptr - 1].ns];
-		vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, ns, key);
+		gil_word id = gil_vm_namespace_get(vm, ns, key);
+		if (id == vm->kundeclared) {
+			vm->stack[vm->sptr++] = gil_vm_error(vm, "Variable not found");
+		} else {
+			vm->stack[vm->sptr++] = id;
+		}
 	}
 		break;
 
@@ -794,7 +802,7 @@ void gil_vm_step(struct gil_vm *vm) {
 		break;
 
 	case GIL_OP_ALLOC_NONE:
-		vm->stack[vm->sptr++] = 0;
+		vm->stack[vm->sptr++] = vm->knone;
 		break;
 
 	case GIL_OP_ALLOC_ATOM: {
@@ -898,11 +906,11 @@ void gil_vm_step(struct gil_vm *vm) {
 		gil_word ns_id = vm->stack[--vm->sptr];
 		struct gil_vm_value *ns = &vm->values[ns_id];
 		if (gil_value_get_type(ns) == GIL_VAL_TYPE_NAMESPACE) {
-			vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, ns, key);
+			vm->stack[vm->sptr++] = gil_vm_namespace_get_or(vm, ns, key, vm->knone);
 		} else if (gil_value_get_type(ns) == GIL_VAL_TYPE_CVAL) {
 			ns = &vm->values[ns->cval.ns];
 			if (gil_value_get_type(ns) == GIL_VAL_TYPE_NAMESPACE) {
-				vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, ns, key);
+				vm->stack[vm->sptr++] = gil_vm_namespace_get_or(vm, ns, key, vm->knone);
 			} else {
 				vm->stack[vm->sptr++] = gil_vm_type_error(vm, ns);
 			}
@@ -972,7 +980,8 @@ void gil_vm_step(struct gil_vm *vm) {
 			if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
 				vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
 			} else {
-				vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, container, key->atom.atom);
+				vm->stack[vm->sptr++] = gil_vm_namespace_get_or(
+						vm, container, key->atom.atom, vm->knone);
 			}
 		} else if (gil_value_get_type(container) == GIL_VAL_TYPE_CVAL) {
 			container = &vm->values[container->cval.ns];
@@ -980,7 +989,8 @@ void gil_vm_step(struct gil_vm *vm) {
 				if (gil_value_get_type(key) != GIL_VAL_TYPE_ATOM) {
 					vm->stack[vm->sptr++] = gil_vm_type_error(vm, key);
 				} else {
-					vm->stack[vm->sptr++] = gil_vm_namespace_get(vm, container, key->atom.atom);
+					vm->stack[vm->sptr++] = gil_vm_namespace_get_or(
+							vm, container, key->atom.atom, vm->knone);
 				}
 			} else {
 				vm->stack[vm->sptr++] = gil_vm_type_error(vm, container);

@@ -151,6 +151,8 @@ struct gil_vm_namespace {
 };
 
 gil_word gil_vm_namespace_get(struct gil_vm *vm, struct gil_vm_value *ns, gil_word key);
+gil_word gil_vm_namespace_get_or(
+		struct gil_vm *vm, struct gil_vm_value *ns, gil_word key, gil_word alt);
 void gil_vm_namespace_set(struct gil_vm_value *ns, gil_word key, gil_word val);
 int gil_vm_namespace_replace(struct gil_vm *vm, struct gil_vm_value *ns, gil_word key, gil_word val);
 
@@ -189,7 +191,7 @@ struct gil_vm {
 	size_t valuessize;
 	struct gil_bitset valueset;
 
-	gil_word knone;
+	gil_word kundeclared, knone;
 	gil_word ktrue, kfalse, kstop;
 
 	gil_word gc_start;
