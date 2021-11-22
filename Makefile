@@ -48,16 +48,22 @@ CC ?= cc
 PKG_CONFIG ?= pkg-config
 
 ifeq ($(RELEASE),1)
-HASH := release
-FLAGS += -O2 -DNDEBUG
+	HASH := release
+	FLAGS += -O2 -DNDEBUG
 else
-HASH := debug
+	HASH := debug
 endif
 
 ifneq ($(SANITIZE),)
-HASH := $(HASH)-sanitize-$(SANITIZE)
-LDFLAGS += -fsanitize=$(SANITIZE)
-FLAGS += -fsanitize=$(SANITIZE)
+ifeq ($(SANITIZE),1)
+	HASH := $(HASH)-sanitize
+	LDFLAGS += -fsanitize=address,undefined
+	FLAGS += -fsanitize=address,undefined
+else
+	HASH := $(HASH)-sanitize-$(SANITIZE)
+	LDFLAGS += -fsanitize=$(SANITIZE)
+	FLAGS += -fsanitize=$(SANITIZE)
+endif
 endif
 
 ifeq ($(TRACE),1)
@@ -98,7 +104,7 @@ endif
 
 .PHONY: clean
 clean:
-	rm -rf $(OUT)
+	rm -rf $(OUT) $(BUILDDIR)/gilia
 
 .PHONY: cleanall
 cleanall:
