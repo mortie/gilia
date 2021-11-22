@@ -691,6 +691,8 @@ static void init(
 	mod->kfor = alloc(data, "for");
 	mod->kguard = alloc(data, "guard");
 	mod->kmatch = alloc(data, "match");
+
+	mod->knone = alloc(data, "none");
 }
 
 static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) {
@@ -745,6 +747,8 @@ static gil_word create(struct gil_module *ptr, struct gil_vm *vm, gil_word mid) 
 			gil_vm_make_cfunction(vm, builtin_guard, mid));
 	gil_vm_namespace_set(ns, mod->kmatch,
 			gil_vm_make_cfunction(vm, builtin_match, mid));
+
+	gil_vm_namespace_set(ns, mod->knone, vm->knone);
 
 	return id;
 }

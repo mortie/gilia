@@ -10,6 +10,7 @@ struct gil_mod_builtins {
 		klt, klteq, kgt, kgteq, kland, klor, kfirst,
 		kprint, kwrite, klen,
 		kif, kloop, kwhile, kfor, kguard, kmatch;
+	gil_word knone;
 };
 
 void gil_mod_builtins_init(struct gil_mod_builtins *mod);
