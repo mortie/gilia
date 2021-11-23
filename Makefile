@@ -73,8 +73,7 @@ endif
 
 ifeq ($(VERBOSE),1)
 define exec
-	@echo '$(1): $(2)'
-	@$(2)
+	$(2)
 endef
 else
 define exec
