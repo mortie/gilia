@@ -165,6 +165,7 @@ describe(exaples) {
 	check("builtins.g");
 	check("control-flow.g");
 	check("dynamic-lookups.g");
+	check("func-equals.g");
 	check("functions.g");
 	check("namespaces.g");
 
