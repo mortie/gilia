@@ -481,7 +481,6 @@ static void read_string(struct gil_lexer *lexer, struct gil_token *tok) {
 
 static void read_ident(struct gil_lexer *lexer, struct gil_token *tok) {
 	unsigned char flags = GIL_TOK_SMALL;
-	tok->v.flags = GIL_TOK_IDENT | GIL_TOK_SMALL;
 
 	char *dest = tok->v.strbuf;
 	size_t size = sizeof(tok->v.strbuf);
@@ -510,7 +509,7 @@ static void read_ident(struct gil_lexer *lexer, struct gil_token *tok) {
 		// the small-string optimization and malloc memory.
 		if (idx + 1 >= size) {
 			char *newbuf;
-			if (gil_token_is_small(tok)) {
+			if (flags & GIL_TOK_SMALL) {
 				flags &= ~GIL_TOK_SMALL;
 				size = 32;
 				newbuf = malloc(size);

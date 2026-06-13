@@ -597,7 +597,8 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 
 			// Left-hand side
 			gil_gen_dup(ctx->gen); // Get namespace
-			GIL_GEN(namespace_lookup, ctx->gen, ident);
+			gil_gen_namespace_lookup_copy(
+				ctx->gen, gil_token_value_str(ident));
 
 			// Function
 			GIL_GEN(stack_frame_lookup, ctx->gen, func);
@@ -798,7 +799,8 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 		gil_lexer_consume(ctx->lexer); // foo=
 
 		// Left-hand side
-		GIL_GEN(stack_frame_lookup, ctx->gen, ident);
+		gil_gen_stack_frame_lookup_copy(
+			ctx->gen, gil_token_value_str(ident));
 
 		// Function
 		GIL_GEN(stack_frame_lookup, ctx->gen, func);
