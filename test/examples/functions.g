@@ -82,3 +82,9 @@ a := {foo: 10}
 a.foo += 20
 print a.foo
 # => 30
+
+# And arrays
+a := [10 20 30]
+a.1 -= 5
+print a.1
+# => 15

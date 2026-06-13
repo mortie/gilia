@@ -635,6 +635,29 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 
 			gil_gen_array_set(ctx->gen, number);
 			gil_gen_swap_discard(ctx->gen);
+		} else if (
+				gil_token_get_kind(tok) == GIL_TOK_DOT_NUMBER &&
+				gil_token_get_kind(tok2) == GIL_TOK_IDENT_EQ) {
+			gil_trace_scope("direct array assign with foo=");
+			int number = tok->v.integer;
+			struct gil_token_value func = gil_token_extract_val(tok2);
+			gil_lexer_consume(ctx->lexer); // dot-number
+			gil_lexer_consume(ctx->lexer); // 'foo='
+
+			// Function
+			GIL_GEN(stack_frame_lookup, ctx->gen, func);
+
+			// Args
+			gil_gen_dup_2(ctx->gen); // Get array
+			gil_gen_array_lookup(ctx->gen, number);
+			if (parse_expression(ctx, depth + 1) < 0) {
+				return -1;
+			}
+
+			// <arr>.1 = <result of function call>
+			gil_gen_func_call(ctx->gen, 2);
+			gil_gen_array_set(ctx->gen, number);
+			gil_gen_swap_discard(ctx->gen);
 		} else if (gil_token_get_kind(tok) == GIL_TOK_DOT_NUMBER) {
 			gil_trace_scope("direct array lookup");
 			int number = tok->v.integer;
