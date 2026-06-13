@@ -10,6 +10,13 @@
 #define GIL_TRACER_NAME "parser"
 #include "trace.h"
 
+// Convenience macro to automatically call _copy or non-_copy versions of
+// gil_gen_* functions, based on whether the token value is an SSO token or not.
+#define GIL_GEN(name, gen, val) \
+	((val).flags & GIL_TOK_SMALL \
+	? gil_gen_ ## name ## _copy(gen, (val).strbuf) \
+	: gil_gen_ ## name(gen, &(val).str))
+
 static int tok_is_end(struct gil_token *tok) {
 	enum gil_token_kind kind = gil_token_get_kind(tok);
 	return
@@ -745,6 +752,27 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 		} else {
 			gil_gen_stack_frame_replace(ctx->gen, &ident.str);
 		}
+	} else if (
+			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
+			gil_token_get_kind(tok2) == GIL_TOK_IDENT_EQ) {
+		gil_trace_scope("replacement assign expression with foo=");
+		gil_trace("ident '%s'", gil_token_get_str(&tok->v));
+		gil_trace("func '%s'", gil_token_get_str(&tok2->v));
+		struct gil_token_value ident = gil_token_extract_val(tok);
+		struct gil_token_value func = gil_token_extract_val(tok2);
+		gil_lexer_consume(ctx->lexer); // ident
+		gil_lexer_consume(ctx->lexer); // foo=
+
+		// Function
+		GIL_GEN(stack_frame_lookup, ctx->gen, func);
+
+		// Args
+		GIL_GEN(stack_frame_lookup, ctx->gen, ident);
+		parse_expression(ctx, depth + 1);
+
+		// a = <result of function call>
+		gil_gen_func_call(ctx->gen, 2);
+		GIL_GEN(stack_frame_replace, ctx->gen, ident);
 	} else {
 		if (parse_arg_level_expression(ctx, depth + 1) < 0) {
 			return -1;

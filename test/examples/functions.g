@@ -63,6 +63,13 @@ print ({$.0 + $.1} 10 20) + (50 - 40)
 print 10 + 20 - 5
 # => 25
 
-# Lastly, just print a function literal
+# Then, just print a function literal
 print {0}
 # => (function)
+
+# We should be able to use 'a x= b' as a short-hand for 'a = x a b'
+add := |a b| { a + b }
+num := 10
+num add= 20
+print num
+# => 30

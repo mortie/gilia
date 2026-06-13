@@ -139,10 +139,10 @@ void gil_vm_print_val(struct gil_io_writer *w, struct gil_vm_value *val) {
 }
 
 void gil_vm_print_state(struct gil_io_writer *w, struct gil_vm *vm) {
-	gil_io_printf(w, "Stack:\n");
-	gil_vm_print_stack(w, vm);
 	gil_io_printf(w, "Heap:\n");
 	gil_vm_print_heap(w, vm);
+	gil_io_printf(w, "Stack:\n");
+	gil_vm_print_stack(w, vm);
 	gil_io_printf(w, "Frame Stack:\n");
 	gil_vm_print_fstack(w, vm);
 }

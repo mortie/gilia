@@ -15,6 +15,7 @@ static void trace_token(struct gil_token *tok) {
 	switch (gil_token_get_kind(tok)) {
 	case GIL_TOK_STRING:
 	case GIL_TOK_IDENT:
+	case GIL_TOK_IDENT_EQ:
 	case GIL_TOK_ERROR:
 		if (gil_token_is_small(tok)) {
 			gil_trace("%i:%i %s '%s'", tok->line, tok->ch,
@@ -80,6 +81,8 @@ const char *gil_token_kind_name(enum gil_token_kind kind) {
 		return "string";
 	case GIL_TOK_IDENT:
 		return "ident";
+	case GIL_TOK_IDENT_EQ:
+		return "ident-eq";
 	case GIL_TOK_ERROR:
 		return "error";
 	}
@@ -89,9 +92,11 @@ const char *gil_token_kind_name(enum gil_token_kind kind) {
 
 void gil_token_free(struct gil_token *tok) {
 	enum gil_token_kind kind = gil_token_get_kind(tok);
-	if (
-			(kind == GIL_TOK_STRING || kind == GIL_TOK_IDENT) &&
-			!gil_token_is_small(tok)) {
+	int large_tok =
+		kind == GIL_TOK_STRING || 
+		kind == GIL_TOK_IDENT ||
+		kind == GIL_TOK_IDENT_EQ;
+	if (large_tok && !gil_token_is_small(tok)) {
 		free(tok->v.str);
 	}
 }
@@ -157,6 +162,28 @@ static int is_ident(int ch) {
 		ch != '\'' && ch != '|' &&
 		ch != ',' && ch != '.' &&
 		ch != ':' && ch != ';';
+}
+
+static int is_ident_eq(const char *str, size_t len) {
+	if (len < 2) {
+		return 0;
+	}
+
+	if (str[len - 1] != '=') {
+		return 0;
+	}
+
+	char last = str[len - 2];
+	if ((last >= 'a' && last <= 'z') || (last >= 'A' && last <= 'Z')) {
+		return 1;
+	}
+
+	return
+		last == '+' ||
+		last == '-' ||
+		last == '*' ||
+		last == '/' ||
+		last == '?';
 }
 
 static void skip_whitespace(struct gil_lexer *lexer, int *nl, int *skipped) {
@@ -451,6 +478,7 @@ static void read_string(struct gil_lexer *lexer, struct gil_token *tok) {
 }
 
 static void read_ident(struct gil_lexer *lexer, struct gil_token *tok) {
+	unsigned char flags = GIL_TOK_SMALL;
 	tok->v.flags = GIL_TOK_IDENT | GIL_TOK_SMALL;
 
 	char *dest = tok->v.strbuf;
@@ -462,6 +490,15 @@ static void read_ident(struct gil_lexer *lexer, struct gil_token *tok) {
 
 		if (!is_ident(ch)) {
 			dest[idx] = '\0';
+
+			// 'foo=' is a special IDENT_EQ token
+			if (is_ident_eq(dest, idx)) {
+				dest[idx - 1] = '\0';
+				tok->v.flags = GIL_TOK_IDENT_EQ | flags;
+			} else {
+				tok->v.flags = GIL_TOK_IDENT | flags;
+			}
+
 			return;
 		}
 
@@ -472,7 +509,7 @@ static void read_ident(struct gil_lexer *lexer, struct gil_token *tok) {
 		if (idx + 1 >= size) {
 			char *newbuf;
 			if (gil_token_is_small(tok)) {
-				tok->v.flags &= ~GIL_TOK_SMALL;
+				flags &= ~GIL_TOK_SMALL;
 				size = 32;
 				newbuf = malloc(size);
 				if (newbuf == NULL) {

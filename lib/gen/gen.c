@@ -330,7 +330,7 @@ void gil_gen_none(struct gil_generator *gen) {
 void gil_gen_number(struct gil_generator *gen, double num) {
 	uint64_t n;
 	memcpy(&n, &num, sizeof(num));
-	bctrace("ALLOC_REAL %u", num);
+	bctrace("ALLOC_REAL %f", num);
 	put(gen, GIL_OP_ALLOC_REAL);
 	put_d8le(gen, num);
 }

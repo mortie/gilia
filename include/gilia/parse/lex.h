@@ -24,6 +24,7 @@ enum gil_token_kind {
 	GIL_TOK_NUMBER,
 	GIL_TOK_STRING,
 	GIL_TOK_IDENT,
+	GIL_TOK_IDENT_EQ,
 	GIL_TOK_ERROR,
 };
 
