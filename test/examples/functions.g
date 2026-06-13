@@ -5,6 +5,7 @@ func := {
 
 # Call a function without arguments using ()
 print func()
+# => hello
 
 # A function, returning a function, with a closure so that it can access
 # variables from outside
@@ -17,6 +18,7 @@ func := {
 
 # func() returns a function, which can be called again with an extra ()
 print func()()
+# => Hello World
 
 func := {
 	{
@@ -33,6 +35,7 @@ func() 10
 
 # Since the nested function modified it, 'str' should now be the number 10
 print str
+# => 10
 
 func := {
 	# Variables don't have to be global; this function returns a function which
@@ -41,19 +44,25 @@ func := {
 	{retval}
 }
 print func()()
+# => what's up
 
 # Functions can take named parameters
 func := |a b| {a + b}
 print (func 10 20)
+# => 30
 
 # Functions can be called infix
 print 10 + 20
+# => 30
 
 # With complex expressions as left and right
 print ({$.0 + $.1} 10 20) + (50 - 40)
+# => 40
 
 # Infix operators are evaluated left to right
 print 10 + 20 - 5
+# => 25
 
 # Lastly, just print a function literal
 print {0}
+# => (function)

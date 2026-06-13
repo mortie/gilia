@@ -15,36 +15,41 @@
 #include <snow/snow.h>
 
 static char example_path[512];
-static char example_expected_path[512];
-static char example_actual_path[512];
 static char *error_message = NULL;
 
-static void check_diff(const char *expected, const char *actual) {
-	FILE *e = fopen(expected, "r");
-	if (e == NULL) {
-		snow_fail("%s: %s\n    Actual result stored in %s", expected, strerror(errno), actual);
-	}
-
-	FILE *a = fopen(actual, "r");
-	if (a == NULL) {
-		fclose(e);
-		snow_fail("%s: %s", actual, strerror(errno));
-	}
-
+static void check_diff(
+	const char *name,
+	const char *expected, size_t expected_len,
+	const char *actual, size_t actual_len)
+{
+	size_t len = expected_len > actual_len ? expected_len : actual_len;
 	int line = 1;
 	int ch = 1;
-	while (1) {
-		int ech = fgetc(e);
-		int ach = fgetc(a);
+	for (size_t i = 0; i < len; ++i) {
+		int ech = i >= expected_len ? EOF : expected[i];
+		int ach = i >= actual_len ? EOF : actual[i];
 		if (ech != ach) {
-			fclose(e);
-			fclose(a);
-			snow_fail("%s differs at location %i:%i:\n    Expected %c(%i), got %c(%i)",
-				actual, line, ch, ech, ech, ach, ach);
-		}
 
-		if (ech == EOF) {
-			break;
+			char namebuf[512];
+			snprintf(namebuf, sizeof(namebuf), "%s.expected", name);
+			FILE *f = fopen(namebuf, "w");
+			if (f) {
+				fwrite(expected, 1, expected_len, f);
+				fclose(f);
+			}
+
+			snprintf(namebuf, sizeof(namebuf), "%s.actual", name);
+			f = fopen(namebuf, "w");
+			if (f) {
+				fwrite(actual, 1, actual_len, f);
+				fclose(f);
+			}
+
+			snow_fail(
+				"%s differs at location %i:%i:\n"
+				"    Expected %c(%i), got %c(%i).\n"
+				"    Wrote output to: %s.{expected,actual}.",
+				name, line, ch, ech, ech, ach, ach, name);
 		}
 
 		if (ech == '\n') {
@@ -54,23 +59,39 @@ static void check_diff(const char *expected, const char *actual) {
 			ch += 1;
 		}
 	}
-
-	fclose(e);
-	fclose(a);
 }
 
 static void check_impl(const char *name) {
 	char fname[] = __FILE__;
 	char *dname = dirname(fname);
 	snprintf(example_path, sizeof(example_path), "%s/../examples/%s", dname, name);
-	snprintf(example_expected_path, sizeof(example_path), "%s/../examples/%s.expected", dname, name);
-	snprintf(example_actual_path, sizeof(example_path), "%s/../examples/%s.actual", dname, name);
 
 	FILE *inf = fopen(example_path, "r");
 	if (inf == NULL) {
 		snow_fail("%s: %s", example_path, strerror(errno));
 	}
 
+	// Compute expected output.
+	// We do this by finding lines starting with '# => ' in the input file.
+	struct gil_io_mem_writer expected_output = {
+		.w.write = gil_io_mem_write,
+	};
+	char *line = NULL;
+	size_t linecap = 0;
+	while (1) {
+		ssize_t n = getline(&line, &linecap, inf);
+		if (n <= 0) {
+			break;
+		}
+
+		if (strncmp(line, "# => ", 5) != 0) {
+			continue;
+		}
+
+		gil_io_mem_write(&expected_output.w, line + 5, n - 5);
+	}
+
+	fseek(inf, 0, SEEK_SET);
 	struct gil_io_file_reader input ={
 		.r.read = gil_io_file_read,
 		.f = inf,
@@ -111,19 +132,13 @@ static void check_impl(const char *name) {
 	gil_gen_free(&gen);
 	fclose(inf);
 
-	FILE *outf = fopen(example_actual_path, "w");
-	if (outf == NULL) {
-		snow_fail("%s: %s", example_actual_path, strerror(errno));
-	}
-
-	struct gil_io_file_writer output = {
-		.w.write = gil_io_file_write,
-		.f = outf,
+	struct gil_io_mem_writer actual_output = {
+		.w.write = gil_io_mem_write,
 	};
 
 	struct gil_vm vm;
 	gil_vm_init(&vm, bytecode.mem, bytecode.len / sizeof(gil_word), &builtins.base);
-	vm.std_output = &output.w;
+	vm.std_output = &actual_output.w;
 
 	// Run a GC after every instruction to uncover potential GC issues
 	while (!vm.halted) {
@@ -133,9 +148,11 @@ static void check_impl(const char *name) {
 
 	gil_vm_free(&vm);
 	free(bytecode.mem);
-	fclose(output.f);
 
-	check_diff(example_expected_path, example_actual_path);
+	check_diff(
+		example_path,
+		expected_output.mem, expected_output.len,
+		actual_output.mem, actual_output.len);
 }
 
 #define check(name) do { \
@@ -144,12 +161,12 @@ static void check_impl(const char *name) {
 } while (0)
 
 describe(exaples) {
-	check("namespaces.g");
 	check("arrays.g");
-	check("functions.g");
-	check("dynamic-lookups.g");
 	check("builtins.g");
 	check("control-flow.g");
+	check("dynamic-lookups.g");
+	check("functions.g");
+	check("namespaces.g");
 
 	if (error_message != NULL) {
 		free(error_message);
