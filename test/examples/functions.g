@@ -63,6 +63,14 @@ print ({$.0 + $.1} 10 20) + (50 - 40)
 print 10 + 20 - 5
 # => 25
 
+# The function parameter list can contain newlines
+func := |
+	foo
+	bar
+| {foo + bar}
+print (func 5 6)
+# => 11
+
 # Then, just print a function literal
 print {0}
 # => (function)

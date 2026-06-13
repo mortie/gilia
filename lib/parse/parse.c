@@ -280,8 +280,8 @@ static int parse_function_literal_with_introducer(struct gil_parse_context *ctx,
 			break;
 		}
 
-		if (gil_token_get_kind(tok) == GIL_TOK_EOF) {
-			gil_lexer_consume(ctx->lexer); // EOF
+		if (gil_token_get_kind(tok) == GIL_TOK_EOL) {
+			gil_lexer_consume(ctx->lexer); // EOL
 			continue;
 		}
 
