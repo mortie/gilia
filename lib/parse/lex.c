@@ -183,7 +183,9 @@ static int is_ident_eq(const char *str, size_t len) {
 		last == '-' ||
 		last == '*' ||
 		last == '/' ||
-		last == '?';
+		last == '?' ||
+		last == '&' ||
+		last == '|';
 }
 
 static void skip_whitespace(struct gil_lexer *lexer, int *nl, int *skipped) {
