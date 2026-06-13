@@ -73,3 +73,12 @@ num := 10
 num add= 20
 print num
 # => 30
+num -= 5
+print num
+# => 25
+
+# Same is true for namespaces
+a := {foo: 10}
+a.foo += 20
+print a.foo
+# => 30

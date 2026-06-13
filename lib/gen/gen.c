@@ -307,6 +307,16 @@ void gil_gen_discard(struct gil_generator *gen) {
 	put(gen, GIL_OP_DISCARD);
 }
 
+void gil_gen_dup(struct gil_generator *gen) {
+	bctrace1("DUP");
+	put(gen, GIL_OP_DUP);
+}
+
+void gil_gen_dup_2(struct gil_generator *gen) {
+	bctrace1("DUP_2");
+	put(gen, GIL_OP_DUP_2);
+}
+
 void gil_gen_swap_discard(struct gil_generator *gen) {
 	bctrace1("SWAP_DISCARD");
 	put(gen, GIL_OP_SWAP_DISCARD);

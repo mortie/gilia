@@ -73,6 +73,8 @@ void gil_gen_halt(struct gil_generator *gen);
 void gil_gen_rjmp(struct gil_generator *gen, gil_word len);
 void gil_gen_rjmp_placeholder(struct gil_generator *gen);
 void gil_gen_discard(struct gil_generator *gen);
+void gil_gen_dup(struct gil_generator *gen);
+void gil_gen_dup_2(struct gil_generator *gen);
 void gil_gen_swap_discard(struct gil_generator *gen);
 void gil_gen_ret(struct gil_generator *gen);
 void gil_gen_mod_ret(struct gil_generator *gen);

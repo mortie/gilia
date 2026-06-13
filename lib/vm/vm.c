@@ -666,6 +666,16 @@ void gil_vm_step(struct gil_vm *vm) {
 		}
 		break;
 
+	case GIL_OP_DUP:
+		vm->stack[vm->sptr] = vm->stack[vm->sptr - 1];
+		vm->sptr += 1;
+		break;
+
+	case GIL_OP_DUP_2:
+		vm->stack[vm->sptr] = vm->stack[vm->sptr - 2];
+		vm->sptr += 1;
+		break;
+
 	case GIL_OP_SWAP_DISCARD:
 		vm->stack[vm->sptr - 2] = vm->stack[vm->sptr - 1];
 		vm->sptr -= 1;

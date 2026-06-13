@@ -25,6 +25,18 @@ enum gil_opcode {
 	GIL_OP_DISCARD,
 
 	/*
+	 * Duplicate the top element from the stack.
+	 * Push stack[sptr - 1]
+	 */
+	GIL_OP_DUP,
+
+	/*
+	 * Duplicate the second-to-top element from the stack.
+	 * Push stack[sptr - 2]
+	 */
+	GIL_OP_DUP_2,
+
+	/*
 	 * Swap the top and second-top elements, then pop the new top element.
 	 * Pop <word1>
 	 * Pop <word2>
@@ -233,7 +245,7 @@ enum gil_opcode {
 	/*
 	 * Halt execution.
 	 */
-	GIL_OP_HALT,
+	GIL_OP_HALT = 0xffu,
 };
 
 #endif

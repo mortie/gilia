@@ -183,6 +183,14 @@ void gil_vm_print_op(struct gil_io_writer *w, unsigned char *ops, size_t opcount
 		gil_io_printf(w, "DISCARD");
 		return;
 
+	case GIL_OP_DUP:
+		gil_io_printf(w, "DUP");
+		return;
+
+	case GIL_OP_DUP_2:
+		gil_io_printf(w, "DUP_2");
+		return;
+
 	case GIL_OP_SWAP_DISCARD:
 		gil_io_printf(w, "SWAP_DISCARD");
 		return;

@@ -585,6 +585,34 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 			gil_gen_swap_discard(ctx->gen);
 		} else if (
 				gil_token_get_kind(tok) == GIL_TOK_PERIOD &&
+				gil_token_get_kind(tok2) == GIL_TOK_IDENT &&
+				gil_token_get_kind(tok3) == GIL_TOK_IDENT_EQ) {
+			gil_trace_scope("namespace assign with foo=");
+			gil_trace("ident '%s'", gil_token_get_str(&tok2->v));
+			struct gil_token_value ident = gil_token_extract_val(tok2);
+			struct gil_token_value func = gil_token_extract_val(tok3);
+			gil_lexer_consume(ctx->lexer); // '.'
+			gil_lexer_consume(ctx->lexer); // ident
+			gil_lexer_consume(ctx->lexer); // 'foo='
+
+			// Function
+			GIL_GEN(stack_frame_lookup, ctx->gen, func);
+
+			// Args
+			gil_gen_dup_2(ctx->gen); // Get namespace
+			GIL_GEN(namespace_lookup, ctx->gen, ident);
+			if (parse_expression(ctx, depth + 1) < 0) {
+				gil_token_value_free(ident);
+				gil_token_value_free(func);
+				return -1;
+			}
+
+			// <namespace>.a = <result of function call>
+			gil_gen_func_call(ctx->gen, 2);
+			GIL_GEN(namespace_set, ctx->gen, ident);
+			gil_gen_swap_discard(ctx->gen);
+		} else if (
+				gil_token_get_kind(tok) == GIL_TOK_PERIOD &&
 				gil_token_get_kind(tok2) == GIL_TOK_IDENT) {
 			gil_trace_scope("namespace lookup");
 			gil_trace("ident '%s'", gil_token_get_str(&tok2->v));
@@ -721,7 +749,11 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 
 		// Args
 		GIL_GEN(stack_frame_lookup, ctx->gen, ident);
-		parse_expression(ctx, depth + 1);
+		if (parse_expression(ctx, depth + 1) < 0) {
+			gil_token_value_free(ident);
+			gil_token_value_free(func);
+			return -1;
+		}
 
 		// a = <result of function call>
 		gil_gen_func_call(ctx->gen, 2);
