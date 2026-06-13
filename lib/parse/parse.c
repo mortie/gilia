@@ -595,12 +595,14 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 			gil_lexer_consume(ctx->lexer); // ident
 			gil_lexer_consume(ctx->lexer); // 'foo='
 
+			// Left-hand side
+			gil_gen_dup(ctx->gen); // Get namespace
+			GIL_GEN(namespace_lookup, ctx->gen, ident);
+
 			// Function
 			GIL_GEN(stack_frame_lookup, ctx->gen, func);
 
-			// Args
-			gil_gen_dup_2(ctx->gen); // Get namespace
-			GIL_GEN(namespace_lookup, ctx->gen, ident);
+			// Right-hand side
 			if (parse_expression(ctx, depth + 1) < 0) {
 				gil_token_value_free(ident);
 				gil_token_value_free(func);
@@ -608,7 +610,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 			}
 
 			// <namespace>.a = <result of function call>
-			gil_gen_func_call(ctx->gen, 2);
+			gil_gen_func_call_infix(ctx->gen);
 			GIL_GEN(namespace_set, ctx->gen, ident);
 			gil_gen_swap_discard(ctx->gen);
 		} else if (
@@ -644,18 +646,20 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 			gil_lexer_consume(ctx->lexer); // dot-number
 			gil_lexer_consume(ctx->lexer); // 'foo='
 
+			// Left-hand side
+			gil_gen_dup(ctx->gen); // Get array
+			gil_gen_array_lookup(ctx->gen, number);
+
 			// Function
 			GIL_GEN(stack_frame_lookup, ctx->gen, func);
 
-			// Args
-			gil_gen_dup_2(ctx->gen); // Get array
-			gil_gen_array_lookup(ctx->gen, number);
+			// Right-hand side
 			if (parse_expression(ctx, depth + 1) < 0) {
 				return -1;
 			}
 
 			// <arr>.1 = <result of function call>
-			gil_gen_func_call(ctx->gen, 2);
+			gil_gen_func_call_infix(ctx->gen);
 			gil_gen_array_set(ctx->gen, number);
 			gil_gen_swap_discard(ctx->gen);
 		} else if (gil_token_get_kind(tok) == GIL_TOK_DOT_NUMBER) {
@@ -683,12 +687,38 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 			}
 			gil_lexer_consume(ctx->lexer); // ')'
 
-			if (gil_token_get_kind(gil_lexer_peek(ctx->lexer, 1)) == GIL_TOK_EQUALS) {
+			// Here, the stack is:
+			// * Index <- Top
+			// * Object to be indexed
+
+			tok = gil_lexer_peek(ctx->lexer, 1);
+			if (gil_token_get_kind(tok) == GIL_TOK_EQUALS) {
 				gil_lexer_consume(ctx->lexer); // '='
 				if (parse_expression(ctx, depth + 1) < 0) {
 					return -1;
 				}
 
+				gil_gen_dynamic_set(ctx->gen);
+			} else if (gil_token_get_kind(tok) == GIL_TOK_IDENT_EQ) {
+				struct gil_token_value func = gil_token_extract_val(tok);
+				gil_lexer_consume(ctx->lexer); // 'foo='
+
+				// Perform lookup
+				gil_gen_dup_2(ctx->gen);
+				gil_gen_dup_2(ctx->gen);
+				gil_gen_dynamic_lookup(ctx->gen);
+
+				// Function
+				GIL_GEN(stack_frame_lookup, ctx->gen, func);
+
+				// Right-hand side
+				if (parse_expression(ctx, depth + 1) < 0) {
+					gil_token_value_free(func);
+					return -1;
+				}
+
+				// Call and assign
+				gil_gen_func_call_infix(ctx->gen);
 				gil_gen_dynamic_set(ctx->gen);
 			} else {
 				gil_gen_dynamic_lookup(ctx->gen);
@@ -767,11 +797,13 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 		gil_lexer_consume(ctx->lexer); // ident
 		gil_lexer_consume(ctx->lexer); // foo=
 
+		// Left-hand side
+		GIL_GEN(stack_frame_lookup, ctx->gen, ident);
+
 		// Function
 		GIL_GEN(stack_frame_lookup, ctx->gen, func);
 
-		// Args
-		GIL_GEN(stack_frame_lookup, ctx->gen, ident);
+		// Right-hand side
 		if (parse_expression(ctx, depth + 1) < 0) {
 			gil_token_value_free(ident);
 			gil_token_value_free(func);
@@ -779,7 +811,7 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 		}
 
 		// a = <result of function call>
-		gil_gen_func_call(ctx->gen, 2);
+		gil_gen_func_call_infix(ctx->gen);
 		GIL_GEN(stack_frame_replace, ctx->gen, ident);
 	} else {
 		if (parse_arg_level_expression(ctx, depth + 1) < 0) {

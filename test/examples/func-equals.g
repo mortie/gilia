@@ -19,3 +19,25 @@ a := [10 20 30]
 a.1 -= 5
 print a.1
 # => 15
+
+# And dynamic lookup
+a := [10 20 30]
+a.(2 - 1) *= 3
+print a.1
+# => 60
+
+# ... For namespaces too
+a := {bob: 3; alice: 10}
+a.('alice) /= 2
+print a.alice
+# => 5
+
+# And nesting!
+a := {
+	b: [
+		{c: 1}
+	]
+}
+a.('b).(0).c += 3
+print a.b.0.c
+# => 4
