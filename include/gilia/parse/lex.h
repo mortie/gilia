@@ -52,6 +52,13 @@ struct gil_token_value {
 	};
 };
 
+#define gil_token_value_free(val) \
+	if (!((val).flags & GIL_TOK_SMALL)) free((val).str)
+#define gil_token_value_str(val) \
+	((val).flags & GIL_TOK_SMALL \
+	? (val).strbuf \
+	: (val).str)
+
 struct gil_token {
 	int line;
 	int ch;

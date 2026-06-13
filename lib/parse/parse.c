@@ -17,6 +17,12 @@
 	? gil_gen_ ## name ## _copy(gen, (val).strbuf) \
 	: gil_gen_ ## name(gen, &(val).str))
 
+// Like GIL_GEN, but with another parameter.
+#define GIL_GEN2(name, gen, param, val) \
+	((val).flags & GIL_TOK_SMALL \
+	? gil_gen_ ## name ## _copy(gen, (param), (val).strbuf) \
+	: gil_gen_ ## name(gen, (param), &(val).str))
+
 static int tok_is_end(struct gil_token *tok) {
 	enum gil_token_kind kind = gil_token_get_kind(tok);
 	return
@@ -134,30 +140,19 @@ static int parse_use(struct gil_parse_context *ctx, int depth) {
 	struct gil_token_value name = gil_token_extract_val(tok);
 	gil_lexer_consume(ctx->lexer); // ident
 
+	const char *str = gil_token_value_str(name);
 	char *err;
-	if (name.flags & GIL_TOK_SMALL) {
-		if (gil_gen_import_copy(ctx->gen, name.strbuf, &err, import_callback, ctx, depth) < 0) {
-			if (err) {
-				gil_parse_err(ctx->err, tok, "'%s': %s", name.strbuf, err);
-				free(err);
-			}
-			return -1;
+	int ret = gil_gen_import_copy(ctx->gen, str, &err, import_callback, ctx, depth);
+	if (ret < 0) {
+		if (err) {
+			gil_parse_err(ctx->err, tok, "'%s': %s", str, err);
+			free(err);
 		}
-
-		gil_gen_stack_frame_set_copy(ctx->gen, name.strbuf);
-	} else {
-		if (gil_gen_import_copy(ctx->gen, name.str, &err, import_callback, ctx, depth) < 0) {
-			if (err) {
-				gil_parse_err(ctx->err, tok, "'%s': %s", name.str, err);
-				free(err);
-			}
-			free(name.str);
-			return -1;
-		}
-
-		gil_gen_stack_frame_set(ctx->gen, &name.str);
+		gil_token_value_free(name);
+		return -1;
 	}
 
+	GIL_GEN(stack_frame_set, ctx->gen, name);
 	return 0;
 }
 
@@ -184,7 +179,7 @@ static int parse_object_literal(struct gil_parse_context *ctx, int depth) {
 
 		tok = gil_lexer_peek(ctx->lexer, 1);
 		if (gil_token_get_kind(tok) != GIL_TOK_COLON) {
-			if (!(key.flags & GIL_TOK_SMALL)) free(key.str);
+			gil_token_value_free(key);
 			gil_parse_err(ctx->err, tok, "In object literal: Expected ':', got %s",
 					gil_token_get_name(tok));
 			return -1;
@@ -193,16 +188,11 @@ static int parse_object_literal(struct gil_parse_context *ctx, int depth) {
 		gil_lexer_consume(ctx->lexer); // ':'
 
 		if (parse_expression(ctx, depth + 1) < 0) {
-			if (!(key.flags & GIL_TOK_SMALL)) free(key.str);
+			gil_token_value_free(key);
 			return -1;
 		}
 
-		if (key.flags & GIL_TOK_SMALL) {
-			gil_gen_namespace_set_copy(ctx->gen, key.strbuf);
-		} else {
-			gil_gen_namespace_set(ctx->gen, &key.str);
-		}
-
+		GIL_GEN(namespace_set, ctx->gen, key);
 		gil_gen_discard(ctx->gen);
 
 		tok = gil_lexer_peek(ctx->lexer, 1);
@@ -304,13 +294,7 @@ static int parse_function_literal_with_introducer(struct gil_parse_context *ctx,
 		struct gil_token_value ident = gil_token_extract_val(tok);
 		gil_lexer_consume(ctx->lexer); // ident
 
-		if (ident.flags & GIL_TOK_SMALL) {
-			gil_gen_named_param_copy(
-					ctx->gen, param_idx, ident.strbuf);
-		} else {
-			gil_gen_named_param(
-					ctx->gen, param_idx, &ident.str);
-		}
+		GIL_GEN2(named_param, ctx->gen, param_idx, ident);
 
 		tok = gil_lexer_peek(ctx->lexer, 1);
 		if (gil_token_get_kind(tok) == GIL_TOK_OPEN_PAREN_NS) {
@@ -447,12 +431,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 			gil_gen_stack_frame_get_args(ctx->gen);
 		} else {
 			gil_lexer_consume(ctx->lexer); // ident
-
-			if (ident.flags & GIL_TOK_SMALL) {
-				gil_gen_stack_frame_lookup_copy(ctx->gen, ident.strbuf);
-			} else {
-				gil_gen_stack_frame_lookup(ctx->gen, &ident.str);
-			}
+			GIL_GEN(stack_frame_lookup, ctx->gen, ident);
 		}
 	} else if (gil_token_get_kind(tok) == GIL_TOK_NUMBER) {
 		gil_trace_scope("number literal");
@@ -466,12 +445,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 		gil_trace("string '%s'", gil_token_get_str(&tok->v));
 		struct gil_token_value str = gil_token_extract_val(tok);
 		gil_lexer_consume(ctx->lexer); // string
-
-		if (str.flags & GIL_TOK_SMALL) {
-			gil_gen_string_copy(ctx->gen, str.strbuf);
-		} else {
-			gil_gen_string(ctx->gen, &str.str);
-		}
+		GIL_GEN(string, ctx->gen, str);
 	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_QUOT &&
 			gil_token_get_kind(tok2) == GIL_TOK_IDENT) {
@@ -480,12 +454,7 @@ static int parse_arg_level_expression_base(struct gil_parse_context *ctx, int de
 		struct gil_token_value ident = gil_token_extract_val(tok2);
 		gil_lexer_consume(ctx->lexer); // "'"
 		gil_lexer_consume(ctx->lexer); // ident
-
-		if (ident.flags & GIL_TOK_SMALL) {
-			gil_gen_atom_copy(ctx->gen, ident.strbuf);
-		} else {
-			gil_gen_atom(ctx->gen, &ident.str);
-		}
+		GIL_GEN(atom, ctx->gen, ident);
 	} else if (gil_token_get_kind(tok) == GIL_TOK_OPEN_BRACE) {
 		if (parse_object_or_function_literal(ctx, depth + 1) < 0) {
 			return -1;
@@ -608,15 +577,11 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 			gil_lexer_consume(ctx->lexer); // '='
 
 			if (parse_expression(ctx, depth + 1) < 0) {
-			if (!(ident.flags & GIL_TOK_SMALL)) free(ident.str);
+				gil_token_value_free(ident);
 				return -1;
 			}
 
-			if (ident.flags & GIL_TOK_SMALL) {
-				gil_gen_namespace_set_copy(ctx->gen, ident.strbuf);
-			} else {
-				gil_gen_namespace_set(ctx->gen, &ident.str);
-			}
+			GIL_GEN(namespace_set, ctx->gen, ident);
 			gil_gen_swap_discard(ctx->gen);
 		} else if (
 				gil_token_get_kind(tok) == GIL_TOK_PERIOD &&
@@ -627,11 +592,7 @@ static int parse_arg_level_expression(struct gil_parse_context *ctx, int depth) 
 			gil_lexer_consume(ctx->lexer); // '.'
 			gil_lexer_consume(ctx->lexer); // ident
 
-			if (ident.flags & GIL_TOK_SMALL) {
-				gil_gen_namespace_lookup_copy(ctx->gen, ident.strbuf);
-			} else {
-				gil_gen_namespace_lookup(ctx->gen, &ident.str);
-			}
+			GIL_GEN(namespace_lookup, ctx->gen, ident);
 		} else if (
 				gil_token_get_kind(tok) == GIL_TOK_DOT_NUMBER &&
 				gil_token_get_kind(tok2) == GIL_TOK_EQUALS) {
@@ -724,15 +685,11 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 		gil_lexer_consume(ctx->lexer); // :=
 
 		if (parse_expression(ctx, depth + 1) < 0) {
-			if (!(ident.flags & GIL_TOK_SMALL)) free(ident.str);
+			gil_token_value_free(ident);
 			return -1;
 		}
 
-		if (ident.flags & GIL_TOK_SMALL) {
-			gil_gen_stack_frame_set_copy(ctx->gen, ident.strbuf);
-		} else {
-			gil_gen_stack_frame_set(ctx->gen, &ident.str);
-		}
+		GIL_GEN(stack_frame_set, ctx->gen, ident);
 	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_EQUALS) {
@@ -743,15 +700,11 @@ static int parse_expression(struct gil_parse_context *ctx, int depth) {
 		gil_lexer_consume(ctx->lexer); // =
 
 		if (parse_expression(ctx, depth + 1) < 0) {
-			if (!(ident.flags & GIL_TOK_SMALL)) free(ident.str);
+			gil_token_value_free(ident);
 			return -1;
 		}
 
-		if (ident.flags & GIL_TOK_SMALL) {
-			gil_gen_stack_frame_replace_copy(ctx->gen, ident.strbuf);
-		} else {
-			gil_gen_stack_frame_replace(ctx->gen, &ident.str);
-		}
+		GIL_GEN(stack_frame_replace, ctx->gen, ident);
 	} else if (
 			gil_token_get_kind(tok) == GIL_TOK_IDENT &&
 			gil_token_get_kind(tok2) == GIL_TOK_IDENT_EQ) {
