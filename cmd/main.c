@@ -102,7 +102,7 @@ static void step_through(struct gil_vm *vm) {
 	}
 }
 
-static void repl() {
+static void repl(void) {
 	struct gil_io_mem_writer w = {
 		.w.write = gil_io_mem_write,
 	};

@@ -30,12 +30,12 @@ describe(gil_strset) {
 	it("handles a whole bunch of values") {
 		char buf[128];
 		for (int i = 0; i < 1000; ++i) {
-			sprintf(buf, "test-%d", i);
+			snprintf(buf, sizeof(buf), "test-%d", i);
 			asserteq(gil_strset_put_copy(&set, buf), i + 1);
 		}
 
 		for (int i = 0; i < 1000; ++i) {
-			sprintf(buf, "test-%d", i);
+			snprintf(buf, sizeof(buf), "test-%d", i);
 			asserteq(gil_strset_get(&set, buf), i + 1);
 		}
 	}
