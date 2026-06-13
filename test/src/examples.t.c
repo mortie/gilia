@@ -168,6 +168,7 @@ describe(exaples) {
 	check("func-equals.g");
 	check("functions.g");
 	check("namespaces.g");
+	check("readme.g");
 
 	if (error_message != NULL) {
 		free(error_message);

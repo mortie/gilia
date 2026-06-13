@@ -46,7 +46,7 @@ it's just a normal function call.
 
 Semicolons are unnecessary:
 
-	print "Hello World
+	print "Hello World"
 	print "Goodbye World"
 	print "See You"
 
@@ -64,9 +64,9 @@ is the result of calling `<` on `i` and `20`, and the second argument is a lambd
 While loops are also cool:
 
 	i := 0
-	while {i < 10} {
+	while {i < 5} {
 		print i
-		i = i + 1
+		i += 1
 	}
 
 Here, the first argument is a condition function, and the second argument is
@@ -89,13 +89,58 @@ another function, and this is normal function call syntax.
 The arrows `->` is a generic line continuation syntax, to tell the parser
 that the logical line isn't over yet.
 
+We have objects ("namespaces", as Gilia calls them):
+
+	alice := {
+		name: "Alice"
+		age: 32
+		profession: "Programming Language Developer"
+	}
+	print alice.name # Prints "Alice"
+
+These are implemented as integer-to-value-ref hash maps,
+where the key is an "atom"; an integer representing a specific compile-time string.
+This means that namespace lookups are relatively fast;
+no strings are involved.
+
+And we have arrays:
+
+	numbers := [10 20 30]
+	print numbers.0 # Prints 10
+
+Dynamic indexing is a bit interesting, re-using the dot syntax:
+
+	numbers := [10 20 30 40]
+	get-value := |base offset| {numbers.(base + offset)}
+	print (get-value 1 2) # Prints 40, since that's at index 3
+
+Dynamic indexing also works on namespaces:
+
+	alice := {
+		name: "Alice"
+		age: 32
+		profession: "Programming Language Developer"
+	}
+	get-field := |field| {alice.(field)}
+	print (get-field 'age) # Prints 32
+
+This `'blah` syntax gets the "atom" representing the compile-time string `blah`.
+
+Iterators are functions which return values and stop once they return `'stop`:
+
+	values := [10 20 30 40]
+	index := 0
+	iter := {
+		guard index >= len(values) {'stop}
+		ret := [index values.(index)]
+		index += 1
+		ret
+	}
+	for iter print # Prints [0 10], [1 20], [2 30], [3 40]
+
+Oh, and that guard function is essentially: "return if condition is true".
+
 ## TODO
-
-### Clean up the SBO stuff in the parser
-
-In the parser and bytecode generator, small buffer optimization (SBO) is used
-a lot to avoid small allocations. However, the implementation of this
-should be cleaned up.
 
 ### Cleanup the main.c file
 
