@@ -48,7 +48,6 @@ static int parse_text(FILE *inf, struct gil_io_mem_writer *w) {
 	// Init gen with its output writer
 	struct gil_generator gen;
 	gil_gen_init(&gen, &w->w, &builtins.base, &resolver.base);
-
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_gen_register_module(&gen, modules[i]);
 	}
@@ -115,9 +114,15 @@ static void repl(void) {
 
 	struct gil_generator gen;
 	gil_gen_init(&gen, &w.w, &builtins.base, NULL);
+	for (size_t i = 0; i < moduleslen; ++i) {
+		gil_gen_register_module(&gen, modules[i]);
+	}
 
 	struct gil_vm vm;
 	gil_vm_init(&vm, NULL, 0, &builtins.base);
+	for (size_t i = 0; i < moduleslen; ++i) {
+		gil_vm_register_module(&vm, modules[i]);
+	}
 
 	struct gil_io_file_writer stdout_writer = {
 		.w.write = gil_io_file_write,
@@ -398,7 +403,6 @@ int main(int argc, char **argv) {
 
 	struct gil_vm vm;
 	gil_vm_init(&vm, bytecode_writer.mem, bytecode_writer.len, &builtins.base);
-
 	for (size_t i = 0; i < moduleslen; ++i) {
 		gil_vm_register_module(&vm, modules[i]);
 	}
