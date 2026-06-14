@@ -231,9 +231,13 @@ int gil_gen_import_copy(
 	 */
 
 	if (gen->resolver == NULL) {
-		*err = gil_strf("No such module");
+		*err = gil_strf("Module imports are disabled");
 		return -1;
-	} char *normalized_path = gen->resolver->normalize(gen->resolver, str, err); if (normalized_path == NULL) { return -1;
+	}
+
+	char *normalized_path = gen->resolver->normalize(gen->resolver, str, err);
+	if (normalized_path == NULL) {
+		return -1;
 	}
 
 	gil_word id = gil_strset_get(&gen->moduleset, normalized_path);
@@ -248,6 +252,7 @@ int gil_gen_import_copy(
 	struct gil_io_reader *reader = gen->resolver->create_reader(
 			gen->resolver, normalized_path, err);
 	if (reader == NULL) {
+		*err = gil_strf("Failed to create reader for module '%s'", normalized_path);
 		free(normalized_path);
 		return -1;
 	}
@@ -255,8 +260,8 @@ int gil_gen_import_copy(
 	int ret = callback(reader, data, depth);
 	gen->resolver->destroy_reader(gen->resolver, reader);
 	if (ret < 0) {
+		*err = gil_strf("Failed to parse module '%s'", normalized_path);
 		free(normalized_path);
-		*err = NULL;
 		return -1;
 	} else {
 		free(normalized_path);

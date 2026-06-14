@@ -98,12 +98,12 @@ static gil_word name(\
 	if (gil_value_get_type(first) != GIL_VAL_TYPE_REAL) { \
 		return gil_vm_type_error(vm, first); \
 	} \
+	double sum = first->real.real; \
 	if (argc == 1) { \
 		gil_word id = gil_vm_alloc(vm, GIL_VAL_TYPE_REAL, 0); \
-		vm->values[id].real.real = identity op first->real.real; \
+		vm->values[id].real.real = identity op sum; \
 		return id; \
 	} \
-	double sum = first->real.real; \
 	for (gil_word i = 1; i < argc; ++i) { \
 		struct gil_vm_value *val = &vm->values[argv[i]]; \
 		if (gil_value_get_type(val) != GIL_VAL_TYPE_REAL) { \

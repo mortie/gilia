@@ -22,7 +22,13 @@ static char *normalize(
 	struct gil_fs_resolver *rs = (struct gil_fs_resolver *)resolver;
 	char path[GIL_FS_RESOLVER_PATH_MAX];
 	snprintf(path, sizeof(path), "%s/%s", rs->head->dirpath, str);
-	return realpath(path, NULL);
+	char *normalized = realpath(path, NULL);
+	if (normalized == NULL) {
+		*err = gil_strf("'%s': No such file or directory", path);
+		return NULL;
+	}
+
+	return normalized;
 }
 
 static struct gil_io_reader *create_reader(

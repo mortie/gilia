@@ -141,7 +141,7 @@ static int parse_use(struct gil_parse_context *ctx, int depth) {
 	gil_lexer_consume(ctx->lexer); // ident
 
 	const char *str = gil_token_value_str(name);
-	char *err;
+	char *err = NULL;
 	int ret = gil_gen_import_copy(ctx->gen, str, &err, import_callback, ctx, depth);
 	if (ret < 0) {
 		if (err) {
