@@ -225,6 +225,7 @@ static void usage(const char *argv0) {
 	printf("  --step:            Step through the program\n");
 	printf("  --repl:            Start a repl\n");
 	printf("  --output,-o <out>: Write bytecode to file\n");
+	printf("  --bc:              Allow reading bytecode files\n");
 #ifdef USE_POSIX
 	printf("  --timeout <secs>:  Run instructions for <secs> seconds\n");
 #endif
@@ -232,7 +233,7 @@ static void usage(const char *argv0) {
 	printf("  --trace-lexer:     Trace the lexer\n");
 	printf("  --trace-parser:    Trace the parser\n");
 	printf("  --trace-bc:        Trace the bytecode generator\n");
-	printf("  --trace-vm:        Trace the lexer\n");
+	printf("  --trace-vm:        Trace VM bytecode execution\n");
 #endif
 }
 
@@ -242,6 +243,7 @@ int main(int argc, char **argv) {
 #endif
 
 	int was_inf_set = 0;
+	int enable_bc = 0;
 	FILE *inf = stdin;
 	FILE *outbc = NULL;
 
@@ -276,6 +278,8 @@ int main(int argc, char **argv) {
 					return 1;
 				}
 			}
+		} else if (!dashes && strcmp(argv[i], "--bc") == 0) {
+			enable_bc = 1;
 #ifdef USE_POSIX
 		} else if (!dashes && strcmp(argv[i], "--timeout") == 0) {
 			if (i == argc - 1) {
@@ -359,6 +363,10 @@ int main(int argc, char **argv) {
 			fread(header, 1, 4, inf) >= 4 &&
 			header[0] == 0x1b && header[1] == 0x67 &&
 			header[2] == 0x6c && header[3] == 0x63) {
+		if (!enable_bc) {
+			fprintf(stderr, "Refusing to use bytecode file without --bc.\n");
+			return 1;
+		}
 		if (gil_bc_load(inf, &bytecode_writer.w) < 0) {
 			return 1;
 		}
