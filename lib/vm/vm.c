@@ -394,11 +394,18 @@ size_t gil_vm_gc(struct gil_vm *vm) {
 		gc_mark_base(vm, vm->fstack[fsptr].args);
 	}
 
-	// Mark for all loaded modules
+	// Mark for all loaded C modules
 	for (size_t i = 0; i < vm->cmoduleslen; ++i) {
 		if (vm->cmodules[i].ns) {
 			gc_mark_base(vm, vm->cmodules[i].ns);
 			vm->cmodules[i].mod->marker(vm->cmodules[i].mod, vm, gc_mark_base);
+		}
+	}
+
+	// Mark for all loaded Gilia modules
+	for (size_t i = 0; i < vm->moduleslen; ++i) {
+		if (vm->modules[i].ns) {
+			gc_mark_base(vm, vm->modules[i].ns);
 		}
 	}
 
@@ -1055,7 +1062,7 @@ void gil_vm_step(struct gil_vm *vm) {
 			if (vm->cmodules[i].id == word) {
 				if (vm->cmodules[i].ns == vm->knone) {
 					vm->cmodules[i].ns = vm->cmodules[i].mod->create(
-							vm->cmodules[i].mod, vm, i);
+						vm->cmodules[i].mod, vm, i);
 				}
 				vm->stack[vm->sptr++] = vm->cmodules[i].ns;
 				found = 1;

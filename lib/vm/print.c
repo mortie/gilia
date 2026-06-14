@@ -108,7 +108,7 @@ void gil_vm_print_val(struct gil_io_writer *w, struct gil_vm_value *val) {
 		break;
 
 	case GIL_VAL_TYPE_FUNCTION:
-		gil_io_printf(w, "FUNCTION, pos %u, ns %u", val->func.pos, val->func.ns);
+		gil_io_printf(w, "FUNCTION, pos %u, self %u, ns %u", val->func.pos, val->func.self, val->func.ns);
 		break;
 
 	case GIL_VAL_TYPE_CFUNCTION:
@@ -139,6 +139,11 @@ void gil_vm_print_val(struct gil_io_writer *w, struct gil_vm_value *val) {
 }
 
 void gil_vm_print_state(struct gil_io_writer *w, struct gil_vm *vm) {
+	gil_io_printf(w, "Modules:\n");
+	for (size_t i = 0; i < vm->moduleslen; ++i) {
+		gil_io_printf(w, "  %zu: %u, ns %u\n", i, vm->modules[i].pos, vm->modules[i].ns);
+	}
+
 	gil_io_printf(w, "Heap:\n");
 	gil_vm_print_heap(w, vm);
 	gil_io_printf(w, "Stack:\n");
@@ -165,7 +170,7 @@ void gil_vm_print_stack(struct gil_io_writer *w, struct gil_vm *vm) {
 
 void gil_vm_print_fstack(struct gil_io_writer *w, struct gil_vm *vm) {
 	for (gil_word i = 0; i < vm->fsptr; ++i) {
-		gil_io_printf(w, "  %i: %i, ret %i, stack base %u, args %u\n",
+		gil_io_printf(w, "  %i: ns %i, ret %i, stack base %u, args %u\n",
 				i, vm->fstack[i].ns, (int)vm->fstack[i].retptr,
 				vm->fstack[i].sptr, vm->fstack[i].args);
 	}
