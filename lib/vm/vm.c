@@ -1059,15 +1059,17 @@ void gil_vm_step(struct gil_vm *vm) {
 		word = read_uint(vm);
 		int found = 0;
 		for (size_t i = 0; i < vm->cmoduleslen; ++i) {
-			if (vm->cmodules[i].id == word) {
-				if (vm->cmodules[i].ns == vm->knone) {
-					vm->cmodules[i].ns = vm->cmodules[i].mod->create(
-						vm->cmodules[i].mod, vm, i);
-				}
-				vm->stack[vm->sptr++] = vm->cmodules[i].ns;
-				found = 1;
-				break;
+			if (vm->cmodules[i].id != word) {
+				continue;
 			}
+
+			if (!vm->cmodules[i].ns) {
+				vm->cmodules[i].ns = vm->cmodules[i].mod->create(
+					vm->cmodules[i].mod, vm, i);
+			}
+			vm->stack[vm->sptr++] = vm->cmodules[i].ns;
+			found = 1;
+			break;
 		}
 
 		if (!found) {

@@ -231,7 +231,7 @@ int gil_gen_import_copy(
 	 */
 
 	if (gen->resolver == NULL) {
-		*err = gil_strf("Module imports are disabled");
+		*err = gil_strf("No such module");
 		return -1;
 	}
 
