@@ -95,7 +95,7 @@ static void gc_mark(struct gil_vm *vm, gil_word id, int depth) {
 	} else if (typ == GIL_VAL_TYPE_CONTINUATION) {
 		gc_mark(vm, val->cont.call, depth + 1);
 		if (val->cont.cont != NULL) {
-			if (val->cont.cont->marker != NULL) {
+			if (val->cont.cont->marker) {
 				val->cont.cont->marker(vm, val->cont.cont, depth + 1, gc_mark);
 			}
 			if (val->cont.cont->args != 0) {
@@ -398,6 +398,8 @@ size_t gil_vm_gc(struct gil_vm *vm) {
 	for (size_t i = 0; i < vm->cmoduleslen; ++i) {
 		if (vm->cmodules[i].ns) {
 			gc_mark_base(vm, vm->cmodules[i].ns);
+		}
+		if (vm->cmodules[i].mod->marker) {
 			vm->cmodules[i].mod->marker(vm->cmodules[i].mod, vm, gc_mark_base);
 		}
 	}
