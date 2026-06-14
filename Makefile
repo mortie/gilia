@@ -1,7 +1,7 @@
 MAJOR = 0
 MINOR = 1
 
-SRCS = \
+LIB_SRCS = \
 	lib/gen/fs_resolver.c \
 	lib/gen/gen.c \
 	lib/modules/builtins.c \
@@ -18,8 +18,9 @@ SRCS = \
 	lib/str.c \
 	lib/strset.c \
 	lib/trace.c \
-	cmd/main.c \
 #
+
+SRCS = $(LIB_SRCS) cmd/main.c
 
 # This is the max depth for all recursive algorithms in Gilia.
 # The assumptions which led to the number are as follows:
@@ -45,6 +46,7 @@ HASH :=
 BUILDDIR ?= build
 OUT ?= $(BUILDDIR)/$(HASH)
 CC ?= cc
+AR ?= ar
 PKG_CONFIG ?= pkg-config
 
 ifeq ($(RELEASE),1)
@@ -89,8 +91,16 @@ $(OUT)/gilia: $(patsubst %,$(OUT)/%.o,$(SRCS))
 	@mkdir -p $(@D)
 	$(call exec,LD ,$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS))
 
-$(OUT)/libgilia.so: $(patsubst %,$(OUT)/%.o,$(SRCS))
+.PHONY: dynlib
+dynlib: $(OUT)/libgilia.so
+$(OUT)/libgilia.so: $(patsubst %,$(OUT)/%.o,$(LIB_SRCS))
 	$(call exec,LD ,$(CC) $(LDFLAGS) -shared -o $@ $^ $(LDLIBS))
+
+.PHONY: staticlib
+staticlib: $(OUT)/libgilia.a
+$(OUT)/libgilia.a: $(patsubst %,$(OUT)/%.o,$(LIB_SRCS))
+	@rm -f $@
+	$(call exec,AR ,$(AR) r $@ $^)
 
 $(OUT)/%.c.o: %.c $(OUT)/%.c.d
 	@mkdir -p $(@D)
